@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://cxxhylr53k0jq"]
+
+[ext_resource type="Script" uid="uid://dc2ysiwkoh2mc" path="res://Scripts/Ship.cs" id="1_ship"]
+
+[node name="Main" type="Node2D" unique_id=1831022065]
+
+[node name="Ship" type="Node2D" parent="." unique_id=2133725480]
+script = ExtResource("1_ship")
+
+[node name="Hull" type="Node2D" parent="Ship" unique_id=1927152645]
+
+[node name="ModulePostion" type="Node2D" parent="Ship" unique_id=862518302]
+
+[node name="Modules" type="Node2D" parent="." unique_id=1993176079]
+
+[node name="WeaponModule" type="Node2D" parent="Modules" unique_id=513967530]
+
+[node name="MachineGun" type="Node2D" parent="Modules/WeaponModule" unique_id=1759117954]
+
+[node name="Turret" type="Node2D" parent="Modules/WeaponModule/MachineGun" unique_id=282245631]
+
+[node name="Muzzle" type="Marker2D" parent="Modules/WeaponModule/MachineGun/Turret" unique_id=923400191]
+
+[node name="ShieldModule" type="Node2D" parent="Modules" unique_id=1912428641]
+
+[node name="EnergyModule" type="Node2D" parent="Modules" unique_id=1584058836]
+
+[node name="MiningModule" type="Node2D" parent="Modules" unique_id=760131438]
+
+[node name="SupportModule" type="Node2D" parent="Modules" unique_id=700909208]
+
+[node name="CargoModule" type="Node2D" parent="Modules" unique_id=1023213223]

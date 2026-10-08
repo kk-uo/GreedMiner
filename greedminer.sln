@@ -1,0 +1,19 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "greedminer", "greedminer.csproj", "{EEDA287C-4D89-4F4F-86FC-D0390E36C9BA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+	Debug|Any CPU = Debug|Any CPU
+	ExportDebug|Any CPU = ExportDebug|Any CPU
+	ExportRelease|Any CPU = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EEDA287C-4D89-4F4F-86FC-D0390E36C9BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EEDA287C-4D89-4F4F-86FC-D0390E36C9BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EEDA287C-4D89-4F4F-86FC-D0390E36C9BA}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{EEDA287C-4D89-4F4F-86FC-D0390E36C9BA}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{EEDA287C-4D89-4F4F-86FC-D0390E36C9BA}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{EEDA287C-4D89-4F4F-86FC-D0390E36C9BA}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+	EndGlobalSection
+EndGlobal

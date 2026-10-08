@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://c64nib6d7gl86"]
+
+[node name="MachineGun" type="Node2D" unique_id=1144851608]
+
+[node name="Turret" type="Node2D" parent="." unique_id=1483296204]
+
+[node name="Muzzle" type="Marker2D" parent="Turret" unique_id=2104596228]
