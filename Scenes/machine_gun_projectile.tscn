@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://cgtca25tow6y2"]
+
+[ext_resource type="Script" path="res://Scripts/MachineGunProjectile.gd" id="1_c2b7k"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_p781i"]
+radius = 4.0
+
+[node name="MachineGunProjectile" type="Area2D" unique_id=274201399]
+script = ExtResource("1_c2b7k")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1742145422]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=111042357]
+shape = SubResource("CircleShape2D_p781i")

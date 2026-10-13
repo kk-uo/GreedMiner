@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://o1ykr8844c3t"]
+
+[ext_resource type="Script" path="res://Scripts/BasicEnemy.gd" id="1_mbxfi"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ch6oa"]
+radius = 16.0
+
+[node name="BasicEnemy" type="Area2D" unique_id=1649222840]
+script = ExtResource("1_mbxfi")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1156962871]
+shape = SubResource("CircleShape2D_ch6oa")

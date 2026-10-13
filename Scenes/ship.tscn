@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bmc5448fdff0y"]
+
+[ext_resource type="Script" uid="uid://d11nbr4bs5mdi" path="res://Scripts/Ship.gd" id="1_78pfh"]
+
+[node name="Ship" type="Node2D" unique_id=358743098]
+script = ExtResource("1_78pfh")
+
+[node name="Hull" type="Node2D" parent="." unique_id=1718741491]
+
+[node name="ModulePostion" type="Node2D" parent="." unique_id=1436467530]
+
+[node name="InstalledModules" type="Node2D" parent="." unique_id=1736183376]

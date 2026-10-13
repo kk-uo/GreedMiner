@@ -1,0 +1,132 @@
+[gd_scene load_steps=7 format=3 uid="uid://dqgnhryetegf7"]
+
+[ext_resource type="PackedScene" uid="uid://bmc5448fdff0y" path="res://Scenes/ship.tscn" id="1_as76v"]
+[ext_resource type="Script" path="res://Scripts/BaseMain.gd" id="2_base"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_popup"]
+content_margin_left = 12.0
+content_margin_top = 10.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
+bg_color = Color(0.035, 0.047, 0.067, 0.97)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.29, 0.72, 0.85, 0.85)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_button"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.09, 0.13, 0.18, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.22, 0.33, 0.42, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_button_hover"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.12, 0.25, 0.31, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.86, 1, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_button_pressed"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.06, 0.42, 0.5, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.65, 0.95, 1, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="BaseMain" type="Node2D" unique_id=1486364980]
+script = ExtResource("2_base")
+
+[node name="Ship" parent="." unique_id=358743098 instance=ExtResource("1_as76v")]
+assembly_mode = true
+
+[node name="BaseUI" type="CanvasLayer" parent="." unique_id=1620223134]
+
+[node name="ModulePopup" type="PanelContainer" parent="BaseUI"]
+visible = false
+offset_right = 156.0
+offset_bottom = 116.0
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBox_popup")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="BaseUI/ModulePopup"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="BaseUI/ModulePopup/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 15
+text = "Select Module"
+horizontal_alignment = 1
+
+[node name="MachineGunOption" type="Button" parent="BaseUI/ModulePopup/VBoxContainer"]
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_styles/normal = SubResource("StyleBox_button")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+text = "Machine Gun"
+
+[node name="EmptyOption" type="Button" parent="BaseUI/ModulePopup/VBoxContainer"]
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_styles/normal = SubResource("StyleBox_button")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+text = "Remove Module"
+
+[node name="LaunchBattleButton" type="Button" parent="BaseUI"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -164.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 54.0
+grow_horizontal = 0
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_styles/normal = SubResource("StyleBox_button")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+text = "Launch Mission"
+
+[node name="ModuleInventory" type="Node" parent="." unique_id=1130948990]

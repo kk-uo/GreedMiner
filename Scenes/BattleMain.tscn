@@ -1,0 +1,54 @@
+[gd_scene load_steps=6 format=3 uid="uid://cxxhylr53k0jq"]
+
+[ext_resource type="PackedScene" uid="uid://bmc5448fdff0y" path="res://Scenes/ship.tscn" id="1_rgh2o"]
+[ext_resource type="PackedScene" uid="uid://o1ykr8844c3t" path="res://Scenes/basic_enemy.tscn" id="3_kln2b"]
+[ext_resource type="Script" uid="uid://dc60r8pvo5qd4" path="res://Scenes/enemy_spawner.gd" id="4_rgh2o"]
+[ext_resource type="Script" path="res://Scripts/BattleMain.gd" id="5_battle"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_nav_button"]
+content_margin_left = 12.0
+content_margin_top = 6.0
+content_margin_right = 12.0
+content_margin_bottom = 6.0
+bg_color = Color(0.09, 0.13, 0.18, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.29, 0.72, 0.85, 0.85)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="BattleMain" type="Node2D" unique_id=1831022065]
+script = ExtResource("5_battle")
+
+[node name="Ship" parent="." unique_id=358743098 instance=ExtResource("1_rgh2o")]
+
+[node name="BasicEnemy" parent="." unique_id=1649222840 instance=ExtResource("3_kln2b")]
+position = Vector2(700, 260)
+
+[node name="Enemies" type="Node2D" parent="." unique_id=604526529]
+
+[node name="EnemySpawner" type="Node2D" parent="." unique_id=1952015909]
+script = ExtResource("4_rgh2o")
+enemy_scene = ExtResource("3_kln2b")
+
+[node name="SpawnTimer" type="Timer" parent="EnemySpawner" unique_id=883713288]
+wait_time = 2.0
+autostart = true
+
+[node name="BattleUI" type="CanvasLayer" parent="."]
+
+[node name="ReturnToBaseButton" type="Button" parent="BattleUI"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 156.0
+offset_bottom = 54.0
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_styles/normal = SubResource("StyleBox_nav_button")
+theme_override_styles/hover = SubResource("StyleBox_nav_button")
+theme_override_styles/pressed = SubResource("StyleBox_nav_button")
+text = "Return to Base"

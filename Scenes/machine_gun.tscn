@@ -1,7 +1,15 @@
 [gd_scene format=3 uid="uid://c64nib6d7gl86"]
 
+[ext_resource type="Script" uid="uid://cbdvaa0yfndf" path="res://Scripts/MachineGun.gd" id="1_5nbo0"]
+[ext_resource type="PackedScene" uid="uid://cgtca25tow6y2" path="res://Scenes/machine_gun_projectile.tscn" id="2_paadf"]
+[ext_resource type="Script" uid="uid://wlwrvaql18dr" path="res://Scenes/turret.gd" id="3_3yqks"]
+
 [node name="MachineGun" type="Node2D" unique_id=1144851608]
+script = ExtResource("1_5nbo0")
+projectile_scene = ExtResource("2_paadf")
 
 [node name="Turret" type="Node2D" parent="." unique_id=1483296204]
+script = ExtResource("3_3yqks")
 
 [node name="Muzzle" type="Marker2D" parent="Turret" unique_id=2104596228]
+position = Vector2(16, 0)

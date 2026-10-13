@@ -1,3 +1,18 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+/build/
+.DS_Store
+
+# Root-level Godot Web export artifacts.
+/greedminer.js
+/greedminer.pck
+/greedminer.wasm
+/greedminer.png
+/greedminer.png.import
+/greedminer.icon.png
+/greedminer.icon.png.import
+/greedminer.apple-touch-icon.png
+/greedminer.apple-touch-icon.png.import
+/greedminer.audio.worklet.js
+/greedminer.audio.position.worklet.js
