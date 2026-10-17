@@ -1,6 +1,6 @@
 # GreedMiner 美术风格规范（风格 A · 扁平几何）
 
-所有颜色的唯一来源是 `Scripts/Palette.gd`。代码绘制和 AI 生成的素材都遵守这份规范。
+所有颜色的唯一来源是 `Scripts/Core/Palette.gd`。代码绘制和 AI 生成的素材都遵守这份规范。
 
 ## 核心规则
 

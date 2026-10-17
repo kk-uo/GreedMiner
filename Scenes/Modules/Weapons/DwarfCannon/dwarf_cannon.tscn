@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://tq17yqwqvltq"]
+
+[ext_resource type="Script" uid="uid://bpyy2el25jd58" path="res://Scripts/Modules/Weapons/DwarfCannon/DwarfCannon.gd" id="1_cannon"]
+[ext_resource type="PackedScene" path="res://Scenes/Modules/Weapons/DwarfCannon/dwarf_cannon_projectile.tscn" id="2_projectile"]
+[ext_resource type="Script" uid="uid://4ftaicdrbtba" path="res://Scripts/Modules/Weapons/DwarfCannon/DwarfCannonVisual.gd" id="3_visual"]
+
+[node name="DwarfCannon" type="Node2D" unique_id=1770758933]
+script = ExtResource("1_cannon")
+attack_range = 400.0
+aoe_radius = 60.0
+projectile_scene = ExtResource("2_projectile")
+
+[node name="Turret" type="Node2D" parent="." unique_id=886632683]
+script = ExtResource("3_visual")
+
+[node name="Muzzle" type="Marker2D" parent="Turret" unique_id=25894481]
+position = Vector2(26, 0)

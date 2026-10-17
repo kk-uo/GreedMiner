@@ -1,0 +1,28 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Enemies/RockGolem.gd" id="1_golem"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/little_rock.tscn" id="2_little"]
+
+[sub_resource type="CircleShape2D" id="CircleShape_golem"]
+radius = 24.0
+
+[node name="RockGolem" type="Area2D"]
+script = ExtResource("1_golem")
+enemy_id = &"rock_golem"
+enemy_name = "Rock Golem"
+max_health = 200.0
+move_speed = 25.0
+attack_damage = 10.0
+attack_interval = 1.0
+attack_range = 10.0
+damage_reduction = 0.0
+attack_type = 0
+enemy_tier = 1
+split_enemy_scene = ExtResource("2_little")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape_golem")
+
+[node name="AttackTimer" type="Timer" parent="."]
+
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

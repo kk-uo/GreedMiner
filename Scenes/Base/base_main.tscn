@@ -1,0 +1,207 @@
+[gd_scene format=3 uid="uid://dqgnhryetegf7"]
+
+[ext_resource type="PackedScene" uid="uid://bmc5448fdff0y" path="res://Scenes/Ship/ship.tscn" id="1_as76v"]
+[ext_resource type="Script" uid="uid://du6o04mhv7p52" path="res://Scripts/Base/BaseMain.gd" id="2_base"]
+[ext_resource type="Script" path="res://Scripts/UI/ScaledUIRoot.gd" id="3_ui_scale"]
+[ext_resource type="Script" path="res://Scripts/Battle/Battlefield.gd" id="4_battlefield"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_popup"]
+content_margin_left = 12.0
+content_margin_top = 10.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
+bg_color = Color(0.114, 0.090, 0.078, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.231, 0.208, 0.188, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_button"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.165, 0.137, 0.118, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.165, 0.137, 0.118, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_button_pressed"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.941, 0.541, 0.141, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.941, 0.541, 0.141, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_button_hover"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.231, 0.208, 0.188, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.941, 0.541, 0.141, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_primary"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.941, 0.541, 0.141, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_primary_hover"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(1.000, 0.627, 0.290, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="BaseMain" type="Node2D" unique_id=1486364980]
+script = ExtResource("2_base")
+
+[node name="Battlefield" type="Node2D" parent="."]
+z_index = -100
+script = ExtResource("4_battlefield")
+
+[node name="Ship" parent="." unique_id=358743098 instance=ExtResource("1_as76v")]
+assembly_mode = true
+
+[node name="BaseUI" type="CanvasLayer" parent="." unique_id=1620223134]
+
+[node name="UIRoot" type="Control" parent="BaseUI"]
+mouse_filter = 2
+script = ExtResource("3_ui_scale")
+
+[node name="ModulePopup" type="PanelContainer" parent="BaseUI/UIRoot" unique_id=1151300049]
+visible = false
+offset_right = 174.0
+offset_bottom = 250.0
+theme_override_styles/panel = SubResource("StyleBox_popup")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="BaseUI/UIRoot/ModulePopup" unique_id=843554048]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="BaseUI/UIRoot/ModulePopup/VBoxContainer" unique_id=1507789638]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.941, 0.541, 0.141, 1)
+theme_override_font_sizes/font_size = 15
+text = "Select Module"
+horizontal_alignment = 1
+
+[node name="MachineGunOption" type="Button" parent="BaseUI/UIRoot/ModulePopup/VBoxContainer" unique_id=939731607]
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_pressed_color = Color(0.114, 0.090, 0.078, 1)
+theme_override_colors/font_color = Color(0.949, 0.918, 0.851, 1)
+theme_override_styles/normal = SubResource("StyleBox_button")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+text = "Machine Gun"
+
+[node name="DwarfCannonOption" type="Button" parent="BaseUI/UIRoot/ModulePopup/VBoxContainer"]
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_pressed_color = Color(0.114, 0.090, 0.078, 1)
+theme_override_colors/font_color = Color(0.949, 0.918, 0.851, 1)
+theme_override_styles/normal = SubResource("StyleBox_button")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+text = "Dwarf Cannon"
+
+[node name="LaserOption" type="Button" parent="BaseUI/UIRoot/ModulePopup/VBoxContainer"]
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_pressed_color = Color(0.114, 0.090, 0.078, 1)
+theme_override_colors/font_color = Color(0.949, 0.918, 0.851, 1)
+theme_override_styles/normal = SubResource("StyleBox_button")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+text = "Laser"
+
+[node name="ChainsawOption" type="Button" parent="BaseUI/UIRoot/ModulePopup/VBoxContainer"]
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_pressed_color = Color(0.114, 0.090, 0.078, 1)
+theme_override_colors/font_color = Color(0.949, 0.918, 0.851, 1)
+theme_override_styles/normal = SubResource("StyleBox_button")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+text = "Chainsaw"
+
+[node name="MiningModuleOption" type="Button" parent="BaseUI/UIRoot/ModulePopup/VBoxContainer" unique_id=242429274]
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_pressed_color = Color(0.114, 0.090, 0.078, 1)
+theme_override_colors/font_color = Color(0.949, 0.918, 0.851, 1)
+theme_override_styles/normal = SubResource("StyleBox_button")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+text = "Mining Module"
+
+[node name="EmptyOption" type="Button" parent="BaseUI/UIRoot/ModulePopup/VBoxContainer" unique_id=270765353]
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_pressed_color = Color(0.114, 0.090, 0.078, 1)
+theme_override_colors/font_color = Color(0.949, 0.918, 0.851, 1)
+theme_override_styles/normal = SubResource("StyleBox_button")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+text = "Empty Slot"
+
+[node name="LaunchBattleButton" type="Button" parent="BaseUI/UIRoot" unique_id=366337741]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -164.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 54.0
+grow_horizontal = 0
+mouse_default_cursor_shape = 2
+theme_override_colors/font_pressed_color = Color(0.114, 0.090, 0.078, 1)
+theme_override_colors/font_hover_color = Color(0.114, 0.090, 0.078, 1)
+theme_override_colors/font_color = Color(0.114, 0.090, 0.078, 1)
+theme_override_styles/normal = SubResource("StyleBox_primary")
+theme_override_styles/pressed = SubResource("StyleBox_primary_hover")
+theme_override_styles/hover = SubResource("StyleBox_primary_hover")
+text = "Launch Mission"
+
+[node name="ModuleInventory" type="Node" parent="." unique_id=1130948990]

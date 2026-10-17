@@ -11,14 +11,14 @@ config_version=5
 [application]
 
 config/name="GreedMiner"
-run/main_scene="res://Scenes/base_main.tscn"
+run/main_scene="res://Scenes/Base/base_main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
 
-ShipLoadout="*uid://gyg4uo31xdov"
-ResourceManager="*uid://c5ln0cw6ghhi6"
+ShipLoadout="*res://Scripts/Ship/ShipLoadout.gd"
+ResourceManager="*res://Scripts/Core/ResourceManager.gd"
 
 [display]
 
@@ -31,7 +31,7 @@ window/stretch/aspect="expand"
 
 [gui]
 
-theme/custom="res://Theme/greedminer_theme.tres"
+theme/custom="res://Resources/UI/greedminer_theme.tres"
 
 [physics]
 
