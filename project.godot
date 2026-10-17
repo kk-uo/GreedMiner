@@ -18,10 +18,20 @@ config/icon="res://icon.svg"
 [autoload]
 
 ShipLoadout="*uid://gyg4uo31xdov"
+ResourceManager="*uid://c5ln0cw6ghhi6"
 
 [display]
 
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/size/window_width_override=2560
+window/size/window_height_override=1440
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[gui]
+
+theme/custom="res://Theme/greedminer_theme.tres"
 
 [physics]
 

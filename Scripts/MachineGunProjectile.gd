@@ -41,13 +41,11 @@ func _ready() -> void:
 # ==========================================
 
 func _draw() -> void:
-	# Draw a temporary yellow circle.
-	# The circle is centered on the projectile.
-	draw_circle(
-		Vector2.ZERO,
-		4.0,
-		Color.YELLOW
-	)
+	# Style A: a short warm capsule aligned with its flight direction.
+	draw_set_transform(Vector2.ZERO, direction.angle(), Vector2.ONE)
+	draw_rect(Rect2(-5.0, -2.5, 10.0, 5.0), Palette.SHOT)
+	draw_circle(Vector2(-5.0, 0.0), 2.5, Palette.SHOT)
+	draw_circle(Vector2(5.0, 0.0), 2.5, Palette.SHOT_CORE)
 
 
 # ==========================================

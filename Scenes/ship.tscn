@@ -10,3 +10,7 @@ script = ExtResource("1_78pfh")
 [node name="ModulePostion" type="Node2D" parent="." unique_id=1436467530]
 
 [node name="InstalledModules" type="Node2D" parent="." unique_id=1736183376]
+
+[node name="WorldCamera" type="Camera2D" parent="."]
+position = Vector2(96, 96)
+zoom = Vector2(1, 1)

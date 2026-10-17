@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://bfa3ba55xe53l"]
+
+[ext_resource type="Script" uid="uid://cqb1tpla1gvys" path="res://mining_module.gd" id="1_w0mlx"]
+
+[node name="MiningModule" type="Node2D" unique_id=1686798037]
+script = ExtResource("1_w0mlx")
+
+[node name="MiningTimer" type="Timer" parent="." unique_id=665376413]
+autostart = true
+
+[connection signal="timeout" from="MiningTimer" to="." method="_on_mining_timer_timeout"]

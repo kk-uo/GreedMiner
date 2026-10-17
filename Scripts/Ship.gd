@@ -44,11 +44,8 @@ const SHIP_SIZE: Vector2 = Vector2(
 	GRID_SIZE * CELL_SIZE
 )
 
-## Default cell background color.
-const CELL_COLOR: Color = Color("3A3F46")
-
-## Color used to highlight the selected cell.
-const SELECTION_COLOR: Color = Color.YELLOW
+## Corner radius of the hull plate.
+const HULL_RADIUS: float = 14.0
 
 
 # ==========================================
@@ -59,6 +56,23 @@ const SELECTION_COLOR: Color = Color.YELLOW
 ## Weapons will not attack while this is enabled.
 @export var assembly_mode: bool = false
 
+## Shared visual zoom used by BaseMain and BattleMain.
+@export_range(0.1, 4.0, 0.05) var world_visual_scale: float = 1.0
+
+
+# ==========================================
+# Ship Health
+# ==========================================
+
+## Maximum health available to the ship during combat.
+@export var max_hp: float = 100.0
+
+## Emitted whenever ship health changes.
+signal health_changed(current_health: float, maximum_health: float)
+
+## Current ship health used by enemy attacks.
+var current_hp: float = 0.0
+
 
 # ==========================================
 # Node References
@@ -66,6 +80,9 @@ const SELECTION_COLOR: Color = Color.YELLOW
 
 ## Container holding all installed modules.
 @onready var installed_modules: Node2D = $InstalledModules
+
+## Camera centered on the visual middle of the ship grid.
+@onready var world_camera: Camera2D = $WorldCamera
 
 
 # ==========================================
@@ -87,11 +104,27 @@ var _module_instances: Dictionary = {}
 # ==========================================
 
 func _ready() -> void:
+	# Keep world rendering centered and consistently scaled in every scene.
+	world_camera.position = SHIP_SIZE * 0.5
+	world_camera.zoom = Vector2.ONE * world_visual_scale
+	world_camera.enabled = true
+
+	# Initialize combat health whenever a ship scene is created.
+	current_hp = max_hp
+	health_changed.emit(current_hp, max_hp)
+
 	# Initialize all nine ship cells.
 	_initialize_cells()
 
-	# Center the ship inside the viewport.
-	position = (get_viewport_rect().size - SHIP_SIZE) * 0.5
+	# Place the stationary ship at the center of the world-space battlefield.
+	var battlefield := get_parent().get_node_or_null("Battlefield") as Battlefield
+	if battlefield != null:
+		global_position = battlefield.to_global(
+			(battlefield.world_size - SHIP_SIZE) * 0.5
+		)
+	else:
+		# Retain a safe fallback when Ship is previewed by itself.
+		position = (get_viewport_rect().size - SHIP_SIZE) * 0.5
 
 	# Recreate modules saved in the shared loadout.
 	load_installed_modules()
@@ -100,46 +133,74 @@ func _ready() -> void:
 	queue_redraw()
 
 
+## Applies combat damage without allowing health to fall below zero.
+func take_damage(damage: float) -> void:
+	if damage <= 0.0 or current_hp <= 0.0:
+		return
+
+	current_hp = maxf(current_hp - damage, 0.0)
+	health_changed.emit(current_hp, max_hp)
+	print("Ship HP: %s" % current_hp)
+
+	if current_hp <= 0.0:
+		print("Ship destroyed!")
+
+
 # ==========================================
 # Ship Rendering
 # ==========================================
 
 func _draw() -> void:
-	# Draw every cell in the ship grid.
+	var hull_rect := Rect2(Vector2.ZERO, SHIP_SIZE)
+
+	# Drop shadow uses the hull silhouette (style A: one hard shadow, bottom-right).
+	Palette.draw_rounded_rect(
+		self, Rect2(Palette.SHADOW_OFFSET + Vector2(1.0, 1.0), SHIP_SIZE), HULL_RADIUS, Palette.SHADOW_COLOR
+	)
+
+	# Landing legs reach out diagonally from each corner.
+	var corners := [
+		[Vector2(6.0, 6.0), Vector2(-1.0, -1.0)],
+		[Vector2(SHIP_SIZE.x - 6.0, 6.0), Vector2(1.0, -1.0)],
+		[Vector2(6.0, SHIP_SIZE.y - 6.0), Vector2(-1.0, 1.0)],
+		[Vector2(SHIP_SIZE.x - 6.0, SHIP_SIZE.y - 6.0), Vector2(1.0, 1.0)],
+	]
+	for corner in corners:
+		var start: Vector2 = corner[0]
+		var foot: Vector2 = start + (corner[1] as Vector2).normalized() * 22.0
+		draw_line(start, foot, Palette.MECH, 10.0)
+		draw_circle(foot, 7.0, Palette.MECH)
+		draw_circle(foot + Vector2(-1.5, -1.5), 3.0, Palette.MECH_LIGHT)
+
+	# Hull: shadow tone on the full rect, lit face inset toward the top-left.
+	Palette.draw_rounded_rect(self, hull_rect, HULL_RADIUS, Palette.SHIP_SHADOW)
+	Palette.draw_rounded_rect(
+		self, Rect2(Vector2.ZERO, SHIP_SIZE - Vector2(6.0, 7.0)), HULL_RADIUS - 1.0, Palette.SHIP_BODY
+	)
+
+	# Panel seams between grid cells.
+	for index in range(1, GRID_SIZE):
+		var offset := float(index) * CELL_SIZE
+		draw_line(Vector2(offset, 8.0), Vector2(offset, SHIP_SIZE.y - 10.0), Palette.SHIP_SEAM, 2.0)
+		draw_line(Vector2(8.0, offset), Vector2(SHIP_SIZE.x - 10.0, offset), Palette.SHIP_SEAM, 2.0)
+
 	for row in range(GRID_SIZE):
 		for column in range(GRID_SIZE):
+			var cell_rect := Rect2(column * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+			var cell: ShipCell = _cells[row][column]
 
-			# Calculate the current cell rectangle.
-			var cell_rect: Rect2 = Rect2(
-				column * CELL_SIZE,
-				row * CELL_SIZE,
-				CELL_SIZE,
-				CELL_SIZE
-			)
+			# Empty cells show a mounting socket so the grid stays readable.
+			if cell.module_type == ModuleType.Empty:
+				var socket := Rect2(cell_rect.get_center() - Vector2(15.0, 15.0), Vector2(30.0, 30.0))
+				Palette.draw_rounded_rect(self, socket, 5.0, Palette.SHIP_SEAM)
+				for bolt in [Vector2(-9.0, -9.0), Vector2(9.0, -9.0), Vector2(-9.0, 9.0), Vector2(9.0, 9.0)]:
+					draw_circle(cell_rect.get_center() + bolt, 2.0, Palette.SHIP_SHADOW)
 
-			# Draw the cell background.
-			draw_rect(
-				cell_rect,
-				CELL_COLOR,
-				true
-			)
-
-			# Draw the white cell border.
-			draw_rect(
-				cell_rect,
-				Color.WHITE,
-				false,
-				2.0
-			)
-
-			# Highlight the currently selected cell.
-			if _cells[row][column] == _selected_cell:
-				draw_rect(
-					cell_rect.grow(-3.0),
-					SELECTION_COLOR,
-					false,
-					4.0
-				)
+			# Selected cell: safety-orange frame.
+			if cell == _selected_cell:
+				var frame := Palette.rounded_rect_points(cell_rect.grow(-4.0), 6.0)
+				frame.append(frame[0])
+				draw_polyline(frame, Palette.ACCENT, 3.0)
 
 
 # ==========================================
@@ -274,10 +335,12 @@ func install_module(
 
 	# Position the module at the cell center.
 	module.position = get_cell_center(row, column)
-
+	# Control mining based on the ship's current mode.
+	if module is MiningModule:
+		module.set_mining_enabled(not assembly_mode)
 	# Keep weapon visuals active while preventing combat behavior in the base.
-	if module is MachineGun:
-		(module as MachineGun).assembly_mode = assembly_mode
+	if module is WeaponModule:
+		(module as WeaponModule).assembly_mode = assembly_mode
 
 	# Store the module instance.
 	var key: Vector2i = Vector2i(row, column)
@@ -354,14 +417,13 @@ func remove_module(row: int, column: int) -> bool:
 # ==========================================
 # Load Saved Modules
 # ==========================================
-
 ## Recreates installed modules from ShipLoadout.
 func load_installed_modules() -> void:
 
 	for row in range(GRID_SIZE):
 		for column in range(GRID_SIZE):
 
-			# Get the saved scene path for this cell.
+			# Get the saved module scene path.
 			var scene_path: String = ShipLoadout.get_module(
 				row,
 				column
@@ -371,7 +433,7 @@ func load_installed_modules() -> void:
 			if scene_path.is_empty():
 				continue
 
-			# Load the module scene.
+			# Load the saved module scene.
 			var module_scene: PackedScene = load(
 				scene_path
 			) as PackedScene
@@ -382,14 +444,42 @@ func load_installed_modules() -> void:
 				)
 				continue
 
-			# Install the saved module.
-			# MachineGun is currently the only supported type.
+			# Create a temporary instance to identify its type.
+			var preview_module: Node = module_scene.instantiate()
+
+			if preview_module == null:
+				push_warning(
+					"Ship: Cannot instantiate module: " + scene_path
+				)
+				continue
+
+			var detected_type: int = ModuleType.Empty
+
+			# Identify the module category.
+			if preview_module is WeaponModule:
+				detected_type = ModuleType.Weapon
+
+			elif preview_module is MiningModule:
+				detected_type = ModuleType.Mining
+
+			# Release the temporary instance.
+			preview_module.free()
+
+			# Skip unsupported module types.
+			if detected_type == ModuleType.Empty:
+				push_warning(
+					"Ship: Unsupported module type: " + scene_path
+				)
+				continue
+
+			# Install the module with its correct type.
 			install_module(
 				module_scene,
-				ModuleType.Weapon,
+				detected_type,
 				row,
 				column
 			)
+
 
 
 # ==========================================

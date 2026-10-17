@@ -1,56 +1,34 @@
 extends Node2D
 
-## Represents the visual appearance of a rotating machine gun turret.
-##
-## This script only handles rendering.
-## Target detection, rotation, and firing are controlled by MachineGun.gd.
-##
-## The turret faces local positive X (right) by default.
+## Machine gun turret visual (style A). Rendering only; MachineGun.gd aims and fires.
+## The barrel points along local +X so the Turret node can rotate freely.
 
+var _drawn_rotation: float = INF
 
-# ==========================================
-# Turret Visual Configuration
-# ==========================================
-
-## Main body color.
-@export var body_color: Color = Color.RED
-
-## Barrel color.
-@export var barrel_color: Color = Color.DARK_RED
-
-
-# ==========================================
-# Initialization
-# ==========================================
 
 func _ready() -> void:
-	# Request the initial turret drawing.
 	queue_redraw()
 
 
-# ==========================================
-# Turret Rendering
-# ==========================================
+func _process(_delta: float) -> void:
+	# The shadow is fixed in world space, so redraw only when the aim changes.
+	if not is_equal_approx(global_rotation, _drawn_rotation):
+		queue_redraw()
+
 
 func _draw() -> void:
-	# Draw the main turret body (24x24 pixels).
-	# The body is centered at the turret's origin.
-	draw_rect(
-		Rect2(-12.0, -12.0, 24.0, 24.0),
-		body_color
-	)
+	_drawn_rotation = global_rotation
+	var shadow := Palette.local_shadow_offset(self)
+	Palette.draw_turret_base(self, 18.0, shadow)
 
-	# Draw the gun barrel (20x8 pixels).
-	# The barrel points toward local positive X.
-	# It rotates automatically with the Turret node.
-	draw_rect(
-		Rect2(0.0, -4.0, 20.0, 8.0),
-		barrel_color
-	)
+	# Twin barrels with safety-orange muzzles.
+	var barrels := [Rect2(4.0, -7.0, 22.0, 5.0), Rect2(4.0, 2.0, 22.0, 5.0)]
+	for barrel in barrels:
+		draw_rect(Rect2((barrel as Rect2).position + shadow * 0.5, (barrel as Rect2).size), Palette.SHADOW_COLOR)
+	for barrel in barrels:
+		draw_rect(barrel, Palette.MECH)
+		draw_rect(Rect2((barrel as Rect2).position + Vector2(18.0, -0.5), Vector2(5.0, 6.0)), Palette.ACCENT)
 
-	# Draw a small dark center to show the rotation axis.
-	draw_circle(
-		Vector2.ZERO,
-		5.0,
-		Color.DARK_GRAY
-	)
+	# Square receiver with a top-left highlight.
+	Palette.draw_rounded_rect(self, Rect2(-11.0, -11.0, 22.0, 22.0), 4.0, Palette.MECH)
+	Palette.draw_rounded_rect(self, Rect2(-9.0, -9.0, 9.0, 9.0), 2.0, Palette.MECH_LIGHT)

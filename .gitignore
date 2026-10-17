@@ -4,6 +4,9 @@
 /build/
 .DS_Store
 
+# Local snapshots and art-generation backups are not active project content.
+/_art_backup_*/
+
 # Root-level Godot Web export artifacts.
 /greedminer.js
 /greedminer.pck

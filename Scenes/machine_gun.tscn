@@ -6,6 +6,7 @@
 
 [node name="MachineGun" type="Node2D" unique_id=1144851608]
 script = ExtResource("1_5nbo0")
+attack_range = 300.0
 projectile_scene = ExtResource("2_paadf")
 
 [node name="Turret" type="Node2D" parent="." unique_id=1483296204]
