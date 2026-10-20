@@ -1,0 +1,27 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Enemies/EliteGoblin.gd" id="1_elite"]
+
+[sub_resource type="CircleShape2D" id="CircleShape_elite"]
+radius = 20.0
+
+[node name="EliteGoblin" type="Area2D"]
+script = ExtResource("1_elite")
+enemy_id = &"elite_goblin"
+enemy_name = "Elite Goblin"
+max_health = 200.0
+move_speed = 25.0
+attack_damage = 10.0
+attack_interval = 1.0
+attack_range = 10.0
+damage_reduction = 0.2
+attack_type = 0
+enemy_tier = 1
+reward_ore = 5.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape_elite")
+
+[node name="AttackTimer" type="Timer" parent="."]
+
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

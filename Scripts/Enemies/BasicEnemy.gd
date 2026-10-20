@@ -4,19 +4,33 @@ extends Area2D
 
 ## Shared base class for enemies that approach and attack the ship.
 
+## Distance slack (px) when deciding whether the ship is within attack range.
+const ATTACK_RANGE_TOLERANCE: float = 0.5
+
 ## Emitted once when this enemy is killed by damage.
 signal died(enemy_id: StringName, death_position: Vector2)
+
+## Emitted after initialization and whenever this enemy loses health.
+signal health_changed(current_health: float, maximum_health: float)
 
 
 ## Supported enemy attack categories.
 enum AttackType {
 	MELEE,
+	RANGED,
 }
 
 ## Broad enemy tiers used by future spawn systems.
 enum EnemyTier {
 	COMMON,
 	LARGE,
+	BOSS,
+}
+
+## Bit flags describing the formations in which a wave may place an enemy.
+enum SpawnPattern {
+	SOLO = 1,
+	CLUSTER = 2,
 }
 
 ## Stable identifier used by enemy catalogs and future spawn systems.
@@ -40,14 +54,27 @@ enum EnemyTier {
 ## Maximum distance from the ship boundary to attack.
 @export var attack_range: float = 10.0
 
-## Flat damage removed from each incoming hit before health is reduced.
-@export_range(0.0, 1000.0, 0.1) var damage_reduction: float = 0.0
+## Ore added to the current mission when this enemy is killed (0 = none).
+@export_range(0.0, 100000.0, 1.0) var reward_ore: float = 0.0
+
+## Fraction of each incoming hit prevented before health is reduced.
+## 0.2 means that the enemy receives 80% of the incoming damage.
+@export_range(0.0, 1.0, 0.01) var damage_reduction: float = 0.0
 
 ## Attack behavior category for future enemy definitions.
 @export var attack_type: AttackType = AttackType.MELEE
 
 ## Spawn and difficulty category for future enemy definitions.
 @export var enemy_tier: EnemyTier = EnemyTier.COMMON
+
+## Allows specific non-common enemies to use the normal click-to-pop mechanic.
+@export var allow_click_pop: bool = false
+
+## Data-only spawn metadata. Wave quotas are intentionally configured
+## elsewhere; these fields document when and where this enemy becomes valid.
+@export var spawn_map_id: StringName = &""
+@export_range(1, 100, 1) var minimum_spawn_wave: int = 1
+@export_flags("Solo:1", "Cluster:2") var spawn_patterns: int = SpawnPattern.SOLO
 
 
 ## Defines how the enemy chooses its movement destination.
@@ -72,11 +99,20 @@ var _is_attacking: bool = false
 ## Prevents duplicate death effects from multiple hits in the same frame.
 var _is_dying: bool = false
 
+## Battle shutdown disables splitting so descendants cannot appear afterward.
+var _death_effects_enabled: bool = true
+
 ## How long an enemy flashes white after being hit (style A hit feedback).
 const HIT_FLASH_DURATION: float = 0.08
 
 ## Seconds remaining on the white hit flash.
 var _hit_flash_time: float = 0.0
+
+## Eligible enemies can be popped by clicking them this many times in battle.
+const CLICKS_TO_POP: int = 8
+## Clicks received so far (see register_click).
+var click_count: int = 0
+var _click_tween: Tween
 
 ## Facing angle used by subclasses' _draw(); enemies always face the ship.
 var _facing: float = 0.0
@@ -96,6 +132,7 @@ func _ready() -> void:
 	attack_timer.wait_time = attack_interval
 	attack_timer.one_shot = false
 	attack_timer.stop()
+	health_changed.emit(_current_health, max_health)
 
 	print("%s spawned! HP: %s" % [enemy_name, _current_health])
 
@@ -136,8 +173,10 @@ func _physics_process(delta: float) -> void:
 		closest_point
 	)
 
-	# Start attacking when close enough to the ship.
-	if distance_to_ship <= attack_range:
+	# Start attacking when close enough to the ship. The small tolerance stops
+	# an enemy approaching a hull corner diagonally from stalling forever a
+	# floating-point hair outside attack_range (it never attacked).
+	if distance_to_ship <= attack_range + ATTACK_RANGE_TOLERANCE:
 		_start_attacking()
 		return
 
@@ -276,21 +315,133 @@ func _on_attack_timer_timeout() -> void:
 		_stop_attacking()
 		return
 
-	# Damage the ship.
+	# Shield reactions are queried only at this authoritative pre-attack point.
+	# If one activates, stop this attack cycle before any damage/projectile is
+	# produced. Physics processing may begin a fresh full interval afterward.
+	if ship.try_interrupt_enemy_attack(self):
+		_stop_attacking()
+		return
+
+	_perform_attack(ship)
+
+
+## Performs one attack. Ranged enemies override this to create a projectile.
+func _perform_attack(ship: Ship) -> void:
 	ship.take_damage(attack_damage)
+	print("%s attacks! Damage: %s" % [enemy_name, attack_damage])
 
-	print("Enemy attacks! Damage: ", attack_damage)
+
+## Point on this enemy's body nearest to from_world. Weapons measure their
+## range to it and aim at it. Default: the centre; long enemies override it.
+func get_target_point(_from_world: Vector2) -> Vector2:
+	return global_position
 
 
-## Called when the enemy receives damage.
-func take_damage(damage: float) -> void:
+## Conservative radius of the active collision shape, used for hull-distance
+## and map-boundary calculations without relying on visual sprite dimensions.
+func get_collision_radius() -> float:
+	var collision := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision == null or collision.shape == null:
+		return _get_visual_radius()
+	var shape := collision.shape
+	if shape is CircleShape2D:
+		return (shape as CircleShape2D).radius
+	if shape is CapsuleShape2D:
+		var capsule := shape as CapsuleShape2D
+		return maxf(capsule.radius, capsule.height * 0.5)
+	if shape is RectangleShape2D:
+		return (shape as RectangleShape2D).size.length() * 0.5
+	return _get_visual_radius()
+
+
+## Instantly displaces this enemy away from an origin while respecting solid
+## PhysicsBody2D obstacles and optional battlefield bounds. Artifact and shield
+## effects decide tier immunity before calling this shared movement interface.
+func apply_radial_knockback(origin: Vector2, distance: float, bounds: Rect2 = Rect2()) -> void:
+	if distance <= 0.0 or _is_dying:
+		return
+	var direction := origin.direction_to(global_position)
+	if direction.length_squared() <= 0.0001:
+		direction = Vector2.RIGHT
+	var destination := global_position + direction * distance
+	if bounds.size.x > 0.0 and bounds.size.y > 0.0:
+		var radius := get_collision_radius()
+		destination.x = clampf(destination.x, bounds.position.x + radius, bounds.end.x - radius)
+		destination.y = clampf(destination.y, bounds.position.y + radius, bounds.end.y - radius)
+	global_position = _collision_safe_knockback_destination(destination)
+
+
+func _collision_safe_knockback_destination(destination: Vector2) -> Vector2:
+	var collision := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision == null or collision.shape == null or not is_inside_tree():
+		return destination
+	var start := global_position
+	var steps := maxi(1, ceili(start.distance_to(destination) / 10.0))
+	var last_clear := start
+	for index in range(1, steps + 1):
+		var candidate := start.lerp(destination, float(index) / float(steps))
+		var query := PhysicsShapeQueryParameters2D.new()
+		query.shape = collision.shape
+		query.transform = Transform2D(global_rotation, candidate)
+		query.collision_mask = 0xFFFFFFFF
+		query.collide_with_areas = false
+		query.collide_with_bodies = true
+		if not get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty():
+			break
+		last_clear = candidate
+	return last_clear
+
+
+## Whether the player can pop this enemy by clicking it.
+func is_clickable() -> bool:
+	return (enemy_tier == EnemyTier.COMMON or allow_click_pop) and not _is_dying
+
+
+## Radius used for click hit tests (a little larger than the body).
+func get_click_radius() -> float:
+	return _get_visual_radius() + 6.0
+
+
+## One player click: a quick swell + flash; the CLICKS_TO_POP-th click pops it
+## (normal death: burst, reward and death effects). Returns true if counted.
+func register_click() -> bool:
+	if not is_clickable():
+		return false
+	click_count += 1
+	_hit_flash_time = HIT_FLASH_DURATION
+	if click_count >= CLICKS_TO_POP:
+		if _click_tween != null:
+			_click_tween.kill()
+		scale = Vector2.ONE
+		_current_health = 0.0
+		health_changed.emit(_current_health, max_health)
+		_die()
+		return true
+	# Each click swells a bit more, so the player can feel it filling up.
+	var swell: float = 1.22 + 0.03 * float(click_count)
+	if _click_tween != null:
+		_click_tween.kill()
+	scale = Vector2.ONE
+	_click_tween = create_tween()
+	_click_tween.tween_property(self, "scale", Vector2.ONE * swell, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_click_tween.tween_property(self, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	return true
+
+
+## Called when the enemy receives damage. Exact-effect damage may explicitly
+## bypass armor; normal weapons retain the existing reduction behavior.
+func take_damage(damage: float, ignore_damage_reduction: bool = false, count_for_artifact: bool = true, source_weapon: WeaponModule = null) -> void:
 	if damage <= 0.0 or _current_health <= 0.0 or _is_dying:
 		return
 
 	# Damage reduction is applied exactly once per incoming hit.
-	var final_damage := maxf(1.0, damage - damage_reduction)
+	var final_damage := damage if ignore_damage_reduction else damage * (1.0 - clampf(damage_reduction, 0.0, 1.0))
+	var previous_health := _current_health
 	_current_health = maxf(_current_health - final_damage, 0.0)
+	if count_for_artifact:
+		ArtifactManager.record_battle_activity(source_weapon, previous_health - _current_health)
 	_hit_flash_time = HIT_FLASH_DURATION
+	health_changed.emit(_current_health, max_health)
 
 	print("%s HP: %s (-%s)" % [
 		enemy_name,
@@ -315,12 +466,31 @@ func _die() -> void:
 	set_deferred("monitoring", false)
 
 	var death_position := global_position
-	FlatBurst.spawn(get_parent(), death_position, _get_visual_radius() * 1.6, Palette.SHOT, Palette.ENEMY)
-	_perform_death_effect()
+	_spawn_death_visual(death_position)
+	if _death_effects_enabled:
+		_grant_reward(death_position)
+		_perform_death_effect()
 	died.emit(enemy_id, death_position)
 	print("%s destroyed!" % enemy_name)
 
 	queue_free()
+
+
+## Adds reward_ore to the mission; bosses also show a floating "+N" pickup.
+## Skipped after battle shutdown, together with the other death effects.
+func _grant_reward(death_position: Vector2) -> void:
+	if reward_ore <= 0.0:
+		return
+	ResourceManager.add_mission_ore(reward_ore)
+	# Only bosses show a floating "+N" pickup; ordinary kills add ore silently.
+	if enemy_tier == EnemyTier.BOSS:
+		RewardPopup.spawn(get_parent(), death_position, reward_ore)
+
+
+## Presentation hook: the burst shown when this enemy dies. Enemy families
+## override it (goblins burst into gore). Never affects gameplay.
+func _spawn_death_visual(death_position: Vector2) -> void:
+	FlatBurst.spawn(get_parent(), death_position, _get_visual_radius() * 1.6, Palette.SHOT, Palette.ENEMY)
 
 
 ## Overridable hook for enemy-specific death effects.
@@ -337,3 +507,8 @@ func get_current_health() -> float:
 ## Returns whether death handling has already started.
 func is_dying() -> bool:
 	return _is_dying
+
+
+## Enables or disables enemy-specific death spawning without changing damage.
+func set_death_effects_enabled(enabled: bool) -> void:
+	_death_effects_enabled = enabled

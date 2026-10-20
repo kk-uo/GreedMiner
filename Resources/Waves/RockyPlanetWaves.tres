@@ -1,0 +1,277 @@
+[gd_resource type="Resource" script_class="PlanetWaveConfig" format=3 uid="uid://cl8sglshex7mp"]
+
+[ext_resource type="Script" uid="uid://d4jnmrbo34g3l" path="res://Scripts/Waves/EnemySpawnEntry.gd" id="1_entry"]
+[ext_resource type="Script" uid="uid://b5ij4fdghypy1" path="res://Scripts/Waves/SpecialSpawnEventRule.gd" id="2_1utdh"]
+[ext_resource type="Script" uid="uid://6boj7f2no6e8" path="res://Scripts/Waves/WaveDefinition.gd" id="2_wave"]
+[ext_resource type="Script" uid="uid://cbpn6xvsjha4g" path="res://Scripts/Waves/PlanetWaveConfig.gd" id="3_config"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/little_rock.tscn" id="4_little"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/rock_golem.tscn" id="5_golem"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/rock_titan.tscn" id="6_titan"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/red_rock.tscn" id="7_red"]
+
+[sub_resource type="Resource" id="Entry_2_Little"]
+script = ExtResource("1_entry")
+enemy_scene = ExtResource("4_little")
+spawn_count = 9
+
+[sub_resource type="Resource" id="Entry_2_Golem"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_golem"
+enemy_scene = ExtResource("5_golem")
+spawn_count = 0
+
+[sub_resource type="Resource" id="Entry_2_Titan"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_titan"
+enemy_scene = ExtResource("6_titan")
+spawn_count = 0
+
+[sub_resource type="Resource" id="Entry_2_RedRock"]
+script = ExtResource("1_entry")
+enemy_id = &"red_rock"
+enemy_scene = ExtResource("7_red")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_2"]
+script = ExtResource("2_wave")
+wave_number = 1
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_2_Little"), SubResource("Entry_2_Golem"), SubResource("Entry_2_Titan"), SubResource("Entry_2_RedRock")])
+
+[sub_resource type="Resource" id="Entry_3_Little"]
+script = ExtResource("1_entry")
+enemy_scene = ExtResource("4_little")
+spawn_count = 11
+
+[sub_resource type="Resource" id="Entry_3_Golem"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_golem"
+enemy_scene = ExtResource("5_golem")
+
+[sub_resource type="Resource" id="Entry_3_Titan"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_titan"
+enemy_scene = ExtResource("6_titan")
+spawn_count = 0
+
+[sub_resource type="Resource" id="Entry_3_RedRock"]
+script = ExtResource("1_entry")
+enemy_id = &"red_rock"
+enemy_scene = ExtResource("7_red")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_3"]
+script = ExtResource("2_wave")
+wave_number = 2
+spawn_interval = 1.5
+spawn_pattern = 1
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_3_Little"), SubResource("Entry_3_Golem"), SubResource("Entry_3_Titan"), SubResource("Entry_3_RedRock")])
+
+[sub_resource type="Resource" id="Entry_4_Little"]
+script = ExtResource("1_entry")
+enemy_scene = ExtResource("4_little")
+spawn_count = 13
+
+[sub_resource type="Resource" id="Entry_4_Golem"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_golem"
+enemy_scene = ExtResource("5_golem")
+
+[sub_resource type="Resource" id="Entry_4_Titan"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_titan"
+enemy_scene = ExtResource("6_titan")
+spawn_count = 0
+
+[sub_resource type="Resource" id="Entry_4_RedRock"]
+script = ExtResource("1_entry")
+enemy_id = &"red_rock"
+enemy_scene = ExtResource("7_red")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_4"]
+script = ExtResource("2_wave")
+wave_number = 3
+spawn_interval = 1.5
+spawn_pattern = 1
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_4_Little"), SubResource("Entry_4_Golem"), SubResource("Entry_4_Titan"), SubResource("Entry_4_RedRock")])
+
+[sub_resource type="Resource" id="Entry_5_Little"]
+script = ExtResource("1_entry")
+enemy_scene = ExtResource("4_little")
+spawn_count = 13
+
+[sub_resource type="Resource" id="Entry_5_Golem"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_golem"
+enemy_scene = ExtResource("5_golem")
+spawn_count = 2
+
+[sub_resource type="Resource" id="Entry_5_Titan"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_titan"
+enemy_scene = ExtResource("6_titan")
+spawn_count = 0
+
+[sub_resource type="Resource" id="Entry_5_RedRock"]
+script = ExtResource("1_entry")
+enemy_id = &"red_rock"
+enemy_scene = ExtResource("7_red")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_5"]
+script = ExtResource("2_wave")
+wave_number = 4
+spawn_interval = 1.5
+spawn_pattern = 1
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_5_Little"), SubResource("Entry_5_Golem"), SubResource("Entry_5_Titan"), SubResource("Entry_5_RedRock")])
+
+[sub_resource type="Resource" id="Entry_6_Little"]
+script = ExtResource("1_entry")
+enemy_scene = ExtResource("4_little")
+spawn_count = 15
+
+[sub_resource type="Resource" id="Entry_6_Golem"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_golem"
+enemy_scene = ExtResource("5_golem")
+spawn_count = 2
+
+[sub_resource type="Resource" id="Entry_6_Titan"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_titan"
+enemy_scene = ExtResource("6_titan")
+spawn_count = 0
+
+[sub_resource type="Resource" id="Entry_6_RedRock"]
+script = ExtResource("1_entry")
+enemy_id = &"red_rock"
+enemy_scene = ExtResource("7_red")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_6"]
+script = ExtResource("2_wave")
+wave_number = 5
+spawn_interval = 1.3
+spawn_pattern = 2
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_6_Little"), SubResource("Entry_6_Golem"), SubResource("Entry_6_Titan"), SubResource("Entry_6_RedRock")])
+
+[sub_resource type="Resource" id="Entry_7_Little"]
+script = ExtResource("1_entry")
+enemy_scene = ExtResource("4_little")
+spawn_count = 17
+
+[sub_resource type="Resource" id="Entry_7_Golem"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_golem"
+enemy_scene = ExtResource("5_golem")
+spawn_count = 3
+
+[sub_resource type="Resource" id="Entry_7_Titan"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_titan"
+enemy_scene = ExtResource("6_titan")
+spawn_count = 0
+
+[sub_resource type="Resource" id="Entry_7_RedRock"]
+script = ExtResource("1_entry")
+enemy_id = &"red_rock"
+enemy_scene = ExtResource("7_red")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_7"]
+script = ExtResource("2_wave")
+wave_number = 6
+spawn_interval = 1.3
+spawn_pattern = 2
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_7_Little"), SubResource("Entry_7_Golem"), SubResource("Entry_7_Titan"), SubResource("Entry_7_RedRock")])
+
+[sub_resource type="Resource" id="Entry_8_Little"]
+script = ExtResource("1_entry")
+enemy_scene = ExtResource("4_little")
+spawn_count = 18
+
+[sub_resource type="Resource" id="Entry_8_Golem"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_golem"
+enemy_scene = ExtResource("5_golem")
+spawn_count = 3
+
+[sub_resource type="Resource" id="Entry_8_Titan"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_titan"
+enemy_scene = ExtResource("6_titan")
+spawn_count = 0
+
+[sub_resource type="Resource" id="Entry_8_RedRock"]
+script = ExtResource("1_entry")
+enemy_id = &"red_rock"
+enemy_scene = ExtResource("7_red")
+spawn_count = 2
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_8"]
+script = ExtResource("2_wave")
+wave_number = 7
+spawn_interval = 1.0
+spawn_pattern = 2
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_8_Little"), SubResource("Entry_8_Golem"), SubResource("Entry_8_Titan"), SubResource("Entry_8_RedRock")])
+
+[sub_resource type="Resource" id="Entry_9_Little"]
+script = ExtResource("1_entry")
+enemy_scene = ExtResource("4_little")
+spawn_count = 20
+
+[sub_resource type="Resource" id="Entry_9_Golem"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_golem"
+enemy_scene = ExtResource("5_golem")
+spawn_count = 4
+
+[sub_resource type="Resource" id="Entry_9_Titan"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_titan"
+enemy_scene = ExtResource("6_titan")
+spawn_count = 0
+
+[sub_resource type="Resource" id="Entry_9_RedRock"]
+script = ExtResource("1_entry")
+enemy_id = &"red_rock"
+enemy_scene = ExtResource("7_red")
+spawn_count = 2
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_9"]
+script = ExtResource("2_wave")
+wave_number = 8
+spawn_interval = 1.0
+spawn_pattern = 2
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_9_Little"), SubResource("Entry_9_Golem"), SubResource("Entry_9_Titan"), SubResource("Entry_9_RedRock")])
+
+[sub_resource type="Resource" id="Entry_10_Little"]
+script = ExtResource("1_entry")
+enemy_scene = ExtResource("4_little")
+spawn_count = 8
+
+[sub_resource type="Resource" id="Entry_10_Golem"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_golem"
+enemy_scene = ExtResource("5_golem")
+
+[sub_resource type="Resource" id="Entry_10_Titan"]
+script = ExtResource("1_entry")
+enemy_id = &"rock_titan"
+enemy_scene = ExtResource("6_titan")
+spawn_first = true
+is_boss = true
+
+[sub_resource type="Resource" id="Wave_10"]
+script = ExtResource("2_wave")
+wave_number = 9
+spawn_interval = 1.5
+spawn_pattern = 2
+boss_wave = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_10_Little"), SubResource("Entry_10_Golem"), SubResource("Entry_10_Titan")])
+
+[resource]
+script = ExtResource("3_config")
+waves = Array[ExtResource("2_wave")]([SubResource("Wave_2"), SubResource("Wave_3"), SubResource("Wave_4"), SubResource("Wave_5"), SubResource("Wave_6"), SubResource("Wave_7"), SubResource("Wave_8"), SubResource("Wave_9"), SubResource("Wave_10")])

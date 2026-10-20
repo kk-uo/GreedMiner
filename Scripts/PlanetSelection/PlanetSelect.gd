@@ -16,25 +16,44 @@ const PLANETS: Array[Dictionary] = [
 		"theme": &"rocky",
 	},
 	{
+		"id": &"goblin_planet",
+		"name": "VERDANT PLANET",
+		"description": "Looks like a lush, overgrown jungle world... Wait, no! It's crawling with goblins!",
+		"unlocked": true,
+		"enemies": ["Goblins"],
+		"theme": &"jungle",
+		# Ore spent once to pinpoint the planet's coordinates ("precise locate").
+		"locate_cost": 250,
+	},
+	{
 		"id": &"frozen_planet",
 		"name": "FROZEN PLANET",
-		"description": "An unexplored frozen world.",
-		"unlocked": false,
-		"enemies": [],
+		"description": "A frozen world inhabited by snow monsters.",
+		"unlocked": true,
+		"playable": true,
+		"locate_cost": 500,
+		"enemies": ["Snow Monster", "Mega Monster"],
 		"theme": &"frozen",
 	},
 	{
 		"id": &"volcanic_planet",
 		"name": "VOLCANIC PLANET",
 		"description": "An unstable volcanic world.",
-		"unlocked": false,
-		"enemies": [],
+		# Lava Planet uses this existing Volcanic Planet identity. Its eleventh
+		# wave intentionally stops at the reserved future-boss integration point.
+		"unlocked": true,
+		"playable": true,
+		"locate_cost": 1000,
+		"enemies": ["Demon", "Hellhunter", "Big Demon", "Imp"],
 		"theme": &"volcanic",
 	},
 ]
 
 const PLANET_VISUAL_SIZE: Vector2 = Vector2(320.0, 320.0)
 const CAROUSEL_DURATION: float = 0.42
+
+## Testable transition target; normal gameplay keeps the existing battle scene.
+@export_file("*.tscn") var battle_scene_path: String = BATTLE_SCENE_PATH
 
 @onready var planet_layer: Control = $CarouselArea/PlanetLayer
 @onready var left_button: Button = $CarouselArea/LeftButton
@@ -43,6 +62,7 @@ const CAROUSEL_DURATION: float = 0.42
 @onready var status_label: Label = $InfoPanel/MarginContainer/InfoLayout/TitleRow/Status
 @onready var description_label: Label = $InfoPanel/MarginContainer/InfoLayout/Description
 @onready var enemies_label: Label = $InfoPanel/MarginContainer/InfoLayout/KnownEnemies
+@onready var energy_requirements_label: Label = $InfoPanel/MarginContainer/InfoLayout/EnergyRequirements
 @onready var position_label: Label = $CarouselArea/PositionLabel
 @onready var back_button: Button = $InfoPanel/MarginContainer/InfoLayout/Actions/BackButton
 @onready var deploy_button: Button = $InfoPanel/MarginContainer/InfoLayout/Actions/DeployButton
@@ -56,16 +76,29 @@ var _background_time: float = 0.0
 
 
 func _ready() -> void:
+	# Reopen the star map on the destination the player most recently deployed
+	# to. Merely browsing the carousel does not change this expedition state.
+	selected_index = get_planet_index(ResourceManager.current_expedition_planet_id)
 	_build_planet_visuals()
 	_connect_once(left_button.pressed, _on_left_pressed)
 	_connect_once(right_button.pressed, _on_right_pressed)
 	_connect_once(back_button.pressed, _on_back_pressed)
 	_connect_once(deploy_button.pressed, _on_deploy_pressed)
+	_connect_once(ResourceManager.stored_ore_changed, _on_stored_ore_changed)
 	_connect_once(get_viewport().size_changed, _on_viewport_size_changed)
 
 	_update_planet_information()
 	call_deferred("_layout_planets", false)
 	_fade_in()
+
+
+## Returns the carousel index for a stable planet ID. Unknown or removed IDs
+## safely fall back to Rocky Planet at index zero.
+static func get_planet_index(planet_id: StringName) -> int:
+	for planet_index in range(PLANETS.size()):
+		if StringName(PLANETS[planet_index].get("id", &"")) == planet_id:
+			return planet_index
+	return 0
 
 
 func _process(delta: float) -> void:
@@ -131,6 +164,7 @@ func _build_planet_visuals() -> void:
 		var visual := PlanetVisual.new()
 		visual.name = "Planet_%s" % PLANETS[planet_index]["id"]
 		visual.configure(PLANETS[planet_index], planet_index)
+		visual.uncharted = not is_planet_located(PLANETS[planet_index])
 		visual.pressed.connect(_on_planet_pressed)
 		planet_layer.add_child(visual)
 		_planet_visuals.append(visual)
@@ -209,11 +243,17 @@ func _layout_planets(animated: bool = true) -> void:
 
 func _update_planet_information() -> void:
 	var planet := PLANETS[selected_index]
-	var is_unlocked := bool(planet["unlocked"])
+	var profile := ShipEnergySystem.calculate_loadout_profile(ShipLoadout.installed_modules)
+	var launch_status := evaluate_launch_requirements(planet, profile, ResourceManager.stored_ore)
+	var is_unlocked := bool(launch_status.unlocked)
+	var is_located := bool(launch_status.located)
 	planet_name_label.text = String(planet["name"])
 	description_label.text = String(planet["description"])
-	status_label.text = "UNLOCKED" if is_unlocked else "LOCKED"
-	status_label.modulate = Palette.ACCENT if is_unlocked else Palette.UI_MUTED
+	var in_range := bool(launch_status.get("in_range", true))
+	status_label.text = ("LOCATED" if is_located else "UNCHARTED") if is_unlocked else "LOCKED"
+	if is_unlocked and not in_range:
+		status_label.text = "OUT OF RANGE"
+	status_label.modulate = Palette.ACCENT if is_unlocked and in_range and is_located else Palette.UI_MUTED
 
 	var enemies: Array = planet["enemies"]
 	if enemies.is_empty():
@@ -221,9 +261,79 @@ func _update_planet_information() -> void:
 	else:
 		enemies_label.text = "KNOWN THREATS  //  %s" % ", ".join(enemies)
 
-	deploy_button.disabled = not is_unlocked
-	deploy_button.text = "DEPLOY" if is_unlocked else "DESTINATION LOCKED"
+	energy_requirements_label.text = _format_location(launch_status)
+	deploy_button.disabled = not bool(launch_status.eligible) and not bool(launch_status.can_locate)
+	deploy_button.text = _get_deploy_button_text(launch_status)
 	position_label.text = _build_position_indicator()
+
+
+static func get_locate_cost(planet: Dictionary) -> int:
+	return maxi(int(planet.get("locate_cost", 0)), 0)
+
+
+static func is_planet_located(planet: Dictionary) -> bool:
+	return WeaponUnlockManager.is_planet_located(StringName(planet["id"]), get_locate_cost(planet))
+
+
+## Pure eligibility query used by the UI and automated tests.
+## A planet must be unlocked (not "coming soon"), within range (planets gated
+## by research: Long-Range Cells for Verdant / Frozen, Air Conditioning for
+## Frozen / Volcanic), located with ore,
+## and the loadout must be operational (an Energy Module and enough power).
+static func evaluate_launch_requirements(
+	planet: Dictionary,
+	energy_profile: Dictionary,
+	stored_ore: float
+) -> Dictionary:
+	var unlocked := bool(planet.get("unlocked", false))
+	var playable := bool(planet.get("playable", true))
+	var cost := get_locate_cost(planet)
+	var located := is_planet_located(planet)
+	var loadout_valid := ShipEnergySystem.is_profile_operational(energy_profile)
+	var planet_id := StringName(planet.get("id", &""))
+	var range_research := ResearchManager.get_planet_access_research(planet_id)
+	var in_range := ResearchManager.is_planet_in_range(planet_id)
+	var range_definition := ResearchManager.get_definition(range_research) if not range_research.is_empty() else null
+	return {
+		"unlocked": unlocked,
+		"in_range": in_range,
+		"range_research": range_research,
+		"range_research_name": range_definition.display_name if range_definition != null else "",
+		"range_research_category": String(range_definition.category_id).to_upper() if range_definition != null else "",
+		"playable": playable,
+		"located": located,
+		"locate_cost": cost,
+		"can_locate": unlocked and in_range and not located and stored_ore >= float(cost),
+		"missing_ore": maxi(cost - floori(stored_ore), 0) if not located else 0,
+		"loadout_valid": loadout_valid,
+		"eligible": unlocked and in_range and located and playable and loadout_valid,
+	}
+
+
+func _format_location(status: Dictionary) -> String:
+	if not bool(status.unlocked):
+		return "COORDINATES  //  OUT OF RANGE"
+	if not bool(status.get("in_range", true)):
+		return "OUT OF RANGE  //  RESEARCH %s IN THE LABORATORY (%s)" % [String(status.range_research_name).to_upper(), String(status.get("range_research_category", ""))]
+	if bool(status.located):
+		return "COORDINATES  //  LOCKED ON"
+	return "COORDINATES  //  UNKNOWN   ·   PRECISE LOCATE COSTS %d ORE" % int(status.locate_cost)
+
+
+func _get_deploy_button_text(status: Dictionary) -> String:
+	if not bool(status.unlocked):
+		return "DESTINATION LOCKED"
+	if not bool(status.get("in_range", true)):
+		return "NEED %s" % String(status.range_research_name).to_upper()
+	if not bool(status.located):
+		if bool(status.can_locate):
+			return "PRECISE LOCATE  ·  ◆ %d" % int(status.locate_cost)
+		return "NEED ◆ %d ORE TO LOCATE" % int(status.locate_cost)
+	if not bool(status.playable):
+		return "WAVES COMING SOON"
+	if not bool(status.loadout_valid):
+		return "INVALID LOADOUT"
+	return "DEPLOY"
 
 
 func _build_position_indicator() -> String:
@@ -239,19 +349,53 @@ func _on_viewport_size_changed() -> void:
 	call_deferred("_layout_planets", false)
 
 
+func _on_stored_ore_changed(_amount: float) -> void:
+	_update_planet_information()
+
+
 func _on_back_pressed() -> void:
 	await _transition_to_scene(BASE_SCENE_PATH)
 
 
 func _on_deploy_pressed() -> void:
 	var selected_planet := PLANETS[selected_index]
-	if not bool(selected_planet["unlocked"]):
+	var profile := ShipEnergySystem.calculate_loadout_profile(ShipLoadout.installed_modules)
+	var launch_status := evaluate_launch_requirements(selected_planet, profile, ResourceManager.stored_ore)
+	# First press on an uncharted planet buys its coordinates.
+	if bool(launch_status.can_locate):
+		locate_selected_planet()
+		return
+	if not bool(launch_status.eligible):
+		_update_planet_information()
 		return
 
-	# Only Rocky Planet is currently playable. A future PlanetManager can use
-	# selected_planet["id"] here before BattleMain is loaded.
+	var previous_planet_id := ResourceManager.current_expedition_planet_id
+	ResourceManager.set_current_expedition_planet(StringName(selected_planet["id"]))
 	ResourceManager.start_new_mission()
-	await _transition_to_scene(BATTLE_SCENE_PATH)
+	var transition_error := await _transition_to_scene(battle_scene_path)
+	if transition_error != OK:
+		ResourceManager.set_current_expedition_planet(previous_planet_id)
+		_update_planet_information()
+
+
+## Spends ore to pinpoint the selected planet and plays the lock-on reticle.
+func locate_selected_planet() -> bool:
+	var planet := PLANETS[selected_index]
+	var profile := ShipEnergySystem.calculate_loadout_profile(ShipLoadout.installed_modules)
+	var status := evaluate_launch_requirements(planet, profile, ResourceManager.stored_ore)
+	if not bool(status.can_locate):
+		_update_planet_information()
+		return false
+	if not WeaponUnlockManager.locate_planet(StringName(planet["id"]), get_locate_cost(planet)):
+		_update_planet_information()
+		return false
+	var visual := _planet_visuals[selected_index]
+	visual.uncharted = false
+	visual.lock_on = 1.0
+	var tween := visual.create_tween()
+	tween.tween_property(visual, "lock_on", 0.0, 0.7).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_update_planet_information()
+	return true
 
 
 func _fade_in() -> void:
@@ -262,9 +406,11 @@ func _fade_in() -> void:
 	tween.tween_property(transition_overlay, "color:a", 0.0, 0.35)
 
 
-func _transition_to_scene(scene_path: String) -> void:
+func _transition_to_scene(scene_path: String) -> Error:
 	if _transitioning:
-		return
+		return ERR_BUSY
+	if not ResourceLoader.exists(scene_path, "PackedScene"):
+		return ERR_FILE_NOT_FOUND
 
 	_transitioning = true
 	transition_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -272,4 +418,10 @@ func _transition_to_scene(scene_path: String) -> void:
 	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_property(transition_overlay, "color:a", 1.0, 0.24)
 	await tween.finished
-	get_tree().change_scene_to_file(scene_path)
+	var change_error := get_tree().change_scene_to_file(scene_path)
+	if change_error != OK:
+		_transitioning = false
+		transition_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var restore := create_tween()
+		restore.tween_property(transition_overlay, "color:a", 0.0, 0.2)
+	return change_error

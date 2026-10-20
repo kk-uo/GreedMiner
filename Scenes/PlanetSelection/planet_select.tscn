@@ -263,7 +263,7 @@ anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
 offset_left = -470.0
-offset_top = -272.0
+offset_top = -300.0
 offset_right = 470.0
 offset_bottom = -34.0
 grow_horizontal = 2
@@ -306,6 +306,12 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1.000, 0.420, 0.490, 1)
 theme_override_font_sizes/font_size = 14
 text = "KNOWN THREATS  //  LITTLE ROCK, ROCK GOLEM"
+
+[node name="EnergyRequirements" type="Label" parent="InfoPanel/MarginContainer/InfoLayout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.659, 0.82, 0.92, 1)
+theme_override_font_sizes/font_size = 13
+text = "COORDINATES  //  LOCKED ON"
 
 [node name="Divider" type="HSeparator" parent="InfoPanel/MarginContainer/InfoLayout"]
 layout_mode = 2

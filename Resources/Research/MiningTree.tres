@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ResearchTreeDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeNode.gd" id="2"]
+
+[sub_resource type="Resource" id="Mining"]
+script = ExtResource("2")
+research_id = &"mining_install_slot_unlock"
+display_name = "Mining Module Expansion I"
+description = "Install up to two Mining Modules."
+tree_category = &"mining"
+visual_position = Vector2(230, 20)
+
+[resource]
+script = ExtResource("1")
+tree_id = &"mining"
+display_name = "Mining Research"
+nodes = Array[ExtResource("2")]([SubResource("Mining")])

@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="ResearchTreeDefinition" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeNode.gd" id="2"]
+
+[sub_resource type="Resource" id="Energy"]
+script = ExtResource("2")
+research_id = &"energy_install_slot_unlock"
+display_name = "Energy Module Expansion I"
+description = "Install a second Energy Module (an extra battery)."
+tree_category = &"energy"
+visual_position = Vector2(30, 20)
+
+[sub_resource type="Resource" id="Core"]
+script = ExtResource("2")
+research_id = &"energy_core_1"
+display_name = "Energy Core I"
+description = "Every Energy Module supplies +1 Power."
+tree_category = &"energy"
+prerequisite_ids = Array[StringName]([&"energy_install_slot_unlock"])
+visual_position = Vector2(230, 20)
+
+[sub_resource type="Resource" id="Range"]
+script = ExtResource("2")
+research_id = &"energy_range_1"
+display_name = "Long-Range Cells"
+description = "Reach Verdant Planet and Frozen Planet."
+tree_category = &"energy"
+prerequisite_ids = Array[StringName]([&"energy_install_slot_unlock"])
+visual_position = Vector2(430, 20)
+
+[resource]
+script = ExtResource("1")
+tree_id = &"energy"
+display_name = "Energy Research"
+nodes = Array[ExtResource("2")]([SubResource("Energy"), SubResource("Core"), SubResource("Range")])

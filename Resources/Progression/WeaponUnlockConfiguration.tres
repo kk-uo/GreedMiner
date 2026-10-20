@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="WeaponUnlockConfiguration" format=3 uid="uid://cyop2h43ah615"]
+
+[ext_resource type="Script" uid="uid://b1dbqx2i3ehw0" path="res://Scripts/Progression/WeaponUnlockDefinition.gd" id="1_definition"]
+[ext_resource type="Script" uid="uid://bum0yl1slohvx" path="res://Scripts/Progression/WeaponUnlockConfiguration.gd" id="2_configuration"]
+
+[sub_resource type="Resource" id="MachineGun"]
+script = ExtResource("1_definition")
+weapon_id = &"machine_gun"
+display_name = "Machine Gun"
+unlock_condition = 0
+requirement_text = "Available from the start."
+
+[sub_resource type="Resource" id="DwarfCannon"]
+script = ExtResource("1_definition")
+weapon_id = &"dwarf_cannon"
+display_name = "Dwarf Cannon"
+unlock_condition = 1
+required_planet_id = &"rocky_planet"
+requirement_text = "Complete Rocky Planet."
+
+[sub_resource type="Resource" id="Chainsaw"]
+script = ExtResource("1_definition")
+weapon_id = &"chainsaw"
+display_name = "Chainsaw"
+requirement_text = "Planned for a later update."
+
+[sub_resource type="Resource" id="Laser"]
+script = ExtResource("1_definition")
+weapon_id = &"laser"
+display_name = "Laser"
+requirement_text = "Unlock condition not yet decided."
+
+[sub_resource type="Resource" id="Knockback"]
+script = ExtResource("1_definition")
+weapon_id = &"knockback_module"
+display_name = "Knockback"
+unlock_condition = 1
+required_planet_id = &"goblin_planet"
+requirement_text = "Defeat the Goblin boss (clear Verdant Planet)."
+
+[sub_resource type="Resource" id="Regeneration"]
+script = ExtResource("1_definition")
+weapon_id = &"regeneration_module"
+display_name = "Regeneration"
+requirement_text = "Planned for a later update."
+
+[resource]
+script = ExtResource("2_configuration")
+definitions = Array[ExtResource("1_definition")]([SubResource("MachineGun"), SubResource("DwarfCannon"), SubResource("Chainsaw"), SubResource("Laser"), SubResource("Knockback"), SubResource("Regeneration")])

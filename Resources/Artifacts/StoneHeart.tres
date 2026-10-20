@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1_definition"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/StoneHeartEffect.gd" id="2_effect"]
+
+[resource]
+script = ExtResource("1_definition")
+artifact_id = &"stone_heart"
+display_name = "Stone Heart"
+description = "A living core of ancient stone. It forms 30 Rock Armor, releases a damaging shockwave when shattered, and reforms after 30 seconds."
+equip_target = 0
+acquisition_source = "First defeat of the Rock Titan"
+unique = true
+rarity = "Epic"
+source_planet_id = &"rocky_planet"
+source_name = "Rock Titan"
+stat_keys = Array[StringName]([&"armor_hp", &"shockwave_damage", &"regeneration_delay"])
+effect_script = ExtResource("2_effect")
+effect_parameters = {
+"armor_hp": 30.0,
+"knockback_distance": 100.0,
+"regeneration_delay": 30.0,
+"shockwave_damage": 25.0,
+"shockwave_radius": 100.0
+}
+

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/ExplosionDamageArtifactEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"red_crystal"
+display_name = "Red Crystal"
+rarity = "Epic"
+description = "Increases the equipped Dwarf Cannon explosion or Knockback shockwave damage by 50%."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"dwarf_cannon", &"knockback_module"])
+acquisition_source = "Break a red crystal on Rocky Planet"
+source_planet_id = &"rocky_planet"
+source_name = "Rocky Planet red crystal"
+effect_script = ExtResource("2")
+effect_parameters = {"explosion_damage_bonus": 0.5}

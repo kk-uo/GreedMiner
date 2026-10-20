@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Debug/VerdantWaveManualTest.gd" id="1_manual"]
+
+[node name="VerdantWaveManualTest" type="Node"]
+script = ExtResource("1_manual")
+wave_number_to_test = 1

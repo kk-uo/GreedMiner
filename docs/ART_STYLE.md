@@ -7,8 +7,8 @@
 - 严格俯视、正交视角；扁平几何，干净的形状、清晰的剪影。
 - 每种材质只有 3 个平涂色调：基色、阴影色、高光色。不用渐变、不描边、不加纹理。
 - 光源在左上。所有物体投下同一种硬投影：偏移 `(5, 7)`，颜色为黑色、28% 不透明度。投影统一在引擎里画，不画进素材。
-- 形状语言：飞船 = 矩形和倒角；敌人 = 曲线、尖刺、锯齿状的石头；矿石 = 六边形晶面。
-- 饱和度层级：地面饱和度低、对比度低；飞船用骨白配深灰；敌人是深色剪影，只带红色核心；**矿石是全游戏最饱和的东西**。
+- 形状语言：飞船 = 矩形和倒角；敌人 = 灰色多边形石块堆成的石人 / 石子；矿石 = 六边形晶面。
+- 饱和度层级：地面饱和度低、对比度低；飞船用骨白配深灰；敌人是灰色石头，只带紫色眼睛 / 裂缝 / 晶体；**矿石是全游戏最饱和的东西**。
 - 朝向：炮管和敌人的正面都朝本地 +X（向右），这样 `look_at()` 和旋转可以直接用。
 
 ## 色板
@@ -18,7 +18,13 @@
 | 飞船主体 / 阴影 / 接缝 / 零件 | `#E8E1D3` `#C2B7A3` `#CBC1AE` `#CFC5B2` |
 | 机械 / 机械高光 / 强调色 | `#3B3530` `#5A524B` `#F08A24` |
 | 玩家子弹 / 子弹芯 | `#FFC061` `#FFF2C2` |
-| 敌人 / 敌人高光 / 威胁色 | `#2B1F1C` `#46342D` `#FF3D5A` |
+| 敌人石头 深缝 / 暗 / 中 / 亮面 / 高光 | `#2F3135` `#44474C` `#686C72` `#8E9298` `#B6BABE` |
+| 敌人紫（眼睛 / 裂缝 / 晶体）主 / 亮 / 暗 | `#B45CFF` `#E3BCFF` `#7A35C9` |
+| 敌人攻击扬尘 | `#B8A68E` |
+| 哥布林皮肤 暗 / 主 / 亮 | `#657F31` `#9CC44C` `#C6E07A` |
+| 哥布林装备 皮革 / 毛皮 / 木头 / 铁 / 骨 / 红布 | `#6B4A32` `#7A5A3C` `#8A5A34` `#7D8389` `#E9DFC6` `#B8452F` |
+| 哥布林眼睛（威胁色，石头敌人用紫色） | `#FF4A3A` |
+| 危险界面色（撤离按钮、警告） | `#FF3D5A` |
 | 金矿 亮 / 主 / 暗 | `#FFF2B0` `#FFD23F` `#DC9D17` |
 | 钴矿 亮 / 主 / 暗 | `#D6EDFF` `#5FB0FF` `#2F78CC` |
 | 界面面板 / 凸起面板 / 文字 / 次要文字 | `#1D1714` `#2A231E` `#F2EAD9` `#A89C88` |
@@ -67,10 +73,10 @@ dark gunmetal #3B3530, #5A524B highlight, safety-orange #F08A24 muzzle tip, [WEA
 
 **敌人**
 ```
-alien creature seen from directly above, facing right (east),
-organic curved body with sharp spikes, asymmetric, no mechanical parts,
-dark silhouette #2B1F1C body, #46342D highlight on upper side,
-exactly one or two small glowing threat-red #FF3D5A cores, no other colors, [ENEMY]
+stone creature seen from directly above, facing right (east),
+built from a few chunky faceted grey boulders, no mechanical parts,
+each chunk: #44474C base, #686C72 inner, #8E9298 lit top-left facet, #B6BABE edge,
+small glowing arcane purple #B45CFF eyes / cracks / crystals only, no other colors, [ENEMY]
 ```
 
 **矿石**
@@ -99,7 +105,7 @@ Draw in GreedMiner flat style: only draw_colored_polygon / draw_circle / draw_re
 no gradients, no outlines. Each object = base color + one shadow shape + one highlight
 shape. Before the object, draw the same silhouette offset by Palette.SHADOW_OFFSET in
 Palette.SHADOW_COLOR. Colors must come from Palette.gd only. Shape language: ship =
-rectangles/chamfers, enemies = curves/spikes, minerals = hexagonal facets. Face local +X.
+rectangles/chamfers, enemies = faceted grey stone chunks with purple eyes, minerals = hexagonal facets. Face local +X.
 ```
 
 ## 省空间规则

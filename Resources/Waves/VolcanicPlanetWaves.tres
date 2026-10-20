@@ -1,0 +1,658 @@
+[gd_resource type="Resource" script_class="PlanetWaveConfig" format=3]
+
+[ext_resource type="Script" path="res://Scripts/Waves/EnemySpawnEntry.gd" id="1_entry"]
+[ext_resource type="Script" path="res://Scripts/Waves/WaveDefinition.gd" id="2_wave"]
+[ext_resource type="Script" path="res://Scripts/Waves/PlanetWaveConfig.gd" id="3_config"]
+[ext_resource type="Script" path="res://Scripts/Waves/SpecialSpawnEventRule.gd" id="4_rule"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/demon.tscn" id="5_demon"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/hellhunter.tscn" id="6_hellhunter"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/imp.tscn" id="7_imp"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/big_demon.tscn" id="8_big_demon"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/demon_lord.tscn" id="9_demon_lord"]
+
+[sub_resource type="Resource" id="Entry_1_Demon"]
+script = ExtResource("1_entry")
+enemy_id = &"demon"
+enemy_scene = ExtResource("5_demon")
+spawn_count = 14
+spawn_cost = 1
+
+[sub_resource type="Resource" id="Entry_1_Hellhunter"]
+script = ExtResource("1_entry")
+enemy_id = &"hellhunter"
+enemy_scene = ExtResource("6_hellhunter")
+spawn_count = 4
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_1_Imp"]
+script = ExtResource("1_entry")
+enemy_id = &"imp"
+enemy_scene = ExtResource("7_imp")
+spawn_count = 0
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_1_BigDemon"]
+script = ExtResource("1_entry")
+enemy_id = &"big_demon"
+enemy_scene = ExtResource("8_big_demon")
+spawn_count = 0
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Wave_1"]
+script = ExtResource("2_wave")
+wave_number = 1
+spawn_interval = 2
+spawn_phase_duration = 12
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_1_Demon"), SubResource("Entry_1_Hellhunter"), SubResource("Entry_1_Imp"), SubResource("Entry_1_BigDemon")])
+
+[sub_resource type="Resource" id="Entry_2_Demon"]
+script = ExtResource("1_entry")
+enemy_id = &"demon"
+enemy_scene = ExtResource("5_demon")
+spawn_count = 22
+spawn_cost = 1
+
+[sub_resource type="Resource" id="Entry_2_Hellhunter"]
+script = ExtResource("1_entry")
+enemy_id = &"hellhunter"
+enemy_scene = ExtResource("6_hellhunter")
+spawn_count = 8
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_2_Imp"]
+script = ExtResource("1_entry")
+enemy_id = &"imp"
+enemy_scene = ExtResource("7_imp")
+spawn_count = 0
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_2_BigDemon"]
+script = ExtResource("1_entry")
+enemy_id = &"big_demon"
+enemy_scene = ExtResource("8_big_demon")
+spawn_count = 0
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Wave_2"]
+script = ExtResource("2_wave")
+wave_number = 2
+spawn_interval = 2
+spawn_phase_duration = 20
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_2_Demon"), SubResource("Entry_2_Hellhunter"), SubResource("Entry_2_Imp"), SubResource("Entry_2_BigDemon")])
+
+[sub_resource type="Resource" id="Entry_3_Demon"]
+script = ExtResource("1_entry")
+enemy_id = &"demon"
+enemy_scene = ExtResource("5_demon")
+spawn_count = 22
+spawn_cost = 1
+
+[sub_resource type="Resource" id="Entry_3_Hellhunter"]
+script = ExtResource("1_entry")
+enemy_id = &"hellhunter"
+enemy_scene = ExtResource("6_hellhunter")
+spawn_count = 9
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_3_Imp"]
+script = ExtResource("1_entry")
+enemy_id = &"imp"
+enemy_scene = ExtResource("7_imp")
+spawn_count = 6
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_3_BigDemon"]
+script = ExtResource("1_entry")
+enemy_id = &"big_demon"
+enemy_scene = ExtResource("8_big_demon")
+spawn_count = 2
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Wave_3"]
+script = ExtResource("2_wave")
+wave_number = 3
+spawn_interval = 1.5
+spawn_phase_duration = 19.5
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_3_Demon"), SubResource("Entry_3_Hellhunter"), SubResource("Entry_3_Imp"), SubResource("Entry_3_BigDemon")])
+
+[sub_resource type="Resource" id="Entry_4_Demon"]
+script = ExtResource("1_entry")
+enemy_id = &"demon"
+enemy_scene = ExtResource("5_demon")
+spawn_count = 24
+spawn_cost = 1
+
+[sub_resource type="Resource" id="Entry_4_Hellhunter"]
+script = ExtResource("1_entry")
+enemy_id = &"hellhunter"
+enemy_scene = ExtResource("6_hellhunter")
+spawn_count = 11
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_4_Imp"]
+script = ExtResource("1_entry")
+enemy_id = &"imp"
+enemy_scene = ExtResource("7_imp")
+spawn_count = 7
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_4_BigDemon"]
+script = ExtResource("1_entry")
+enemy_id = &"big_demon"
+enemy_scene = ExtResource("8_big_demon")
+spawn_count = 3
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Wave_4"]
+script = ExtResource("2_wave")
+wave_number = 4
+spawn_interval = 1.5
+spawn_phase_duration = 22.5
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_4_Demon"), SubResource("Entry_4_Hellhunter"), SubResource("Entry_4_Imp"), SubResource("Entry_4_BigDemon")])
+
+[sub_resource type="Resource" id="Entry_5_Demon"]
+script = ExtResource("1_entry")
+enemy_id = &"demon"
+enemy_scene = ExtResource("5_demon")
+spawn_count = 24
+spawn_cost = 1
+
+[sub_resource type="Resource" id="Entry_5_Hellhunter"]
+script = ExtResource("1_entry")
+enemy_id = &"hellhunter"
+enemy_scene = ExtResource("6_hellhunter")
+spawn_count = 11
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_5_Imp"]
+script = ExtResource("1_entry")
+enemy_id = &"imp"
+enemy_scene = ExtResource("7_imp")
+spawn_count = 9
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_5_BigDemon"]
+script = ExtResource("1_entry")
+enemy_id = &"big_demon"
+enemy_scene = ExtResource("8_big_demon")
+spawn_count = 4
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Wave_5"]
+script = ExtResource("2_wave")
+wave_number = 5
+spawn_interval = 1.5
+spawn_phase_duration = 24
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_5_Demon"), SubResource("Entry_5_Hellhunter"), SubResource("Entry_5_Imp"), SubResource("Entry_5_BigDemon")])
+
+[sub_resource type="Resource" id="Entry_6_Demon"]
+script = ExtResource("1_entry")
+enemy_id = &"demon"
+enemy_scene = ExtResource("5_demon")
+spawn_count = 25
+spawn_cost = 1
+
+[sub_resource type="Resource" id="Entry_6_Hellhunter"]
+script = ExtResource("1_entry")
+enemy_id = &"hellhunter"
+enemy_scene = ExtResource("6_hellhunter")
+spawn_count = 13
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_6_Imp"]
+script = ExtResource("1_entry")
+enemy_id = &"imp"
+enemy_scene = ExtResource("7_imp")
+spawn_count = 11
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_6_BigDemon"]
+script = ExtResource("1_entry")
+enemy_id = &"big_demon"
+enemy_scene = ExtResource("8_big_demon")
+spawn_count = 5
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Wave_6"]
+script = ExtResource("2_wave")
+wave_number = 6
+spawn_interval = 1.3
+spawn_phase_duration = 23.4
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_6_Demon"), SubResource("Entry_6_Hellhunter"), SubResource("Entry_6_Imp"), SubResource("Entry_6_BigDemon")])
+
+[sub_resource type="Resource" id="Entry_7_Demon"]
+script = ExtResource("1_entry")
+enemy_id = &"demon"
+enemy_scene = ExtResource("5_demon")
+spawn_count = 29
+spawn_cost = 1
+
+[sub_resource type="Resource" id="Entry_7_Hellhunter"]
+script = ExtResource("1_entry")
+enemy_id = &"hellhunter"
+enemy_scene = ExtResource("6_hellhunter")
+spawn_count = 15
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_7_Imp"]
+script = ExtResource("1_entry")
+enemy_id = &"imp"
+enemy_scene = ExtResource("7_imp")
+spawn_count = 12
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_7_BigDemon"]
+script = ExtResource("1_entry")
+enemy_id = &"big_demon"
+enemy_scene = ExtResource("8_big_demon")
+spawn_count = 7
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Wave_7"]
+script = ExtResource("2_wave")
+wave_number = 7
+spawn_interval = 1.3
+spawn_phase_duration = 27.3
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_7_Demon"), SubResource("Entry_7_Hellhunter"), SubResource("Entry_7_Imp"), SubResource("Entry_7_BigDemon")])
+
+[sub_resource type="Resource" id="Entry_8_Demon"]
+script = ExtResource("1_entry")
+enemy_id = &"demon"
+enemy_scene = ExtResource("5_demon")
+spawn_count = 29
+spawn_cost = 1
+
+[sub_resource type="Resource" id="Entry_8_Hellhunter"]
+script = ExtResource("1_entry")
+enemy_id = &"hellhunter"
+enemy_scene = ExtResource("6_hellhunter")
+spawn_count = 17
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_8_Imp"]
+script = ExtResource("1_entry")
+enemy_id = &"imp"
+enemy_scene = ExtResource("7_imp")
+spawn_count = 14
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_8_BigDemon"]
+script = ExtResource("1_entry")
+enemy_id = &"big_demon"
+enemy_scene = ExtResource("8_big_demon")
+spawn_count = 9
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Wave_8"]
+script = ExtResource("2_wave")
+wave_number = 8
+spawn_interval = 1
+spawn_phase_duration = 23
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_8_Demon"), SubResource("Entry_8_Hellhunter"), SubResource("Entry_8_Imp"), SubResource("Entry_8_BigDemon")])
+
+[sub_resource type="Resource" id="Entry_9_Demon"]
+script = ExtResource("1_entry")
+enemy_id = &"demon"
+enemy_scene = ExtResource("5_demon")
+spawn_count = 30
+spawn_cost = 1
+
+[sub_resource type="Resource" id="Entry_9_Hellhunter"]
+script = ExtResource("1_entry")
+enemy_id = &"hellhunter"
+enemy_scene = ExtResource("6_hellhunter")
+spawn_count = 19
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_9_Imp"]
+script = ExtResource("1_entry")
+enemy_id = &"imp"
+enemy_scene = ExtResource("7_imp")
+spawn_count = 17
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_9_BigDemon"]
+script = ExtResource("1_entry")
+enemy_id = &"big_demon"
+enemy_scene = ExtResource("8_big_demon")
+spawn_count = 12
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Wave_9"]
+script = ExtResource("2_wave")
+wave_number = 9
+spawn_interval = 1
+spawn_phase_duration = 26
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_9_Demon"), SubResource("Entry_9_Hellhunter"), SubResource("Entry_9_Imp"), SubResource("Entry_9_BigDemon")])
+
+[sub_resource type="Resource" id="Entry_10_Demon"]
+script = ExtResource("1_entry")
+enemy_id = &"demon"
+enemy_scene = ExtResource("5_demon")
+spawn_count = 34
+spawn_cost = 1
+
+[sub_resource type="Resource" id="Entry_10_Hellhunter"]
+script = ExtResource("1_entry")
+enemy_id = &"hellhunter"
+enemy_scene = ExtResource("6_hellhunter")
+spawn_count = 21
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_10_Imp"]
+script = ExtResource("1_entry")
+enemy_id = &"imp"
+enemy_scene = ExtResource("7_imp")
+spawn_count = 21
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_10_BigDemon"]
+script = ExtResource("1_entry")
+enemy_id = &"big_demon"
+enemy_scene = ExtResource("8_big_demon")
+spawn_count = 14
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Wave_10"]
+script = ExtResource("2_wave")
+wave_number = 10
+spawn_interval = 1.5
+spawn_phase_duration = 15
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_10_Demon"), SubResource("Entry_10_Hellhunter"), SubResource("Entry_10_Imp"), SubResource("Entry_10_BigDemon")])
+
+[sub_resource type="Resource" id="Entry_11_Demon"]
+script = ExtResource("1_entry")
+enemy_id = &"demon"
+enemy_scene = ExtResource("5_demon")
+spawn_count = 82
+spawn_cost = 1
+
+[sub_resource type="Resource" id="Entry_11_Hellhunter"]
+script = ExtResource("1_entry")
+enemy_id = &"hellhunter"
+enemy_scene = ExtResource("6_hellhunter")
+spawn_count = 28
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_11_Imp"]
+script = ExtResource("1_entry")
+enemy_id = &"imp"
+enemy_scene = ExtResource("7_imp")
+spawn_count = 16
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_11_BigDemon"]
+script = ExtResource("1_entry")
+enemy_id = &"big_demon"
+enemy_scene = ExtResource("8_big_demon")
+spawn_count = 5
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Entry_11_DemonLord"]
+script = ExtResource("1_entry")
+enemy_id = &"demon_lord"
+enemy_scene = ExtResource("9_demon_lord")
+spawn_count = 1
+spawn_cost = 50
+spawn_first = true
+is_boss = true
+
+[sub_resource type="Resource" id="Wave_11"]
+script = ExtResource("2_wave")
+wave_number = 11
+spawn_interval = 1.5
+spawn_phase_duration = 45
+batch_spawning_enabled = true
+interleave_enemy_types = true
+boss_wave = true
+boss_summons_consume_wave_quota = false
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_11_DemonLord"), SubResource("Entry_11_Demon"), SubResource("Entry_11_Hellhunter"), SubResource("Entry_11_Imp"), SubResource("Entry_11_BigDemon")])
+
+[sub_resource type="Resource" id="Event_1_W2_Hellhunter"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w2_hellhunter_pack_1"
+enemy_id = &"hellhunter"
+trigger_mode = 1
+exact_wave = 2
+trigger_phase_fraction = 0.40
+fixed_group_size = 6
+starting_wave = 2
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 6
+maximum_group_size = 6
+pattern = 1
+formation_spacing = 30
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_2_W3_Demon"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w3_demon_pack_2"
+enemy_id = &"demon"
+trigger_mode = 1
+exact_wave = 3
+trigger_phase_fraction = 0.50
+fixed_group_size = 6
+starting_wave = 3
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 6
+maximum_group_size = 6
+pattern = 1
+formation_spacing = 32
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_3_W4_Hellhunter"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w4_hellhunter_pack_3"
+enemy_id = &"hellhunter"
+trigger_mode = 1
+exact_wave = 4
+trigger_phase_fraction = 0.35
+fixed_group_size = 8
+starting_wave = 4
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 8
+maximum_group_size = 8
+pattern = 1
+formation_spacing = 30
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_4_W5_Demon"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w5_demon_pack_4"
+enemy_id = &"demon"
+trigger_mode = 1
+exact_wave = 5
+trigger_phase_fraction = 0.60
+fixed_group_size = 8
+starting_wave = 5
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 8
+maximum_group_size = 8
+pattern = 1
+formation_spacing = 32
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_5_W6_Hellhunter"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w6_hellhunter_pack_5"
+enemy_id = &"hellhunter"
+trigger_mode = 1
+exact_wave = 6
+trigger_phase_fraction = 0.45
+fixed_group_size = 10
+starting_wave = 6
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 10
+maximum_group_size = 10
+pattern = 1
+formation_spacing = 30
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_6_W7_Demon"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w7_demon_pack_6"
+enemy_id = &"demon"
+trigger_mode = 1
+exact_wave = 7
+trigger_phase_fraction = 0.55
+fixed_group_size = 9
+starting_wave = 7
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 9
+maximum_group_size = 9
+pattern = 1
+formation_spacing = 32
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_7_W8_Hellhunter"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w8_hellhunter_pack_7"
+enemy_id = &"hellhunter"
+trigger_mode = 1
+exact_wave = 8
+trigger_phase_fraction = 0.30
+fixed_group_size = 10
+starting_wave = 8
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 10
+maximum_group_size = 10
+pattern = 1
+formation_spacing = 30
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_8_W8_Demon"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w8_demon_pack_8"
+enemy_id = &"demon"
+trigger_mode = 1
+exact_wave = 8
+trigger_phase_fraction = 0.70
+fixed_group_size = 9
+starting_wave = 8
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 9
+maximum_group_size = 9
+pattern = 1
+formation_spacing = 32
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_9_W9_Hellhunter"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w9_hellhunter_pack_9"
+enemy_id = &"hellhunter"
+trigger_mode = 1
+exact_wave = 9
+trigger_phase_fraction = 0.30
+fixed_group_size = 10
+starting_wave = 9
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 10
+maximum_group_size = 10
+pattern = 1
+formation_spacing = 30
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_10_W9_Demon"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w9_demon_pack_10"
+enemy_id = &"demon"
+trigger_mode = 1
+exact_wave = 9
+trigger_phase_fraction = 0.65
+fixed_group_size = 9
+starting_wave = 9
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 9
+maximum_group_size = 9
+pattern = 1
+formation_spacing = 32
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_11_W10_Hellhunter"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w10_hellhunter_pack_11"
+enemy_id = &"hellhunter"
+trigger_mode = 1
+exact_wave = 10
+trigger_phase_fraction = 0.25
+fixed_group_size = 10
+starting_wave = 10
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 10
+maximum_group_size = 10
+pattern = 1
+formation_spacing = 30
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_12_W10_Demon"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w10_demon_pack_12"
+enemy_id = &"demon"
+trigger_mode = 1
+exact_wave = 10
+trigger_phase_fraction = 0.50
+fixed_group_size = 10
+starting_wave = 10
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 10
+maximum_group_size = 10
+pattern = 1
+formation_spacing = 32
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Event_13_W10_Hellhunter"]
+script = ExtResource("4_rule")
+event_id = &"volcanic_w10_hellhunter_pack_13"
+enemy_id = &"hellhunter"
+trigger_mode = 1
+exact_wave = 10
+trigger_phase_fraction = 0.75
+fixed_group_size = 10
+starting_wave = 10
+trigger_chance = 1.0
+maximum_events_per_wave = 1
+minimum_group_size = 10
+maximum_group_size = 10
+pattern = 1
+formation_spacing = 30
+with_flag_bearer = false
+
+[resource]
+script = ExtResource("3_config")
+planet_id = &"volcanic_planet"
+display_name = "Volcanic Planet"
+waves = Array[ExtResource("2_wave")]([SubResource("Wave_1"), SubResource("Wave_2"), SubResource("Wave_3"), SubResource("Wave_4"), SubResource("Wave_5"), SubResource("Wave_6"), SubResource("Wave_7"), SubResource("Wave_8"), SubResource("Wave_9"), SubResource("Wave_10"), SubResource("Wave_11")])
+special_spawn_rules = Array[ExtResource("4_rule")]([SubResource("Event_1_W2_Hellhunter"), SubResource("Event_2_W3_Demon"), SubResource("Event_3_W4_Hellhunter"), SubResource("Event_4_W5_Demon"), SubResource("Event_5_W6_Hellhunter"), SubResource("Event_6_W7_Demon"), SubResource("Event_7_W8_Hellhunter"), SubResource("Event_8_W8_Demon"), SubResource("Event_9_W9_Hellhunter"), SubResource("Event_10_W9_Demon"), SubResource("Event_11_W10_Hellhunter"), SubResource("Event_12_W10_Demon"), SubResource("Event_13_W10_Hellhunter")])
+

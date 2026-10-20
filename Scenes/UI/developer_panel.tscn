@@ -1,0 +1,135 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/DeveloperPanel.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StylePanel"]
+bg_color = Color(0.055, 0.07, 0.082, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.18, 0.72, 0.68, 0.75)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+content_margin_left = 20.0
+content_margin_top = 18.0
+content_margin_right = 20.0
+content_margin_bottom = 18.0
+
+[sub_resource type="StyleBoxFlat" id="StyleOverlay"]
+bg_color = Color(0, 0, 0, 0.62)
+
+[sub_resource type="LabelSettings" id="TitleSettings"]
+font_size = 22
+font_color = Color(0.65, 0.95, 0.91, 1)
+
+[node name="DeveloperPanel" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1_script")
+
+[node name="Overlay" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleOverlay")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(430, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StylePanel")
+
+[node name="Content" type="VBoxContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Center/Panel/Content"]
+layout_mode = 2
+text = "DEVELOPER MODE"
+label_settings = SubResource("TitleSettings")
+
+[node name="Hint" type="Label" parent="Center/Panel/Content"]
+layout_mode = 2
+text = "Playtest tools  •  F12 to close"
+modulate = Color(0.65, 0.68, 0.7, 1)
+
+[node name="BalanceLabel" type="Label" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Current Ore: 0"
+
+[node name="CurrencySelector" type="OptionButton" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AmountInput" type="LineEdit" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Non-negative whole amount"
+virtual_keyboard_type = 2
+
+[node name="GrantButton" type="Button" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Grant Resources"
+
+[node name="Separator" type="HSeparator" parent="Center/Panel/Content"]
+layout_mode = 2
+
+[node name="UnlockWeaponsButton" type="Button" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Unlock All Weapons"
+
+[node name="UnlockArtifactsButton" type="Button" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Unlock All Magic Artifacts"
+
+[node name="UnlockPlanetsButton" type="Button" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Unlock All Planets"
+
+[node name="ResetButton" type="Button" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Reset All Progress"
+
+[node name="StatusLabel" type="Label" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 2
+
+[node name="CloseButton" type="Button" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Close"
+
+[node name="ResetConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Reset All Progress?"
+dialog_text = "This permanently resets currencies, research, unlocks, chips, and the ship loadout to new-game defaults."
+ok_button_text = "Reset Progress"
+cancel_button_text = "Cancel"

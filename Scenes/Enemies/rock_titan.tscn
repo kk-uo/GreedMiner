@@ -1,0 +1,31 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Enemies/RockTitan.gd" id="1_titan"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/rock_golem.tscn" id="2_golem"]
+
+[sub_resource type="CircleShape2D" id="CircleShape_titan"]
+radius = 130.0
+
+[node name="RockTitan" type="Area2D"]
+script = ExtResource("1_titan")
+enemy_id = &"rock_titan"
+enemy_name = "Rock Titan"
+max_health = 2000.0
+move_speed = 10.0
+attack_damage = 20.0
+attack_interval = 1.0
+attack_range = 50.0
+damage_reduction = 0.0
+reward_ore = 200.0
+attack_type = 0
+enemy_tier = 2
+split_enemy_scene = ExtResource("2_golem")
+split_count = 4
+first_kill_artifact_id = &"stone_heart"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape_titan")
+
+[node name="AttackTimer" type="Timer" parent="."]
+
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

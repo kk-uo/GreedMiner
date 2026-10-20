@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Enemies/GoblinEngineer.gd" id="1_engineer"]
+
+[sub_resource type="CircleShape2D" id="CircleShape_engineer"]
+radius = 10.0
+
+[node name="GoblinEngineer" type="Area2D"]
+script = ExtResource("1_engineer")
+enemy_id = &"goblin_engineer"
+enemy_name = "Goblin Engineer"
+max_health = 50.0
+move_speed = 75.0
+attack_damage = 20.0
+attack_interval = 1.0
+attack_range = 100.0
+damage_reduction = 0.0
+attack_type = 1
+reward_ore = 1.0
+enemy_tier = 0
+explosion_radius = 70.0
+explosion_damage = 20.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape_engineer")
+
+[node name="AttackTimer" type="Timer" parent="."]
+
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

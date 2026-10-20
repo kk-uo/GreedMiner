@@ -1,0 +1,64 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Debug/VerdantEnemyTest.gd" id="1_test"]
+[ext_resource type="Script" path="res://Scripts/Battle/Battlefield.gd" id="2_battlefield"]
+[ext_resource type="PackedScene" path="res://Scenes/Ship/ship.tscn" id="3_ship"]
+
+[node name="VerdantEnemyManualTest" type="Node2D"]
+script = ExtResource("1_test")
+
+[node name="Battlefield" type="Node2D" parent="."]
+z_index = -100
+script = ExtResource("2_battlefield")
+
+[node name="Ship" parent="." instance=ExtResource("3_ship")]
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="DebugUI" type="CanvasLayer" parent="."]
+
+[node name="Panel" type="PanelContainer" parent="DebugUI"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 246.0
+offset_bottom = 330.0
+
+[node name="Margin" type="MarginContainer" parent="DebugUI/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="DebugUI/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="DebugUI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "VERDANT ENEMY TEST"
+
+[node name="GoblinButton" type="Button" parent="DebugUI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Spawn Goblin"
+
+[node name="HunterButton" type="Button" parent="DebugUI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Spawn Goblin Hunter"
+
+[node name="EliteButton" type="Button" parent="DebugUI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Spawn Elite Goblin"
+
+[node name="AllButton" type="Button" parent="DebugUI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Spawn All Three"
+
+[node name="ClearButton" type="Button" parent="DebugUI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Clear Enemies"
+
+[node name="DebugLabel" type="Label" parent="DebugUI/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(200, 90)
+layout_mode = 2
+text = "SHIP HP: 100 / 100\nENEMIES: 0"

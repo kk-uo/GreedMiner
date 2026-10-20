@@ -1,0 +1,63 @@
+[gd_resource type="Resource" script_class="ResearchTreeDefinition" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeNode.gd" id="2"]
+
+[sub_resource type="Resource" id="Hp"]
+script = ExtResource("2")
+research_id = &"ship_max_hp_1"
+display_name = "Ship HP +50"
+description = "Permanently increases maximum ship HP by 50."
+tree_category = &"ship"
+visual_position = Vector2(230, 20)
+
+[sub_resource type="Resource" id="Regen"]
+script = ExtResource("2")
+research_id = &"ship_auto_regeneration_1"
+display_name = "Auto Regeneration I"
+description = "Restore 5 ship HP every 10 seconds during battle."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_max_hp_1"])
+visual_position = Vector2(30, 240)
+
+[sub_resource type="Resource" id="Magic"]
+script = ExtResource("2")
+research_id = &"ship_magic_slot_1"
+display_name = "Magic Item Slot I"
+description = "Unlock the first ship magic item slot."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_max_hp_1"])
+visual_position = Vector2(430, 240)
+
+[sub_resource type="Resource" id="Air"]
+script = ExtResource("2")
+research_id = &"ship_air_conditioning_1"
+display_name = "Air Conditioning"
+description = "Reach Frozen Planet and Volcanic Planet."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_auto_regeneration_1"])
+visual_position = Vector2(30, 460)
+
+[sub_resource type="Resource" id="Power"]
+script = ExtResource("2")
+research_id = &"ship_power_1"
+display_name = "Built-in Power Cell"
+description = "The ship itself supplies +1 Power."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_magic_slot_1"])
+visual_position = Vector2(330, 460)
+
+[sub_resource type="Resource" id="Style"]
+script = ExtResource("2")
+research_id = &"ship_style_unlock"
+display_name = "Ship Style"
+description = "Unlock SHIP STYLE in the Hangar."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_magic_slot_1"])
+visual_position = Vector2(530, 460)
+
+[resource]
+script = ExtResource("1")
+tree_id = &"ship"
+display_name = "Ship Research"
+nodes = Array[ExtResource("2")]([SubResource("Hp"), SubResource("Regen"), SubResource("Magic"), SubResource("Air"), SubResource("Power"), SubResource("Style")])

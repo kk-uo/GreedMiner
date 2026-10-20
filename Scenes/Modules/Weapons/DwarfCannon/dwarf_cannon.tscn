@@ -6,8 +6,9 @@
 
 [node name="DwarfCannon" type="Node2D" unique_id=1770758933]
 script = ExtResource("1_cannon")
-attack_range = 400.0
-aoe_radius = 60.0
+weapon_type_id = &"dwarf_cannon"
+attack_range = 500.0
+aoe_radius = 80.0
 projectile_scene = ExtResource("2_projectile")
 
 [node name="Turret" type="Node2D" parent="." unique_id=886632683]

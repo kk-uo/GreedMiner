@@ -69,14 +69,13 @@ var _fire_timer: float = 0.0
 # ==========================================
 
 func get_damage() -> float:
-	return basic_damage
+	return get_modified_damage(basic_damage)
 
 
 func get_fire_rate() -> float:
 	if attack_interval <= 0.0:
 		return 0.0
-
-	return 1.0 / attack_interval
+	return get_modified_fire_rate(1.0 / attack_interval)
 
 
 # ==========================================
@@ -93,7 +92,7 @@ func _ready() -> void:
 
 ## Finds the nearest enemy inside the attack range.
 func find_nearest_enemy() -> BasicEnemy:
-	return find_nearest_enemy_in_range(global_position, attack_range)
+	return find_nearest_enemy_in_range(global_position, get_modified_attack_range(attack_range))
 
 
 # ==========================================
@@ -107,7 +106,7 @@ func rotate_toward_target(delta: float) -> void:
 
 	rotate_turret_toward(
 		_turret,
-		current_target.global_position,
+		current_target.get_target_point(global_position),
 		rotation_speed,
 		delta
 	)
@@ -125,7 +124,7 @@ func is_aimed_at_target() -> bool:
 	# Allow firing only when sufficiently aligned.
 	return get_aim_error(
 		_turret,
-		current_target.global_position
+		current_target.get_target_point(global_position)
 	) <= deg_to_rad(aim_tolerance)
 
 
@@ -144,7 +143,7 @@ func _process(delta: float) -> void:
 	current_target = keep_or_find_target(
 		current_target,
 		global_position,
-		attack_range
+		get_modified_attack_range(attack_range)
 	)
 
 	# Stop attacking when no enemy is in range.
@@ -156,7 +155,8 @@ func _process(delta: float) -> void:
 	rotate_toward_target(delta)
 
 	# Validate the weapon's firing rate.
-	if attack_interval <= 0.0:
+	var effective_fire_rate := get_fire_rate()
+	if effective_fire_rate <= 0.0:
 		return
 
 	# Count down the firing timer.
@@ -169,7 +169,7 @@ func _process(delta: float) -> void:
 	# Fire when the weapon is ready and properly aimed.
 	if _fire_timer <= 0.0:
 		fire()
-		_fire_timer = attack_interval
+		_fire_timer = 1.0 / effective_fire_rate
 
 
 # ==========================================
@@ -203,4 +203,5 @@ func fire() -> void:
 
 	# Apply the machine gun's configured statistics.
 	projectile.damage = damage
+	projectile.source_weapon = self
 	projectile.speed = projectile_speed

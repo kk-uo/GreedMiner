@@ -1,0 +1,24 @@
+[gd_scene load_steps=4 format=3]
+[ext_resource type="Script" path="res://Scripts/Enemies/FrozenEnemy.gd" id="1"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/snow_monster.tscn" id="2"]
+[sub_resource type="CircleShape2D" id="shape"]
+radius = 20.0
+[node name="SledCarSnowMonster" type="Area2D"]
+script = ExtResource("1")
+enemy_id = &"sled_car_snow_monster"
+enemy_name = "Sled Car Snow Monster"
+max_health = 250.0
+move_speed = 75.0
+attack_damage = 5.0
+attack_range = 25.0
+damage_reduction = 0.2
+reward_ore = 2.0
+enemy_tier = 1
+spawn_map_id = &"frozen_planet"
+minimum_spawn_wave = 3
+attack_immediately_on_contact = true
+split_scene = ExtResource("2")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("shape")
+[node name="AttackTimer" type="Timer" parent="."]
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

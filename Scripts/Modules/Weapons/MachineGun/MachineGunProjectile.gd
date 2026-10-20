@@ -21,6 +21,8 @@ var direction: Vector2 = Vector2.RIGHT
 # Damage dealt when the projectile hits an enemy.
 # The MachineGun assigns its own damage when firing.
 var damage: float = 5.0
+var source_weapon: WeaponModule
+var _hit: bool = false
 
 
 # ==========================================
@@ -67,11 +69,15 @@ func _process(delta: float) -> void:
 func _on_area_entered(area: Area2D) -> void:
 	# Check whether the collided Area2D
 	# is an instance of BasicEnemy.
-	if area is BasicEnemy:
+	if not _hit and area is BasicEnemy and not (area as BasicEnemy).is_dying():
 		var enemy := area as BasicEnemy
+		_hit = true
+		var before := enemy.get_current_health()
 
 		# Apply projectile damage to the enemy.
-		enemy.take_damage(damage)
+		enemy.take_damage(damage, false, true, source_weapon if is_instance_valid(source_weapon) else null)
+		if is_instance_valid(source_weapon) and is_instance_valid(enemy):
+			source_weapon.projectile_hit.emit(enemy, maxf(before - enemy.get_current_health(), 0.0))
 
 		# Print a debug message.
 		print("Projectile hit enemy! Damage: %s" % damage)

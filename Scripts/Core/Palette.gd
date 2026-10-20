@@ -9,8 +9,8 @@ extends RefCounted
 ##   (SHADOW_OFFSET, SHADOW_COLOR), drawn first, using the object's own silhouette.
 ## - Ship = rectangles / chamfers, enemies = curves / spikes / jagged stone,
 ##   minerals = hexagonal facets.
-## - Only minerals are fully saturated. Enemies are dark silhouettes whose only
-##   bright color is the THREAT core.
+## - Only minerals are fully saturated. Enemies are grey stone whose only
+##   bright color is the purple ENEMY_EYE (eyes, cracks, crystals).
 
 
 # ==========================================
@@ -44,10 +44,41 @@ const ACCENT_LIGHT := Color("FFE2C2")
 ## Player projectiles and muzzle flashes.
 const SHOT := Color("FFC061")
 const SHOT_CORE := Color("FFF2C2")
-## Enemy silhouettes.
-const ENEMY := Color("2B1F1C")
-const ENEMY_LIGHT := Color("46342D")
-## The one bright color an enemy may carry, also used for danger UI.
+## Grey stone enemies: deep crease / dark base / mid / lit facet / highlight edge.
+const STONE_DEEP := Color("2F3135")
+const STONE_DARK := Color("44474C")
+const STONE_MID := Color("686C72")
+const STONE_LIGHT := Color("8E9298")
+const STONE_HI := Color("B6BABE")
+## Dust kicked up by stone enemies' attacks.
+const STONE_DUST := Color("B8A68E")
+## Goblins (Verdant Planet, option A "green-skin tribe"): skin brighter than the
+## jungle ground, leather / wood gear, iron for blades and the elite's helmet.
+const GOBLIN_SKIN_DARK := Color("657F31")
+const GOBLIN_SKIN := Color("9CC44C")
+const GOBLIN_SKIN_LIGHT := Color("C6E07A")
+const GOBLIN_LEATHER := Color("6B4A32")
+const GOBLIN_FUR := Color("7A5A3C")
+const GOBLIN_FUR_LIGHT := Color("9A7650")
+const GOBLIN_WOOD_DARK := Color("3B2A1E")
+const GOBLIN_WOOD := Color("8A5A34")
+const GOBLIN_WOOD_LIGHT := Color("B07A46")
+const GOBLIN_IRON_DARK := Color("5D6166")
+const GOBLIN_IRON := Color("7D8389")
+const GOBLIN_IRON_LIGHT := Color("AAB0B5")
+const GOBLIN_BLADE := Color("D6DADD")
+const GOBLIN_BONE := Color("E9DFC6")
+const GOBLIN_CLOTH := Color("B8452F")
+## Goblin threat accent (eyes). Stone enemies keep purple; goblins read red.
+const GOBLIN_EYE := Color("FF4A3A")
+## Enemy body and its lit side (also used for death-burst shards).
+const ENEMY := STONE_DARK
+const ENEMY_LIGHT := STONE_LIGHT
+## Arcane purple carried by enemies only: eyes, cracks, crystals.
+const ENEMY_EYE := Color("B45CFF")
+const ENEMY_EYE_GLOW := Color("E3BCFF")
+const ENEMY_EYE_DEEP := Color("7A35C9")
+## Danger color for UI (evacuate button, warnings).
 const THREAT := Color("FF3D5A")
 const HIT_FLASH := Color("FFFFFF")
 
@@ -97,6 +128,29 @@ const PLANETS := {
 		"rock_light": Color("A9BAC4"),
 		"crater": Color("6C7E89"),
 		"crater_inner": Color("778A95"),
+		## "decor" ice: the battlefield shows ice crystal clusters instead of
+		## rocks, plus a few snowmen.
+		"decor": &"ice",
+		"ice_dark": Color("4F86A6"),
+		"ice": Color("86C0DC"),
+		"ice_light": Color("CBEFFF"),
+		"snow": Color("EEF6FB"),
+		"snow_shade": Color("BCD0DD"),
+	},
+	## Goblin jungle: looks lush and overgrown... and is full of goblins.
+	## "decor" switches the battlefield from rocks to foliage + goblin camps.
+	&"jungle": {
+		"ground": Color("5C7843"),
+		"ground_dark": Color("52703C"),
+		"ground_light": Color("67844C"),
+		"rock": Color("3E5C30"),
+		"rock_light": Color("7FA055"),
+		"crater": Color("6A5A3C"),
+		"crater_inner": Color("756548"),
+		"decor": &"foliage",
+		"canopy_mid": Color("4F7339"),
+		"thatch": Color("B39A55"),
+		"thatch_dark": Color("8C7740"),
 	},
 	&"volcanic": {
 		"ground": Color("4A3B37"),
@@ -106,6 +160,8 @@ const PLANETS := {
 		"rock_light": Color("6B5650"),
 		"crater": Color("3A2E2B"),
 		"crater_inner": Color("45362F"),
+		## "decor" lava: thin lava streams, cracks and extinct volcano cones.
+		"decor": &"lava",
 	},
 }
 
@@ -175,7 +231,8 @@ static func draw_shadowed_polygon(
 
 
 ## Draws a rounded rectangle as a flat polygon.
-static func draw_rounded_rect(canvas: CanvasItem, rect: Rect2, radius: float, color: Color) -> void:
+## `canvas`: a CanvasItem or a MeshBatch2D.
+static func draw_rounded_rect(canvas: Object, rect: Rect2, radius: float, color: Color) -> void:
 	canvas.draw_colored_polygon(rounded_rect_points(rect, radius), color)
 
 

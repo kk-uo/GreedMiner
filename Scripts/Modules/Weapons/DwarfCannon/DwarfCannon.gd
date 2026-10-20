@@ -39,14 +39,13 @@ var _attack_cooldown: float = 0.0
 
 
 func get_damage() -> float:
-	return basic_damage
+	return get_modified_damage(basic_damage)
 
 
 func get_fire_rate() -> float:
 	if attack_interval <= 0.0:
 		return 0.0
-
-	return 1.0 / attack_interval
+	return get_modified_fire_rate(1.0 / attack_interval)
 
 
 func _ready() -> void:
@@ -62,7 +61,7 @@ func _process(delta: float) -> void:
 	current_target = keep_or_find_target(
 		current_target,
 		global_position,
-		attack_range
+		get_modified_attack_range(attack_range)
 	)
 
 	if not is_instance_valid(current_target):
@@ -71,25 +70,26 @@ func _process(delta: float) -> void:
 
 	rotate_turret_toward(
 		_turret,
-		current_target.global_position,
+		current_target.get_target_point(global_position),
 		rotation_speed,
 		delta
 	)
 
-	if attack_interval <= 0.0:
+	var effective_fire_rate := get_fire_rate()
+	if effective_fire_rate <= 0.0:
 		return
 
 	_attack_cooldown = maxf(_attack_cooldown - delta, 0.0)
 
 	if get_aim_error(
 		_turret,
-		current_target.global_position
+		current_target.get_target_point(global_position)
 	) > deg_to_rad(aim_tolerance):
 		return
 
 	if _attack_cooldown <= 0.0:
 		fire()
-		_attack_cooldown = attack_interval
+		_attack_cooldown = 1.0 / effective_fire_rate
 
 
 ## Launches one physical cannonball along the turret's current direction.
@@ -108,5 +108,6 @@ func fire() -> void:
 	projectile.global_position = _muzzle.global_position
 	projectile.direction = Vector2.RIGHT.rotated(_muzzle.global_rotation)
 	projectile.speed = projectile_speed
-	projectile.damage = basic_damage
+	projectile.damage = get_modified_explosion_damage(get_damage())
+	projectile.source_weapon = self
 	projectile.explosion_radius = aoe_radius

@@ -1,0 +1,27 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Enemies/Goblin.gd" id="1_goblin"]
+
+[sub_resource type="CircleShape2D" id="CircleShape_goblin"]
+radius = 10.0
+
+[node name="Goblin" type="Area2D"]
+script = ExtResource("1_goblin")
+enemy_id = &"goblin"
+enemy_name = "Goblin"
+max_health = 20.0
+move_speed = 40.0
+attack_damage = 5.0
+attack_interval = 1.0
+attack_range = 10.0
+damage_reduction = 0.0
+attack_type = 0
+enemy_tier = 0
+reward_ore = 0.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape_goblin")
+
+[node name="AttackTimer" type="Timer" parent="."]
+
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

@@ -1,5 +1,8 @@
 class_name WeaponModule
-extends Node2D
+extends ShipModule
+
+## Emitted only for a direct projectile impact, never for splash or beams.
+signal projectile_hit(enemy: BasicEnemy, actual_damage: float)
 
 ## Base class for weapon modules installed on the ship.
 ##
@@ -9,13 +12,91 @@ extends Node2D
 ## Keeps the weapon visible while disabling combat behavior in BaseMain.
 @export var assembly_mode: bool = false
 
+## Continuous power required by this weapon instance.
+## Future weapon scenes can override this value independently.
+@export var power_consumption: int = 1
+
+## Stable ID used by global research and future chip effect providers.
+@export var weapon_type_id: StringName
+
 var damage: float:
 	get:
 		return get_damage()
 
+## A battle artifact can provide an instance-local additive fire-rate ratio.
+var artifact_fire_rate_bonus: Callable
 var fire_rate: float:
 	get:
 		return get_fire_rate()
+
+
+func get_module_category() -> StringName:
+	return CATEGORY_WEAPON
+
+
+func get_chip_module_kind() -> StringName:
+	return &"weapon"
+
+
+func get_power_consumption() -> int:
+	return maxi(power_consumption, 0)
+
+
+## Applies permanent research and configured chip modifiers to an untouched
+## base damage value. Effective values never mutate the exported base stats.
+func get_modified_damage(base_damage: float) -> float:
+	var modifiers: Array[StatModifier] = ResearchManager.get_weapon_stat_modifiers(
+		weapon_type_id,
+		&"damage"
+	)
+	modifiers.append_array(ChipManager.get_stat_modifiers({
+		"stat_id": &"damage",
+		"weapon_type_id": weapon_type_id,
+		"weapon_instance": self,
+		"module_kind": get_chip_module_kind(),
+	}))
+	return StatModifierPipeline.calculate(&"damage", base_damage, modifiers)
+
+
+## Applies chip attack-frequency modifiers without changing stored intervals.
+func get_modified_fire_rate(base_fire_rate: float) -> float:
+	var modifiers := ChipManager.get_stat_modifiers({
+		"stat_id": &"fire_rate",
+		"weapon_type_id": weapon_type_id,
+		"weapon_instance": self,
+		"module_kind": get_chip_module_kind(),
+	})
+	if artifact_fire_rate_bonus.is_valid():
+		var modifier := StatModifier.new()
+		modifier.source_id = &"equipped_magic_artifact"
+		modifier.stat_id = &"fire_rate"
+		modifier.base_additive_ratio = maxf(float(artifact_fire_rate_bonus.call()), 0.0)
+		modifiers.append(modifier)
+	return maxf(StatModifierPipeline.calculate(&"fire_rate", base_fire_rate, modifiers), 0.0)
+
+
+## Applies a universal Range Chip without changing the exported base range.
+func get_modified_attack_range(base_range: float) -> float:
+	var modifiers := ChipManager.get_stat_modifiers({
+		"stat_id": &"attack_range",
+		"weapon_type_id": weapon_type_id,
+		"weapon_instance": self,
+		"module_kind": get_chip_module_kind(),
+	})
+	return maxf(StatModifierPipeline.calculate(&"attack_range", base_range, modifiers), 0.0)
+
+
+## Interface for future active skills. Skill chips reduce cast time but never
+## cooldown, and the result is clamped so a cast cannot become negative.
+func get_modified_skill_cast_time(base_cast_time: float) -> float:
+	var modifiers := ChipManager.get_stat_modifiers({
+		"stat_id": &"skill_cast_time",
+		"weapon_type_id": weapon_type_id,
+		"weapon_instance": self,
+		"module_kind": get_chip_module_kind(),
+		"supports_active_skill": supports_active_skill(),
+	})
+	return maxf(StatModifierPipeline.calculate(&"skill_cast_time", base_cast_time, modifiers), 0.0)
 
 
 ## Returns the damage dealt by one attack.
@@ -51,7 +132,7 @@ func find_nearest_enemy_in_range(
 		if enemy.is_dying():
 			continue
 
-		var distance := world_origin.distance_to(enemy.global_position)
+		var distance := world_origin.distance_to(enemy.get_target_point(world_origin))
 
 		if distance <= nearest_distance:
 			nearest_distance = distance
@@ -74,7 +155,7 @@ func keep_or_find_target(
 		if (
 			enemy.is_in_group("enemies")
 			and not enemy.is_dying()
-			and world_origin.distance_to(enemy.global_position)
+			and world_origin.distance_to(enemy.get_target_point(world_origin))
 				<= maximum_range
 		):
 			return enemy

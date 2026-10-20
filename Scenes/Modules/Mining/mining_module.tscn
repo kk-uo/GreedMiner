@@ -4,6 +4,7 @@
 
 [node name="MiningModule" type="Node2D" unique_id=1686798037]
 script = ExtResource("1_w0mlx")
+power_consumption = 2
 
 [node name="MiningTimer" type="Timer" parent="." unique_id=665376413]
 autostart = true

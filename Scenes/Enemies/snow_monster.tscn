@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://Scripts/Enemies/FrozenEnemy.gd" id="1"]
+[sub_resource type="CircleShape2D" id="shape"]
+radius = 12.0
+[node name="SnowMonster" type="Area2D"]
+script = ExtResource("1")
+enemy_id = &"snow_monster"
+enemy_name = "Snow Monster"
+max_health = 50.0
+move_speed = 30.0
+attack_damage = 5.0
+attack_range = 10.0
+reward_ore = 1.0
+spawn_map_id = &"frozen_planet"
+spawn_patterns = 3
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("shape")
+[node name="AttackTimer" type="Timer" parent="."]
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

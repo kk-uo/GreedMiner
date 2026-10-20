@@ -1,0 +1,510 @@
+[gd_resource type="Resource" script_class="ResearchConfiguration" format=3 uid="uid://dmutoibqasxo4"]
+
+[ext_resource type="Script" uid="uid://dg35dq7huy2or" path="res://Scripts/Research/ResearchCategory.gd" id="1_category"]
+[ext_resource type="Script" uid="uid://b1pefv630pjyo" path="res://Scripts/Research/ResearchCostConfig.gd" id="2_cost"]
+[ext_resource type="Script" uid="uid://fhwd87ehbmjw" path="res://Scripts/Research/WeaponDamageResearchEffect.gd" id="3_damage_effect"]
+[ext_resource type="Script" uid="uid://y41dko2gcgba" path="res://Scripts/Research/ResearchDefinition.gd" id="4_definition"]
+[ext_resource type="Script" uid="uid://brqer4fbcaue2" path="res://Scripts/Research/ResearchConfiguration.gd" id="5_configuration"]
+[ext_resource type="Script" uid="uid://kt6mdb5qjf1f" path="res://Scripts/Research/ResearchMilestone.gd" id="6_milestone"]
+[ext_resource type="Script" uid="uid://ccdc6cu5t5ob6" path="res://Scripts/Research/ModuleInstallationLimitResearchEffect.gd" id="7_module_limit"]
+[ext_resource type="Script" uid="uid://ukay8smen2ro" path="res://Scripts/Research/ModuleStatResearchEffect.gd" id="8_module_stat"]
+[ext_resource type="Script" path="res://Scripts/Research/ShipResearchEffect.gd" id="9_ship_effect"]
+[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="10_tree_script"]
+[ext_resource type="Resource" path="res://Resources/Research/EnergyTree.tres" id="11_energy_tree"]
+[ext_resource type="Resource" path="res://Resources/Research/MiningTree.tres" id="12_mining_tree"]
+[ext_resource type="Resource" path="res://Resources/Research/ShipTree.tres" id="13_ship_tree"]
+
+[sub_resource type="Resource" id="Category_Weapon"]
+script = ExtResource("1_category")
+category_id = &"weapon"
+display_name = "Weapons"
+description = "Global damage research for each weapon type."
+implemented = true
+
+[sub_resource type="Resource" id="Category_Mining"]
+script = ExtResource("1_category")
+category_id = &"mining"
+display_name = "Mining"
+description = "Mining module permissions and future mining technology research."
+implemented = true
+
+[sub_resource type="Resource" id="Category_Shield"]
+script = ExtResource("1_category")
+category_id = &"shield"
+display_name = "Shields"
+description = "Future shield technology research."
+implemented = true
+
+[sub_resource type="Resource" id="Category_Energy"]
+script = ExtResource("1_category")
+category_id = &"energy"
+display_name = "Energy"
+description = "Energy module permissions and future energy technology research."
+implemented = true
+
+[sub_resource type="Resource" id="Category_WeaponSkills"]
+script = ExtResource("1_category")
+category_id = &"weapon_skills"
+display_name = "Weapon Skills"
+description = "Future per-weapon active skill research."
+
+[sub_resource type="Resource" id="Category_Ship"]
+script = ExtResource("1_category")
+category_id = &"ship"
+display_name = "Ship"
+description = "Permanent ship improvements."
+implemented = true
+
+[sub_resource type="Resource" id="Category_Chips"]
+script = ExtResource("1_category")
+category_id = &"chips"
+display_name = "Chips"
+description = "Craft and upgrade universal module chips."
+implemented = true
+
+[sub_resource type="Resource" id="Cost_MachineGun"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 200
+linear_cost_coefficient = 200
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_MachineGun"]
+script = ExtResource("3_damage_effect")
+
+[sub_resource type="Resource" id="Milestone_MachineGun_Level10"]
+script = ExtResource("6_milestone")
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks 1 Weapon Chip Slot"
+
+[sub_resource type="Resource" id="Milestone_MachineGun_Level20"]
+script = ExtResource("6_milestone")
+target_level = 20
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Chip Slot 2"
+
+[sub_resource type="Resource" id="Milestone_MachineGun_Level30"]
+script = ExtResource("6_milestone")
+target_level = 30
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Chip Slot 3"
+
+[sub_resource type="Resource" id="Definition_MachineGun"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.machine_gun"
+category_id = &"weapon"
+display_name = "Machine Gun Damage"
+description = "Each level adds 20% of the original Machine Gun base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_MachineGun")
+target_id = &"machine_gun"
+effect = SubResource("Effect_MachineGun")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_MachineGun_Level10"), SubResource("Milestone_MachineGun_Level20"), SubResource("Milestone_MachineGun_Level30")])
+implemented = true
+
+[sub_resource type="Resource" id="Cost_DwarfCannon"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 200
+linear_cost_coefficient = 200
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_DwarfCannon"]
+script = ExtResource("3_damage_effect")
+
+[sub_resource type="Resource" id="Milestone_DwarfCannon_Level10"]
+script = ExtResource("6_milestone")
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks 1 Weapon Chip Slot"
+
+[sub_resource type="Resource" id="Milestone_DwarfCannon_Level20"]
+script = ExtResource("6_milestone")
+target_level = 20
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Chip Slot 2"
+
+[sub_resource type="Resource" id="Milestone_DwarfCannon_Level30"]
+script = ExtResource("6_milestone")
+target_level = 30
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Chip Slot 3"
+
+[sub_resource type="Resource" id="Definition_DwarfCannon"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.dwarf_cannon"
+category_id = &"weapon"
+display_name = "Dwarf Cannon Damage"
+description = "Each level adds 20% of the original Dwarf Cannon base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_DwarfCannon")
+target_id = &"dwarf_cannon"
+effect = SubResource("Effect_DwarfCannon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_DwarfCannon_Level10"), SubResource("Milestone_DwarfCannon_Level20"), SubResource("Milestone_DwarfCannon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Cost_Laser"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 200
+linear_cost_coefficient = 200
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_Laser"]
+script = ExtResource("3_damage_effect")
+
+[sub_resource type="Resource" id="Milestone_Laser_Level10"]
+script = ExtResource("6_milestone")
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks 1 Weapon Chip Slot"
+
+[sub_resource type="Resource" id="Milestone_Laser_Level20"]
+script = ExtResource("6_milestone")
+target_level = 20
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Chip Slot 2"
+
+[sub_resource type="Resource" id="Milestone_Laser_Level30"]
+script = ExtResource("6_milestone")
+target_level = 30
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Chip Slot 3"
+
+[sub_resource type="Resource" id="Definition_Laser"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.laser"
+category_id = &"weapon"
+display_name = "Laser Damage"
+description = "Each level adds 20% of the original Laser base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_Laser")
+target_id = &"laser"
+effect = SubResource("Effect_Laser")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_Laser_Level10"), SubResource("Milestone_Laser_Level20"), SubResource("Milestone_Laser_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Cost_Chainsaw"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 200
+linear_cost_coefficient = 200
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_Chainsaw"]
+script = ExtResource("3_damage_effect")
+
+[sub_resource type="Resource" id="Milestone_Chainsaw_Level10"]
+script = ExtResource("6_milestone")
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks 1 Weapon Chip Slot"
+
+[sub_resource type="Resource" id="Milestone_Chainsaw_Level20"]
+script = ExtResource("6_milestone")
+target_level = 20
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Chip Slot 2"
+
+[sub_resource type="Resource" id="Milestone_Chainsaw_Level30"]
+script = ExtResource("6_milestone")
+target_level = 30
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Chip Slot 3"
+
+[sub_resource type="Resource" id="Definition_Chainsaw"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.chainsaw"
+category_id = &"weapon"
+display_name = "Chainsaw Damage"
+description = "Each level adds 20% of the original Chainsaw base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_Chainsaw")
+target_id = &"chainsaw"
+effect = SubResource("Effect_Chainsaw")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_Chainsaw_Level10"), SubResource("Milestone_Chainsaw_Level20"), SubResource("Milestone_Chainsaw_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Cost_KnockbackResearch"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 200
+linear_cost_coefficient = 200
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_KnockbackResearch"]
+script = ExtResource("8_module_stat")
+stat_id = &"shockwave_damage"
+
+[sub_resource type="Resource" id="Milestone_Knockback_Level10"]
+script = ExtResource("6_milestone")
+target_level = 10
+module_chip_slots_unlocked = 1
+display_text = "Unlocks Knockback Chip Slot 1"
+
+[sub_resource type="Resource" id="Milestone_Knockback_Level20"]
+script = ExtResource("6_milestone")
+target_level = 20
+module_chip_slots_unlocked = 1
+display_text = "Unlocks Knockback Chip Slot 2"
+
+[sub_resource type="Resource" id="Milestone_Knockback_Level30"]
+script = ExtResource("6_milestone")
+target_level = 30
+module_chip_slots_unlocked = 1
+display_text = "Unlocks Knockback Chip Slot 3"
+
+[sub_resource type="Resource" id="Definition_KnockbackResearch"]
+script = ExtResource("4_definition")
+research_id = &"shield_power.knockback_module"
+category_id = &"shield"
+display_name = "Knockback Shockwave"
+description = "Each level adds 20% of the original Knockback shockwave damage. Levels 10, 20 and 30 unlock module chip slots."
+max_level = 30
+cost_configuration = SubResource("Cost_KnockbackResearch")
+target_id = &"knockback_module"
+effect = SubResource("Effect_KnockbackResearch")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_Knockback_Level10"), SubResource("Milestone_Knockback_Level20"), SubResource("Milestone_Knockback_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Cost_RegenerationResearch"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 200
+linear_cost_coefficient = 200
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_RegenerationResearch"]
+script = ExtResource("8_module_stat")
+stat_id = &"healing_amount"
+
+[sub_resource type="Resource" id="Milestone_Regeneration_Level10"]
+script = ExtResource("6_milestone")
+target_level = 10
+module_chip_slots_unlocked = 1
+display_text = "Unlocks Regeneration Chip Slot 1"
+
+[sub_resource type="Resource" id="Milestone_Regeneration_Level20"]
+script = ExtResource("6_milestone")
+target_level = 20
+module_chip_slots_unlocked = 1
+display_text = "Unlocks Regeneration Chip Slot 2"
+
+[sub_resource type="Resource" id="Milestone_Regeneration_Level30"]
+script = ExtResource("6_milestone")
+target_level = 30
+module_chip_slots_unlocked = 1
+display_text = "Unlocks Regeneration Chip Slot 3"
+
+[sub_resource type="Resource" id="Definition_RegenerationResearch"]
+script = ExtResource("4_definition")
+research_id = &"shield_power.regeneration_module"
+category_id = &"shield"
+display_name = "Regeneration Healing"
+description = "Each level adds 20% of the original healing per pulse. Levels 10, 20 and 30 unlock module chip slots."
+max_level = 30
+cost_configuration = SubResource("Cost_RegenerationResearch")
+target_id = &"regeneration_module"
+effect = SubResource("Effect_RegenerationResearch")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_Regeneration_Level10"), SubResource("Milestone_Regeneration_Level20"), SubResource("Milestone_Regeneration_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Cost_EnergyInstallSlot"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 300
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_EnergyInstallSlot"]
+script = ExtResource("7_module_limit")
+purchase_button_text = "Unlock Second Energy Module"
+
+[sub_resource type="Resource" id="Definition_EnergyInstallSlot"]
+script = ExtResource("4_definition")
+research_id = &"energy_install_slot_unlock"
+category_id = &"energy"
+display_name = "Energy Module Installation"
+description = "Permanently unlocks one additional Energy Module installation slot."
+starting_level = 0
+cost_configuration = SubResource("Cost_EnergyInstallSlot")
+target_id = &"energy_module"
+effect = SubResource("Effect_EnergyInstallSlot")
+implemented = true
+
+[sub_resource type="Resource" id="Cost_MiningInstallSlot"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_MiningInstallSlot"]
+script = ExtResource("7_module_limit")
+purchase_button_text = "Unlock Second Mining Module"
+
+[sub_resource type="Resource" id="Definition_MiningInstallSlot"]
+script = ExtResource("4_definition")
+research_id = &"mining_install_slot_unlock"
+category_id = &"mining"
+display_name = "Mining Module Installation"
+description = "Permanently unlocks one additional Mining Module installation slot."
+starting_level = 0
+cost_configuration = SubResource("Cost_MiningInstallSlot")
+target_id = &"mining_module"
+effect = SubResource("Effect_MiningInstallSlot")
+implemented = true
+
+[sub_resource type="Resource" id="ShipCost100"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 100
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipCost500"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipHpEffect"]
+script = ExtResource("9_ship_effect")
+max_hp_bonus = 50.0
+
+[sub_resource type="Resource" id="ShipRegenEffect"]
+script = ExtResource("9_ship_effect")
+regeneration_amount = 5.0
+regeneration_interval = 10.0
+
+[sub_resource type="Resource" id="ShipMagicEffect"]
+script = ExtResource("9_ship_effect")
+artifact_slots = 1
+
+[sub_resource type="Resource" id="Cost_EnergyCore"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_EnergyCore"]
+script = ExtResource("9_ship_effect")
+power_bonus = 1
+
+[sub_resource type="Resource" id="Definition_EnergyCore"]
+script = ExtResource("4_definition")
+research_id = &"energy_core_1"
+category_id = &"energy"
+display_name = "Energy Core I"
+description = "Every Energy Module supplies +1 Power."
+starting_level = 0
+cost_configuration = SubResource("Cost_EnergyCore")
+effect = SubResource("Effect_EnergyCore")
+implemented = true
+
+[sub_resource type="Resource" id="Cost_EnergyRange"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 250
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_EnergyRange"]
+script = ExtResource("9_ship_effect")
+unlocked_planet_ids = Array[StringName]([&"goblin_planet", &"frozen_planet"])
+
+[sub_resource type="Resource" id="Definition_EnergyRange"]
+script = ExtResource("4_definition")
+research_id = &"energy_range_1"
+category_id = &"energy"
+display_name = "Long-Range Cells"
+description = "Your batteries now reach farther planets: Verdant Planet and Frozen Planet."
+starting_level = 0
+cost_configuration = SubResource("Cost_EnergyRange")
+effect = SubResource("Effect_EnergyRange")
+implemented = true
+
+[sub_resource type="Resource" id="ShipHp"]
+script = ExtResource("4_definition")
+research_id = &"ship_max_hp_1"
+category_id = &"ship"
+display_name = "Ship HP +50"
+starting_level = 0
+cost_configuration = SubResource("ShipCost100")
+effect = SubResource("ShipHpEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipRegen"]
+script = ExtResource("4_definition")
+research_id = &"ship_auto_regeneration_1"
+category_id = &"ship"
+display_name = "Auto Regeneration I"
+starting_level = 0
+cost_configuration = SubResource("ShipCost100")
+effect = SubResource("ShipRegenEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipMagic"]
+script = ExtResource("4_definition")
+research_id = &"ship_magic_slot_1"
+category_id = &"ship"
+display_name = "Magic Item Slot I"
+starting_level = 0
+cost_configuration = SubResource("ShipCost500")
+effect = SubResource("ShipMagicEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipCost250"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 250
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipCost200"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 200
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipAirEffect"]
+script = ExtResource("9_ship_effect")
+unlocked_planet_ids = Array[StringName]([&"frozen_planet", &"volcanic_planet"])
+
+[sub_resource type="Resource" id="ShipPowerEffect"]
+script = ExtResource("9_ship_effect")
+base_power_bonus = 1
+
+[sub_resource type="Resource" id="ShipStyleEffect"]
+script = ExtResource("9_ship_effect")
+unlocks_ship_style = true
+
+[sub_resource type="Resource" id="ShipAir"]
+script = ExtResource("4_definition")
+research_id = &"ship_air_conditioning_1"
+category_id = &"ship"
+display_name = "Air Conditioning"
+description = "Keeps the crew alive in extreme cold and heat: reach Frozen Planet and Volcanic Planet."
+starting_level = 0
+cost_configuration = SubResource("ShipCost250")
+effect = SubResource("ShipAirEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipPower"]
+script = ExtResource("4_definition")
+research_id = &"ship_power_1"
+category_id = &"ship"
+display_name = "Built-in Power Cell"
+description = "The ship itself supplies +1 Power, no Energy Module needed."
+starting_level = 0
+cost_configuration = SubResource("ShipCost200")
+effect = SubResource("ShipPowerEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipStyle"]
+script = ExtResource("4_definition")
+research_id = &"ship_style_unlock"
+category_id = &"ship"
+display_name = "Ship Style"
+description = "Unlock SHIP STYLE in the Hangar: hull colors and hull designs."
+starting_level = 0
+cost_configuration = SubResource("ShipCost500")
+effect = SubResource("ShipStyleEffect")
+implemented = true
+
+[resource]
+script = ExtResource("5_configuration")
+categories = Array[ExtResource("1_category")]([SubResource("Category_Weapon"), SubResource("Category_Mining"), SubResource("Category_Shield"), SubResource("Category_Energy"), SubResource("Category_Ship"), SubResource("Category_WeaponSkills"), SubResource("Category_Chips")])
+definitions = Array[ExtResource("4_definition")]([SubResource("Definition_MachineGun"), SubResource("Definition_DwarfCannon"), SubResource("Definition_Laser"), SubResource("Definition_Chainsaw"), SubResource("Definition_KnockbackResearch"), SubResource("Definition_RegenerationResearch"), SubResource("Definition_EnergyCore"), SubResource("Definition_EnergyRange"), SubResource("Definition_EnergyInstallSlot"), SubResource("Definition_MiningInstallSlot"), SubResource("ShipHp"), SubResource("ShipRegen"), SubResource("ShipMagic"), SubResource("ShipAir"), SubResource("ShipPower"), SubResource("ShipStyle")])
+trees = Array[ExtResource("10_tree_script")]([ExtResource("11_energy_tree"), ExtResource("12_mining_tree"), ExtResource("13_ship_tree")])

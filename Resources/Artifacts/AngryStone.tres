@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/AngryStoneEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"angry_stone"
+display_name = "Angry Stone"
+rarity = "Common"
+description = "Every third direct projectile hit deals 50% of its actual damage to other enemies within 30 px of the target. Compatible with Machine Gun and Dwarf Cannon."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon"])
+acquisition_source = "Mining salvage chest"
+mining_chest_reward = true
+effect_script = ExtResource("2")
+effect_parameters = {"hits_per_trigger": 3, "radius": 30.0, "damage_fraction": 0.5}

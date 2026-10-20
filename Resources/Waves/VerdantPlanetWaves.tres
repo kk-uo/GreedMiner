@@ -1,0 +1,403 @@
+[gd_resource type="Resource" script_class="PlanetWaveConfig" format=3 uid="uid://c7op0a8sj7765"]
+
+[ext_resource type="Script" uid="uid://d4jnmrbo34g3l" path="res://Scripts/Waves/EnemySpawnEntry.gd" id="1_entry"]
+[ext_resource type="Script" uid="uid://6boj7f2no6e8" path="res://Scripts/Waves/WaveDefinition.gd" id="2_wave"]
+[ext_resource type="Script" uid="uid://cbpn6xvsjha4g" path="res://Scripts/Waves/PlanetWaveConfig.gd" id="3_config"]
+[ext_resource type="Script" uid="uid://b5ij4fdghypy1" path="res://Scripts/Waves/SpecialSpawnEventRule.gd" id="4_rule"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/goblin.tscn" id="5_goblin"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/goblin_hunter.tscn" id="6_hunter"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/elite_goblin.tscn" id="7_elite"]
+[ext_resource type="PackedScene" uid="uid://duc6gkmjrsi3n" path="res://Scenes/Enemies/goblin_giant_chariot.tscn" id="8_chariot"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/goblin_engineer.tscn" id="9_engineer"]
+
+[sub_resource type="Resource" id="GoblinPackRule"]
+script = ExtResource("4_rule")
+pattern = 1
+
+[sub_resource type="Resource" id="Entry_1_Goblin"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin"
+enemy_scene = ExtResource("5_goblin")
+spawn_count = 18
+
+[sub_resource type="Resource" id="Entry_1_Hunter"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_hunter"
+enemy_scene = ExtResource("6_hunter")
+spawn_count = 0
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_1_Elite"]
+script = ExtResource("1_entry")
+enemy_id = &"elite_goblin"
+enemy_scene = ExtResource("7_elite")
+spawn_count = 0
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Wave_1"]
+script = ExtResource("2_wave")
+spawn_phase_duration = 12.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_1_Goblin"), SubResource("Entry_1_Hunter"), SubResource("Entry_1_Elite")])
+
+[sub_resource type="Resource" id="Entry_2_Goblin"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin"
+enemy_scene = ExtResource("5_goblin")
+spawn_count = 29
+
+[sub_resource type="Resource" id="Entry_2_Hunter"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_hunter"
+enemy_scene = ExtResource("6_hunter")
+spawn_count = 0
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_2_Elite"]
+script = ExtResource("1_entry")
+enemy_id = &"elite_goblin"
+enemy_scene = ExtResource("7_elite")
+spawn_count = 0
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Entry_2_Engineer"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_engineer"
+enemy_scene = ExtResource("9_engineer")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_2"]
+script = ExtResource("2_wave")
+wave_number = 2
+spawn_direction_mode = 1
+spawn_phase_duration = 20.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_2_Goblin"), SubResource("Entry_2_Hunter"), SubResource("Entry_2_Elite"), SubResource("Entry_2_Engineer")])
+
+[sub_resource type="Resource" id="Entry_3_Goblin"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin"
+enemy_scene = ExtResource("5_goblin")
+spawn_count = 30
+
+[sub_resource type="Resource" id="Entry_3_Hunter"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_hunter"
+enemy_scene = ExtResource("6_hunter")
+spawn_count = 6
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_3_Elite"]
+script = ExtResource("1_entry")
+enemy_id = &"elite_goblin"
+enemy_scene = ExtResource("7_elite")
+spawn_count = 2
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Entry_3_Engineer"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_engineer"
+enemy_scene = ExtResource("9_engineer")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_3"]
+script = ExtResource("2_wave")
+wave_number = 3
+spawn_interval = 1.5
+spawn_pattern = 1
+spawn_phase_duration = 19.5
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_3_Goblin"), SubResource("Entry_3_Hunter"), SubResource("Entry_3_Elite"), SubResource("Entry_3_Engineer")])
+
+[sub_resource type="Resource" id="Entry_4_Goblin"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin"
+enemy_scene = ExtResource("5_goblin")
+spawn_count = 33
+
+[sub_resource type="Resource" id="Entry_4_Hunter"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_hunter"
+enemy_scene = ExtResource("6_hunter")
+spawn_count = 8
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_4_Elite"]
+script = ExtResource("1_entry")
+enemy_id = &"elite_goblin"
+enemy_scene = ExtResource("7_elite")
+spawn_count = 3
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Entry_4_Engineer"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_engineer"
+enemy_scene = ExtResource("9_engineer")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_4"]
+script = ExtResource("2_wave")
+wave_number = 4
+spawn_interval = 1.5
+spawn_pattern = 1
+spawn_phase_duration = 22.5
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_4_Goblin"), SubResource("Entry_4_Hunter"), SubResource("Entry_4_Elite"), SubResource("Entry_4_Engineer")])
+
+[sub_resource type="Resource" id="Entry_5_Goblin"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin"
+enemy_scene = ExtResource("5_goblin")
+spawn_count = 32
+
+[sub_resource type="Resource" id="Entry_5_Hunter"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_hunter"
+enemy_scene = ExtResource("6_hunter")
+spawn_count = 10
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_5_Elite"]
+script = ExtResource("1_entry")
+enemy_id = &"elite_goblin"
+enemy_scene = ExtResource("7_elite")
+spawn_count = 5
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Entry_5_Engineer"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_engineer"
+enemy_scene = ExtResource("9_engineer")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_5"]
+script = ExtResource("2_wave")
+wave_number = 5
+spawn_interval = 1.5
+spawn_pattern = 1
+spawn_direction_mode = 1
+spawn_phase_duration = 24.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_5_Goblin"), SubResource("Entry_5_Hunter"), SubResource("Entry_5_Elite"), SubResource("Entry_5_Engineer")])
+
+[sub_resource type="Resource" id="Entry_6_Goblin"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin"
+enemy_scene = ExtResource("5_goblin")
+spawn_count = 34
+
+[sub_resource type="Resource" id="Entry_6_Hunter"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_hunter"
+enemy_scene = ExtResource("6_hunter")
+spawn_count = 12
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_6_Elite"]
+script = ExtResource("1_entry")
+enemy_id = &"elite_goblin"
+enemy_scene = ExtResource("7_elite")
+spawn_count = 7
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Entry_6_Engineer"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_engineer"
+enemy_scene = ExtResource("9_engineer")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_6"]
+script = ExtResource("2_wave")
+wave_number = 6
+spawn_interval = 1.3
+spawn_pattern = 2
+spawn_phase_duration = 23.4
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_6_Goblin"), SubResource("Entry_6_Hunter"), SubResource("Entry_6_Elite"), SubResource("Entry_6_Engineer")])
+
+[sub_resource type="Resource" id="Entry_7_Goblin"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin"
+enemy_scene = ExtResource("5_goblin")
+spawn_count = 37
+
+[sub_resource type="Resource" id="Entry_7_Hunter"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_hunter"
+enemy_scene = ExtResource("6_hunter")
+spawn_count = 15
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_7_Elite"]
+script = ExtResource("1_entry")
+enemy_id = &"elite_goblin"
+enemy_scene = ExtResource("7_elite")
+spawn_count = 10
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Entry_7_Engineer"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_engineer"
+enemy_scene = ExtResource("9_engineer")
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_7"]
+script = ExtResource("2_wave")
+wave_number = 7
+spawn_interval = 1.3
+spawn_pattern = 2
+spawn_phase_duration = 27.3
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_7_Goblin"), SubResource("Entry_7_Hunter"), SubResource("Entry_7_Elite"), SubResource("Entry_7_Engineer")])
+
+[sub_resource type="Resource" id="Entry_8_Goblin"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin"
+enemy_scene = ExtResource("5_goblin")
+spawn_count = 38
+
+[sub_resource type="Resource" id="Entry_8_Hunter"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_hunter"
+enemy_scene = ExtResource("6_hunter")
+spawn_count = 17
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_8_Elite"]
+script = ExtResource("1_entry")
+enemy_id = &"elite_goblin"
+enemy_scene = ExtResource("7_elite")
+spawn_count = 12
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Entry_8_Engineer"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_engineer"
+enemy_scene = ExtResource("9_engineer")
+spawn_count = 2
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_8"]
+script = ExtResource("2_wave")
+wave_number = 8
+spawn_interval = 1.0
+spawn_pattern = 2
+spawn_direction_mode = 1
+spawn_phase_duration = 23.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_8_Goblin"), SubResource("Entry_8_Hunter"), SubResource("Entry_8_Elite"), SubResource("Entry_8_Engineer")])
+
+[sub_resource type="Resource" id="Entry_9_Goblin"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin"
+enemy_scene = ExtResource("5_goblin")
+spawn_count = 39
+
+[sub_resource type="Resource" id="Entry_9_Hunter"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_hunter"
+enemy_scene = ExtResource("6_hunter")
+spawn_count = 20
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_9_Elite"]
+script = ExtResource("1_entry")
+enemy_id = &"elite_goblin"
+enemy_scene = ExtResource("7_elite")
+spawn_count = 17
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Entry_9_Engineer"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_engineer"
+enemy_scene = ExtResource("9_engineer")
+spawn_count = 2
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_9"]
+script = ExtResource("2_wave")
+wave_number = 9
+spawn_interval = 1.0
+spawn_pattern = 2
+spawn_direction_mode = 1
+spawn_phase_duration = 26.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_9_Goblin"), SubResource("Entry_9_Hunter"), SubResource("Entry_9_Elite"), SubResource("Entry_9_Engineer")])
+
+[sub_resource type="Resource" id="Entry_10_Goblin"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin"
+enemy_scene = ExtResource("5_goblin")
+spawn_count = 48
+
+[sub_resource type="Resource" id="Entry_10_Hunter"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_hunter"
+enemy_scene = ExtResource("6_hunter")
+spawn_count = 20
+spawn_cost = 2
+
+[sub_resource type="Resource" id="Entry_10_Elite"]
+script = ExtResource("1_entry")
+enemy_id = &"elite_goblin"
+enemy_scene = ExtResource("7_elite")
+spawn_count = 20
+spawn_cost = 5
+
+[sub_resource type="Resource" id="Entry_10_Engineer"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_engineer"
+enemy_scene = ExtResource("9_engineer")
+spawn_count = 2
+spawn_cost = 3
+
+[sub_resource type="Resource" id="Wave_10"]
+script = ExtResource("2_wave")
+wave_number = 10
+spawn_interval = 1.5
+spawn_pattern = 2
+spawn_direction_mode = 1
+spawn_phase_duration = 15.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_10_Goblin"), SubResource("Entry_10_Hunter"), SubResource("Entry_10_Elite"), SubResource("Entry_10_Engineer")])
+
+[sub_resource type="Resource" id="Entry_11_Chariot"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin_giant_chariot"
+enemy_scene = ExtResource("8_chariot")
+spawn_cost = 50
+spawn_first = true
+is_boss = true
+
+[sub_resource type="Resource" id="Entry_11_Goblin"]
+script = ExtResource("1_entry")
+enemy_id = &"goblin"
+enemy_scene = ExtResource("5_goblin")
+spawn_count = 10
+
+[sub_resource type="Resource" id="Wave_11"]
+script = ExtResource("2_wave")
+wave_number = 11
+spawn_interval = 1.5
+spawn_pattern = 2
+spawn_direction_mode = 2
+allowed_directions = Array[int]([2, 3])
+boss_wave = true
+enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_11_Chariot"), SubResource("Entry_11_Goblin")])
+
+[resource]
+script = ExtResource("3_config")
+planet_id = &"goblin_planet"
+display_name = "Verdant Planet"
+waves = Array[ExtResource("2_wave")]([SubResource("Wave_1"), SubResource("Wave_2"), SubResource("Wave_3"), SubResource("Wave_4"), SubResource("Wave_5"), SubResource("Wave_6"), SubResource("Wave_7"), SubResource("Wave_8"), SubResource("Wave_9"), SubResource("Wave_10"), SubResource("Wave_11")])
+special_spawn_rules = Array[ExtResource("4_rule")]([SubResource("GoblinPackRule")])

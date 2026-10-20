@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="MiningQteConfig" format=3 uid="uid://bnhy7crel08j1"]
+
+[ext_resource type="Script" uid="uid://fwmsohnln1n" path="res://Scripts/Mining/QTE/MiningQteConfig.gd" id="1_config"]
+
+[resource]
+script = ExtResource("1_config")

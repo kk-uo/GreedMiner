@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Modules/Shield/KnockbackModule.gd" id="1_knockback"]
+
+[node name="KnockbackModule" type="Node2D"]
+script = ExtResource("1_knockback")
+max_hp_bonus = 50.0
+chip_slot_count = 0
+max_chip_slots = 3
+trigger_range = 64.0
+splash_radius = 64.0
+knockback_distance = 100.0
+knockback_damage = 25.0
+cooldown = 2.0

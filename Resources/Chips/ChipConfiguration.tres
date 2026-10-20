@@ -1,0 +1,141 @@
+[gd_resource type="Resource" script_class="ChipConfiguration" format=3 uid="uid://d5r8im7ffe2n"]
+
+[ext_resource type="Script" uid="uid://inxbdmlky5ga" path="res://Scripts/Chips/ChipConfiguration.gd" id="1_configuration"]
+[ext_resource type="Script" uid="uid://4rhhkj0i07vc" path="res://Scripts/Chips/ChipDefinition.gd" id="2_chip"]
+[ext_resource type="Script" uid="uid://bck6d6xtmbumh" path="res://Scripts/Chips/ChipEffect.gd" id="2_ecxff"]
+[ext_resource type="Script" uid="uid://begjtxpdb5dfj" path="res://Scripts/Chips/ChipSlotDefinition.gd" id="3_slot"]
+[ext_resource type="Script" uid="uid://dtl4u8r44c6r3" path="res://Scripts/Chips/ChipQualityTier.gd" id="4_quality"]
+[ext_resource type="Script" uid="uid://b86ejh4sn6i6c" path="res://Scripts/Chips/ChipStatEffect.gd" id="5_effect"]
+
+[sub_resource type="Resource" id="Effect_Attack_Basic"]
+script = ExtResource("5_effect")
+stat_id = &"damage"
+adaptation_id = &"flat_attack"
+flat_bonus = 1.0
+effect_id = &"flat_damage"
+
+[sub_resource type="Resource" id="Quality_Attack_Basic"]
+script = ExtResource("4_quality")
+effects = Array[ExtResource("2_ecxff")]([SubResource("Effect_Attack_Basic")])
+
+[sub_resource type="Resource" id="Chip_Attack"]
+script = ExtResource("2_chip")
+chip_id = &"attack_chip"
+chip_name = "Power Chip"
+description = "Adds 1 flat attack, shockwave, or healing power before percentage bonuses."
+category_id = &"universal"
+rarity_id = &"basic"
+qualities = Array[ExtResource("4_quality")]([SubResource("Quality_Attack_Basic")])
+
+[sub_resource type="Resource" id="Effect_AttackSpeed_Basic"]
+script = ExtResource("5_effect")
+stat_id = &"fire_rate"
+adaptation_id = &"action_frequency"
+final_multiplier = 1.2
+effect_id = &"attack_speed_percent"
+
+[sub_resource type="Resource" id="Quality_AttackSpeed_Basic"]
+script = ExtResource("4_quality")
+effects = Array[ExtResource("2_ecxff")]([SubResource("Effect_AttackSpeed_Basic")])
+
+[sub_resource type="Resource" id="Chip_AttackSpeed"]
+script = ExtResource("2_chip")
+chip_id = &"attack_speed_chip"
+chip_name = "Attack Speed Chip"
+description = "Increases the module's attack or pulse frequency by 20%."
+category_id = &"universal"
+rarity_id = &"basic"
+qualities = Array[ExtResource("4_quality")]([SubResource("Quality_AttackSpeed_Basic")])
+
+[sub_resource type="Resource" id="Effect_Damage_Basic"]
+script = ExtResource("5_effect")
+stat_id = &"damage"
+adaptation_id = &"damage_percent"
+final_multiplier = 1.2
+effect_id = &"damage_percent"
+
+[sub_resource type="Resource" id="Quality_Damage_Basic"]
+script = ExtResource("4_quality")
+effects = Array[ExtResource("2_ecxff")]([SubResource("Effect_Damage_Basic")])
+
+[sub_resource type="Resource" id="Chip_Damage"]
+script = ExtResource("2_chip")
+chip_id = &"damage_chip"
+chip_name = "Damage Chip"
+description = "Increases final damage or healing by 20%."
+category_id = &"universal"
+rarity_id = &"basic"
+qualities = Array[ExtResource("4_quality")]([SubResource("Quality_Damage_Basic")])
+
+[sub_resource type="Resource" id="Effect_Range_Basic"]
+script = ExtResource("5_effect")
+stat_id = &"attack_range"
+adaptation_id = &"range_percent"
+final_multiplier = 1.35
+effect_id = &"range_percent"
+
+[sub_resource type="Resource" id="Quality_Range_Basic"]
+script = ExtResource("4_quality")
+effects = Array[ExtResource("2_ecxff")]([SubResource("Effect_Range_Basic")])
+
+[sub_resource type="Resource" id="Chip_Range"]
+script = ExtResource("2_chip")
+chip_id = &"range_chip"
+chip_name = "Range Chip"
+description = "Increases weapon, shockwave, or healing radius by 35%."
+category_id = &"universal"
+rarity_id = &"basic"
+qualities = Array[ExtResource("4_quality")]([SubResource("Quality_Range_Basic")])
+
+[sub_resource type="Resource" id="Effect_Skill_Basic"]
+script = ExtResource("5_effect")
+stat_id = &"skill_cast_time"
+adaptation_id = &"skill_cast_time"
+flat_bonus = -1.0
+effect_id = &"skill_cast_time_flat"
+
+[sub_resource type="Resource" id="Quality_Skill_Basic"]
+script = ExtResource("4_quality")
+effects = Array[ExtResource("2_ecxff")]([SubResource("Effect_Skill_Basic")])
+
+[sub_resource type="Resource" id="Chip_Skill"]
+script = ExtResource("2_chip")
+chip_id = &"skill_chip"
+chip_name = "Skill Chip"
+description = "Reduces active skill cast time by 1 second."
+category_id = &"universal"
+rarity_id = &"basic"
+qualities = Array[ExtResource("4_quality")]([SubResource("Quality_Skill_Basic")])
+
+[sub_resource type="Resource" id="Slot_MachineGun"]
+script = ExtResource("3_slot")
+slot_id = &"weapon.machine_gun"
+display_name = "Machine Gun Chip Slot"
+scope_id = "weapon_type"
+target_id = &"machine_gun"
+
+[sub_resource type="Resource" id="Slot_DwarfCannon"]
+script = ExtResource("3_slot")
+slot_id = &"weapon.dwarf_cannon"
+display_name = "Dwarf Cannon Chip Slot"
+scope_id = "weapon_type"
+target_id = &"dwarf_cannon"
+
+[sub_resource type="Resource" id="Slot_Laser"]
+script = ExtResource("3_slot")
+slot_id = &"weapon.laser"
+display_name = "Laser Chip Slot"
+scope_id = "weapon_type"
+target_id = &"laser"
+
+[sub_resource type="Resource" id="Slot_Chainsaw"]
+script = ExtResource("3_slot")
+slot_id = &"weapon.chainsaw"
+display_name = "Chainsaw Chip Slot"
+scope_id = "weapon_type"
+target_id = &"chainsaw"
+
+[resource]
+script = ExtResource("1_configuration")
+chips = Array[ExtResource("2_chip")]([SubResource("Chip_Attack"), SubResource("Chip_AttackSpeed"), SubResource("Chip_Damage"), SubResource("Chip_Range"), SubResource("Chip_Skill")])
+slots = Array[ExtResource("3_slot")]([SubResource("Slot_MachineGun"), SubResource("Slot_DwarfCannon"), SubResource("Slot_Laser"), SubResource("Slot_Chainsaw")])

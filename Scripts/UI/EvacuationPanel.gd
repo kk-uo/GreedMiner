@@ -146,6 +146,10 @@ func is_completed() -> bool:
 
 
 func _is_pressable() -> bool:
+	if is_inside_tree():
+		var weather := get_tree().get_first_node_in_group("battle_weather_manager") as WeatherManager
+		if weather != null and weather.is_input_frozen():
+			return false
 	return _battle_active and not _completed
 
 

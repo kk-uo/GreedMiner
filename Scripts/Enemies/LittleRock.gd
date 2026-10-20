@@ -4,35 +4,45 @@ extends BasicEnemy
 ## Small common melee enemy used by the Rocky Planet enemy family.
 
 
-const BODY := [
-	Vector2(-12.0, -4.0), Vector2(-7.0, -10.0), Vector2(2.0, -11.0),
-	Vector2(9.0, -7.0), Vector2(14.0, 0.0), Vector2(9.0, 7.0),
-	Vector2(2.0, 11.0), Vector2(-7.0, 10.0), Vector2(-12.0, 4.0),
-]
-const LEGS := [
-	[Vector2(-4.0, -9.0), Vector2(-1.0, -15.0), Vector2(3.0, -9.0)],
-	[Vector2(-4.0, 9.0), Vector2(-1.0, 15.0), Vector2(3.0, 9.0)],
-]
-const FACET := [
-	Vector2(-7.0, -10.0), Vector2(2.0, -11.0), Vector2(9.0, -7.0),
-	Vector2(3.0, -4.0), Vector2(-6.0, -5.0),
-]
+## Visual body variant (StoneVisual.Variant); -1 picks one at random on spawn.
+@export_enum("Random:-1", "Boulder:0", "Crystal:1") var visual_variant: int = -1
+
+## Waddle clock and remaining lunge time (presentation only).
+var _anim_time: float = 0.0
+var _attack_pose_time: float = 0.0
+
+const WALK_CYCLES_PER_SECOND: float = 2.6
 
 
-## Style A: dark stone silhouette facing the ship, one red threat core.
+func _ready() -> void:
+	super()
+	if visual_variant < 0:
+		visual_variant = StoneVisual.random_variant()
+	_anim_time = randf() * 10.0
+
+
+func _process(delta: float) -> void:
+	_anim_time += delta
+	_attack_pose_time = maxf(_attack_pose_time - delta, 0.0)
+	super(delta)
+
+
+## Plays a short head-butt lunge whenever an attack lands.
+func _on_attack_timer_timeout() -> void:
+	super()
+	if _is_attacking:
+		_attack_pose_time = StoneVisual.ATTACK_POSE_TIME
+
+
+## Grey stone pebble (variant chosen per enemy), purple eyes; see StoneVisual.
 func _draw() -> void:
-	draw_set_transform(Palette.SHADOW_OFFSET * 0.7, _facing, Vector2.ONE)
-	_draw_silhouette(Palette.SHADOW_COLOR)
-
-	draw_set_transform(Vector2.ZERO, _facing, Vector2.ONE)
-	_draw_silhouette(_flash(Palette.ENEMY))
-	if not _is_flashing():
-		draw_colored_polygon(PackedVector2Array(FACET), Palette.ENEMY_LIGHT)
-		draw_circle(Vector2(5.0, 0.0), 3.2, Palette.THREAT)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var step: float = 0.0 if _is_attacking else sin(_anim_time * TAU * WALK_CYCLES_PER_SECOND)
+	StoneVisual.draw_little_rock(self, visual_variant, _facing, step,
+			StoneVisual.attack_amount(_attack_pose_time), _is_flashing())
 
 
-func _draw_silhouette(color: Color) -> void:
-	draw_colored_polygon(PackedVector2Array(BODY), color)
-	for leg in LEGS:
-		draw_colored_polygon(PackedVector2Array(leg), color)
+## Presentation: the rock shatters into shards and dust.
+const STONE_SHATTER := preload("res://Scripts/VFX/StoneShatter.gd")
+
+func _spawn_death_visual(death_position: Vector2) -> void:
+	STONE_SHATTER.spawn(get_parent(), death_position, 1.0, false)

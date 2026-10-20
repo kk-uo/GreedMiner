@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Enemies/Demon.gd" id="1_demon"]
+
+[sub_resource type="CircleShape2D" id="CircleShape_demon"]
+radius = 14.0
+
+[node name="Demon" type="Area2D"]
+script = ExtResource("1_demon")
+enemy_id = &"demon"
+enemy_name = "Demon"
+max_health = 100.0
+move_speed = 40.0
+attack_damage = 10.0
+attack_interval = 1.0
+attack_range = 10.0
+reward_ore = 1.0
+damage_reduction = 0.0
+attack_type = 0
+enemy_tier = 0
+spawn_map_id = &"volcanic_planet"
+minimum_spawn_wave = 1
+spawn_patterns = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape_demon")
+
+[node name="AttackTimer" type="Timer" parent="."]
+
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

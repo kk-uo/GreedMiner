@@ -1,0 +1,1429 @@
+class_name LoadoutPanel
+extends Control
+
+## Right-hand loadout panel shown while assembling the ship.
+##
+## List view: power budget plus every installable module, each with a quick
+## "+" install button. Detail view shows module statistics and, for an
+## installed module, its chip sockets (design A): installed / empty "+" /
+## locked "RESEARCH LV xx". Clicking a socket opens a bottom drawer listing
+## owned chips; gold segments on the stat bars show the chip bonus.
+## Every weapon and Shield module instance owns the sockets attached to its cell.
+## BaseMain owns install/remove while this panel only presents and emits.
+
+signal install_requested(module_id: StringName)
+signal remove_requested
+## A module card was dragged; BaseMain follows the mouse and drops it on a slot.
+signal drag_started(module_id: StringName)
+
+const PANEL_WIDTH: float = 340.0
+## Mouse travel (px) before a press on a card turns into a drag.
+const DRAG_THRESHOLD: float = 8.0
+
+enum View { LIST, DETAIL, STYLE }
+
+var _view: View = View.LIST
+var _detail_id: StringName = &""
+var _detail_installed: bool = false
+
+var _slot_row: int = -1
+var _slot_column: int = -1
+## Catalog id of the module in the selected slot, or empty.
+var _slot_module_id: StringName = &""
+
+var _power_used: int = 0
+var _power_capacity: int = 0
+
+var _slot_pill_label: Label
+var _slot_pill: PanelContainer
+var _power_bar: PowerBar
+var _power_label: Label
+var _body: VBoxContainer
+var _footer: HBoxContainer
+var _message: Label
+var _scroll: ScrollContainer
+## View the body was last built for (scroll is kept when it stays the same).
+var _last_built_view: String = ""
+
+const ChipVisual := preload("res://Scripts/UI/Chips/ChipVisual.gd")
+const ArtifactVisual := preload("res://Scripts/UI/Artifacts/ArtifactVisual.gd")
+const ScrollKeeper := preload("res://Scripts/UI/ScrollKeeper.gd")
+const StoragePicker := preload("res://Scripts/UI/Loadout/StoragePicker.gd")
+## Ship artifact slot whose picker is open in the list view (-1 = none).
+var _artifact_picker_slot: int = -1
+## Module artifact picker open in the detail view.
+var _module_artifact_picker_open: bool = false
+
+## Socket whose picker drawer is open, or -1.
+var _picker_slot: int = -1
+## Left-of-screen grid used by all three pickers (chips, ship and module artifacts).
+var _storage: PanelContainer
+
+var _press_id: StringName = &""
+var _press_position: Vector2 = Vector2.ZERO
+var _drag_active: bool = false
+
+
+func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	if not WeaponUnlockManager.weapon_unlocked.is_connected(_on_weapon_unlocked):
+		WeaponUnlockManager.weapon_unlocked.connect(_on_weapon_unlocked)
+	_build_frame()
+	_build_storage()
+	ChipManager.chip_equipment_changed.connect(_on_chip_data_changed.unbind(2))
+	ChipManager.chip_inventory_changed.connect(_on_chip_data_changed.unbind(2))
+	ChipManager.chip_operation_failed.connect(show_message)
+	# Research can unlock SHIP STYLE or artifact slots shown in the list.
+	ResearchManager.research_level_changed.connect(func(_id: StringName, _level: int) -> void:
+		if _view == View.LIST:
+			_rebuild()
+	)
+	_rebuild()
+
+
+func _on_weapon_unlocked(_weapon_id: StringName, _display_name: String) -> void:
+	_rebuild()
+
+
+# ==========================================
+# Public API (called by BaseMain)
+# ==========================================
+
+## Sets the selected ship cell. row < 0 means no slot is selected.
+func set_slot(row: int, column: int, installed_id: StringName) -> void:
+	_close_picker()
+	_slot_row = row
+	_slot_column = column
+	_slot_module_id = installed_id
+	show_message("")
+	if row >= 0 and installed_id != &"":
+		show_detail(installed_id, true)
+	else:
+		show_list()
+
+
+func set_power(used: int, capacity: int) -> void:
+	_power_used = used
+	_power_capacity = capacity
+	if _power_bar != null:
+		_power_bar.set_values(used, capacity)
+		_power_label.text = "%d / %d" % [used, capacity]
+		_rebuild()
+
+
+func show_message(text: String) -> void:
+	_message.text = text
+	_message.visible = not text.is_empty()
+
+
+func show_list() -> void:
+	_close_picker()
+	_view = View.LIST
+	_rebuild()
+
+
+## Hull color scheme picker (Hangar > SHIP STYLE).
+func show_style() -> void:
+	_view = View.STYLE
+	_rebuild()
+
+
+func show_detail(module_id: StringName, installed: bool) -> void:
+	_module_artifact_picker_open = false
+	_view = View.DETAIL
+	_detail_id = module_id
+	_detail_installed = installed
+	_rebuild()
+
+
+func has_slot() -> bool:
+	return _slot_row >= 0
+
+
+## Whether installing module_id into the selected slot fits the power budget.
+func can_install(module_id: StringName) -> bool:
+	if not has_slot() or not ModuleCatalog.is_module_unlocked(module_id):
+		return false
+	var new_stats := ModuleCatalog.get_stats(module_id)
+	var old_stats := ModuleCatalog.get_stats(_slot_module_id) if _slot_module_id != &"" else {}
+	var used := _power_used + int(new_stats.get("power_cost", 0)) - int(old_stats.get("power_cost", 0))
+	var capacity := _power_capacity + int(new_stats.get("power_capacity", 0)) - int(old_stats.get("power_capacity", 0))
+	return used <= capacity
+
+
+# ==========================================
+# Frame (built once)
+# ==========================================
+
+func _build_frame() -> void:
+	var frame := PanelContainer.new()
+	var frame_style := Palette.make_panel_style(Color(Palette.UI_PANEL, 0.96), 12, 16.0, 16.0)
+	frame_style.shadow_color = Palette.SHADOW_COLOR
+	frame_style.shadow_size = 0
+	frame_style.shadow_offset = Palette.SHADOW_OFFSET
+	frame.add_theme_stylebox_override("panel", frame_style)
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(frame)
+
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	frame.add_child(column)
+
+	# Header: title + selected slot pill.
+	var header := HBoxContainer.new()
+	column.add_child(header)
+	var title := _label("LOADOUT", 22, Palette.UI_TEXT)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	_slot_pill = PanelContainer.new()
+	_slot_pill.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	header.add_child(_slot_pill)
+	_slot_pill_label = _label("", 11, Palette.UI_PANEL)
+	_slot_pill.add_child(_slot_pill_label)
+
+	# Power budget.
+	var power_row := HBoxContainer.new()
+	power_row.add_theme_constant_override("separation", 10)
+	column.add_child(power_row)
+	power_row.add_child(_label("POWER", 11, Palette.UI_MUTED))
+	_power_bar = PowerBar.new()
+	_power_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	power_row.add_child(_power_bar)
+	_power_label = _label("0 / 0", 14, Palette.UI_TEXT)
+	power_row.add_child(_power_label)
+	_power_bar.set_values(_power_used, _power_capacity)
+
+	column.add_child(HSeparator.new())
+
+	_scroll = ScrollContainer.new()
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(_scroll)
+	_body = VBoxContainer.new()
+	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body.add_theme_constant_override("separation", 8)
+	_scroll.add_child(_body)
+
+	_message = _label("", 12, Color("FF6B7D"))
+	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_message.visible = false
+	column.add_child(_message)
+
+	_footer = HBoxContainer.new()
+	_footer.add_theme_constant_override("separation", 10)
+	column.add_child(_footer)
+
+
+func _rebuild() -> void:
+	if _body == null:
+		return
+	# Picking something rebuilds the same view: keep the scroll position so the
+	# panel does not jump back to the top. A different view (or another
+	# module's details) starts at the top.
+	var view_key := "%d:%s" % [_view, _detail_id if _view == View.DETAIL else &""]
+	var kept: Array = ScrollKeeper.capture(self) if view_key == _last_built_view else []
+	_last_built_view = view_key
+	for child in _body.get_children():
+		_body.remove_child(child)
+		child.queue_free()
+	for child in _footer.get_children():
+		child.queue_free()
+
+	# Slot pill: orange when a slot is selected, muted otherwise.
+	var pill_style := Palette.make_panel_style(Palette.ACCENT if has_slot() else Palette.UI_PANEL_RAISED, 11, 10.0, 3.0)
+	_slot_pill.add_theme_stylebox_override("panel", pill_style)
+	_slot_pill_label.text = ("SLOT R%d · C%d" % [_slot_row + 1, _slot_column + 1]) if has_slot() else "NO SLOT"
+	_slot_pill_label.add_theme_color_override("font_color", Palette.UI_PANEL if has_slot() else Palette.UI_MUTED)
+
+	if _view == View.LIST:
+		_build_list()
+	elif _view == View.STYLE:
+		_build_style()
+	else:
+		_build_detail()
+	_refresh_storage()
+	if kept.is_empty():
+		_scroll.scroll_vertical = 0
+	else:
+		ScrollKeeper.restore(self, kept)
+
+
+# ==========================================
+# List view
+# ==========================================
+
+func _build_list() -> void:
+	if ArtifactManager.is_stall_unlocked():
+		_build_artifact_slots()
+	_body.add_child(_label("WEAPONS", 11, Palette.UI_MUTED))
+	for entry in ModuleCatalog.ENTRIES:
+		if entry["group"] == &"weapon":
+			_body.add_child(_make_card(entry))
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0.0, 6.0)
+	_body.add_child(spacer)
+	_body.add_child(_label("SYSTEMS", 11, Palette.UI_MUTED))
+	for entry in ModuleCatalog.ENTRIES:
+		if entry["group"] == &"system":
+			_body.add_child(_make_card(entry))
+	var shield_spacer := Control.new()
+	shield_spacer.custom_minimum_size = Vector2(0.0, 6.0)
+	_body.add_child(shield_spacer)
+	_body.add_child(_label("SHIELDS", 11, Palette.UI_MUTED))
+	for entry in ModuleCatalog.ENTRIES:
+		if entry["group"] == &"shield":
+			_body.add_child(_make_card(entry))
+
+	var hint := _label(
+		"Click a module for details, or drag it onto any slot." if has_slot() else "Drag a module onto a ship slot, or select a slot first.",
+		12, Palette.UI_MUTED
+	)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var footer_column := VBoxContainer.new()
+	footer_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer_column.add_theme_constant_override("separation", 10)
+	_footer.add_child(footer_column)
+	footer_column.add_child(hint)
+	footer_column.add_child(_make_style_button())
+
+
+# ==========================================
+# Ship artifacts (equipped here; collected at the Magic Stall)
+# ==========================================
+
+func _build_artifact_slots() -> void:
+	_body.add_child(_label("ARTIFACTS", 11, Palette.UI_MUTED))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_body.add_child(row)
+	for slot_index in range(ArtifactManager.SHIP_SLOT_COUNT):
+		var slot := ArtifactSlot.new()
+		var artifact_id := ArtifactManager.get_ship_artifact(slot_index)
+		var definition := ArtifactManager.get_definition(artifact_id)
+		slot.setup(definition, ArtifactManager.is_ship_slot_unlocked(slot_index), slot_index == _artifact_picker_slot)
+		slot.set_meta("artifact_slot", slot_index)
+		slot.pressed.connect(func() -> void:
+			var reopen := _artifact_picker_slot != slot_index
+			_reset_pickers()
+			if reopen:
+				_artifact_picker_slot = slot_index
+			_rebuild()
+		)
+		row.add_child(slot)
+	if _artifact_picker_slot >= 0 and not ArtifactManager.is_ship_slot_unlocked(_artifact_picker_slot):
+		_artifact_picker_slot = -1
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0.0, 6.0)
+	_body.add_child(spacer)
+
+
+## One artifact socket per installed module (detail view), shown once the
+## player owns an artifact that fits this module.
+func _build_module_artifact_socket(module_id: StringName, cell: Vector2i) -> void:
+	if not ArtifactManager.is_stall_unlocked():
+		return
+	var current := ArtifactManager.get_module_artifact(cell)
+	var options: Array[MagicArtifactDefinition] = []
+	for artifact_id in ArtifactManager.get_owned_artifact_ids():
+		var definition := ArtifactManager.get_definition(artifact_id)
+		if definition.is_compatible_with_module(module_id) and artifact_id != current:
+			options.append(definition)
+	if current.is_empty() and options.is_empty():
+		return
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0.0, 4.0)
+	_body.add_child(spacer)
+	_body.add_child(_label("ARTIFACT · THIS MODULE", 11, Palette.UI_MUTED))
+	var slot := ArtifactSlot.new()
+	slot.setup(ArtifactManager.get_definition(current), true, _module_artifact_picker_open)
+	slot.pressed.connect(func() -> void:
+		var reopen := not _module_artifact_picker_open
+		_reset_pickers()
+		_module_artifact_picker_open = reopen
+		_rebuild()
+	)
+	_body.add_child(slot)
+
+
+func _make_card(entry: Dictionary) -> Control:
+	var id: StringName = entry["id"]
+	var unlocked := ModuleCatalog.is_module_unlocked(id)
+	var card := Button.new()
+	card.set_meta("module_id", id)
+	card.custom_minimum_size = Vector2(0.0, 64.0)
+	card.focus_mode = Control.FOCUS_NONE
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var normal := Palette.make_panel_style(Palette.UI_PANEL_RAISED, 8)
+	var hover := Palette.make_panel_style(Palette.UI_PANEL_RAISED, 8)
+	hover.set_border_width_all(2)
+	hover.border_color = Palette.ACCENT
+	card.add_theme_stylebox_override("normal", normal)
+	card.add_theme_stylebox_override("hover", hover)
+	card.add_theme_stylebox_override("pressed", hover)
+	card.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	if id == _slot_module_id and has_slot():
+		var current := Palette.make_panel_style(Palette.UI_PANEL_RAISED, 8)
+		current.set_border_width_all(2)
+		current.border_color = Palette.UI_MUTED
+		card.add_theme_stylebox_override("normal", current)
+	card.pressed.connect(func() -> void:
+		# A drag that ends back on its own card is not a click.
+		if _drag_active:
+			_drag_active = false
+			return
+		show_detail(id, false)
+	)
+	card.gui_input.connect(_on_card_gui_input.bind(id))
+
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 8.0
+	row.offset_right = -8.0
+	row.add_theme_constant_override("separation", 10)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(row)
+
+	var icon := ModuleIcon.new()
+	icon.setup(id, 48.0, 0.62)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(icon)
+
+	var text := VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.alignment = BoxContainer.ALIGNMENT_CENTER
+	text.add_theme_constant_override("separation", 0)
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(text)
+	var name_text: String = entry["name"]
+	if id == _slot_module_id and has_slot():
+		name_text += "  ·  IN SLOT"
+	# Cards stay minimal: just the name. Stats live in the detail view.
+	# Locked modules are dimmed and show a padlock instead of the "+" button.
+	text.add_child(_label(name_text, 16, Palette.UI_TEXT if unlocked else Palette.UI_MUTED))
+	if not unlocked:
+		icon.modulate = Color(1.0, 1.0, 1.0, 0.45)
+		card.tooltip_text = "Locked · %s" % ModuleCatalog.get_unlock_requirement(id)
+
+	var pill := PowerPill.new()
+	pill.setup(ModuleCatalog.get_stats(id))
+	pill.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(pill)
+
+	if not unlocked:
+		var lock := LockIcon.new()
+		lock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(lock)
+		return card
+
+	var add := Button.new()
+	add.text = "+"
+	add.custom_minimum_size = Vector2(32.0, 32.0)
+	add.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	add.focus_mode = Control.FOCUS_NONE
+	add.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_style_primary(add, 6)
+	add.add_theme_font_size_override("font_size", 20)
+	var allowed := can_install(id) and id != _slot_module_id
+	add.disabled = not allowed
+	add.tooltip_text = _install_block_reason(id) if not allowed else "Install into the selected slot"
+	add.pressed.connect(func() -> void: install_requested.emit(id))
+	row.add_child(add)
+	return card
+
+
+## Turns a press-and-move on a card into a drag (see drag_started).
+func _on_card_gui_input(event: InputEvent, id: StringName) -> void:
+	if not ModuleCatalog.is_module_unlocked(id):
+		return
+	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		if (event as InputEventMouseButton).pressed:
+			_press_id = id
+			_press_position = (event as InputEventMouseButton).global_position
+			_drag_active = false
+		else:
+			_press_id = &""
+	elif event is InputEventMouseMotion and _press_id == id and not _drag_active:
+		if (event as InputEventMouseMotion).global_position.distance_to(_press_position) > DRAG_THRESHOLD:
+			_drag_active = true
+			drag_started.emit(id)
+
+
+func _install_block_reason(id: StringName) -> String:
+	if not ModuleCatalog.is_module_unlocked(id):
+		return ModuleCatalog.get_unlock_requirement(id)
+	if not has_slot():
+		return "Select a slot on the ship first"
+	if id == _slot_module_id:
+		return "Already in this slot"
+	if not can_install(id):
+		return "Not enough power — add an Energy Module"
+	return ""
+
+
+# ==========================================
+# Ship style view
+# ==========================================
+
+func _make_style_button() -> Button:
+	var button := Button.new()
+	button.text = "SHIP STYLE"
+	button.custom_minimum_size = Vector2(0.0, 44.0)
+	button.focus_mode = Control.FOCUS_NONE
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.tooltip_text = "Change the ship's colors"
+	for state in ["normal", "hover", "pressed"]:
+		var style := Palette.make_panel_style(Color(Palette.ACCENT, 0.12) if state != "normal" else Color(0, 0, 0, 0), 8, 12.0, 6.0)
+		style.set_border_width_all(2)
+		style.border_color = Palette.ACCENT
+		button.add_theme_stylebox_override(state, style)
+	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	for color_name in ["font_color", "font_hover_color", "font_pressed_color"]:
+		button.add_theme_color_override(color_name, Palette.ACCENT)
+	button.add_theme_font_size_override("font_size", 14)
+	button.pressed.connect(show_style)
+	# Locked until the Laboratory's Ship Style research is done.
+	if not ResearchManager.is_ship_style_unlocked():
+		button.text = "SHIP STYLE  ·  LOCKED"
+		button.disabled = true
+		button.mouse_default_cursor_shape = Control.CURSOR_ARROW
+		button.tooltip_text = "Research SHIP STYLE in the Laboratory (Ship)"
+		var locked := Palette.make_panel_style(Color(0, 0, 0, 0), 8, 12.0, 6.0)
+		locked.set_border_width_all(2)
+		locked.border_color = Palette.MECH
+		button.add_theme_stylebox_override("disabled", locked)
+		button.add_theme_color_override("font_disabled_color", Palette.UI_MUTED)
+	return button
+
+
+func _build_style() -> void:
+	var back := Button.new()
+	back.text = "‹  LOADOUT"
+	back.flat = true
+	back.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	back.focus_mode = Control.FOCUS_NONE
+	back.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	back.add_theme_color_override("font_color", Palette.UI_MUTED)
+	back.add_theme_color_override("font_hover_color", Palette.UI_TEXT)
+	back.add_theme_font_size_override("font_size", 13)
+	for state in ["normal", "hover", "pressed"]:
+		back.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	back.pressed.connect(show_list)
+	_body.add_child(back)
+	_body.add_child(_label("SHIP STYLE", 20, Palette.UI_TEXT))
+	_body.add_child(_label("COLOR", 11, Palette.UI_MUTED))
+	for style_id in ShipHullVisual.STYLE_ORDER:
+		_body.add_child(_make_style_card(style_id))
+	var hull_spacer := Control.new()
+	hull_spacer.custom_minimum_size = Vector2(0.0, 6.0)
+	_body.add_child(hull_spacer)
+	_body.add_child(_label("HULL", 11, Palette.UI_MUTED))
+	for hull_id in ShipHullVisual.HULL_ORDER:
+		_body.add_child(_make_hull_card(hull_id))
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0.0, 6.0)
+	_body.add_child(spacer)
+	_body.add_child(_label("ROTATION", 11, Palette.UI_MUTED))
+	var rotation_row := HBoxContainer.new()
+	rotation_row.add_theme_constant_override("separation", 8)
+	_body.add_child(rotation_row)
+	for degrees in ShipLoadout.ROTATIONS:
+		rotation_row.add_child(_make_rotation_button(degrees))
+	var hint := _label("Color and hull shape mix freely; modules keep their own colors. Rotation also turns the ship's edges in battle. Saved automatically.", 12, Palette.UI_MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_footer.add_child(hint)
+
+
+func _make_rotation_button(degrees: float) -> Button:
+	var selected := is_equal_approx(ShipLoadout.layout_rotation, degrees)
+	var button := Button.new()
+	button.text = "%d°" % roundi(degrees)
+	button.custom_minimum_size = Vector2(0.0, 46.0)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.focus_mode = Control.FOCUS_NONE
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	if selected:
+		_style_primary(button, 8)
+	else:
+		for state in ["normal", "hover", "pressed"]:
+			var style := Palette.make_panel_style(Palette.UI_PANEL_RAISED, 8)
+			if state == "hover":
+				style.set_border_width_all(2)
+				style.border_color = Palette.UI_MUTED
+			button.add_theme_stylebox_override(state, style)
+		button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		button.add_theme_color_override("font_color", Palette.UI_TEXT)
+	button.add_theme_font_size_override("font_size", 15)
+	button.pressed.connect(func() -> void:
+		ShipLoadout.set_layout_rotation(degrees)
+		ShipLoadout.save()
+		_rebuild()
+	)
+	return button
+
+
+func _make_style_card(style_id: StringName) -> Control:
+	var colors := ShipHullVisual.style_colors(style_id)
+	var selected := style_id == ShipLoadout.style_id
+	var card := Button.new()
+	card.custom_minimum_size = Vector2(0.0, 52.0)
+	card.focus_mode = Control.FOCUS_NONE
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var normal := Palette.make_panel_style(Palette.UI_PANEL_RAISED, 8)
+	var hover := Palette.make_panel_style(Palette.UI_PANEL_RAISED, 8)
+	hover.set_border_width_all(2)
+	hover.border_color = Palette.UI_MUTED
+	if selected:
+		normal.set_border_width_all(2)
+		normal.border_color = Palette.ACCENT
+		hover.border_color = Palette.ACCENT
+	card.add_theme_stylebox_override("normal", normal)
+	card.add_theme_stylebox_override("hover", hover)
+	card.add_theme_stylebox_override("pressed", hover)
+	card.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	card.pressed.connect(func() -> void:
+		ShipLoadout.set_style(style_id)
+		ShipLoadout.save()
+		_rebuild()
+	)
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 14.0
+	row.offset_right = -14.0
+	row.add_theme_constant_override("separation", 12)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(row)
+	var swatches := StyleSwatches.new()
+	swatches.colors = [colors["tile"], colors["rim"], colors["iron"], colors["accent"]]
+	swatches.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(swatches)
+	var name_label := _label(String(colors["name"]).to_upper(), 14, Palette.UI_TEXT)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(name_label)
+	if selected:
+		var tag := _label("IN USE", 10, Palette.ACCENT)
+		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(tag)
+	return card
+
+
+func _make_hull_card(hull_id: StringName) -> Control:
+	var design := ShipHullVisual.hull_design(hull_id)
+	var selected := hull_id == ShipLoadout.hull_id
+	var card := Button.new()
+	card.custom_minimum_size = Vector2(0.0, 64.0)
+	card.focus_mode = Control.FOCUS_NONE
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var normal := Palette.make_panel_style(Palette.UI_PANEL_RAISED, 8)
+	var hover := Palette.make_panel_style(Palette.UI_PANEL_RAISED, 8)
+	hover.set_border_width_all(2)
+	hover.border_color = Palette.UI_MUTED
+	if selected:
+		normal.set_border_width_all(2)
+		normal.border_color = Palette.ACCENT
+		hover.border_color = Palette.ACCENT
+	card.add_theme_stylebox_override("normal", normal)
+	card.add_theme_stylebox_override("hover", hover)
+	card.add_theme_stylebox_override("pressed", hover)
+	card.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	card.pressed.connect(func() -> void:
+		ShipLoadout.set_hull(hull_id)
+		ShipLoadout.save()
+		_rebuild()
+	)
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 10.0
+	row.offset_right = -14.0
+	row.add_theme_constant_override("separation", 12)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(row)
+	var preview := HullPreview.new()
+	preview.hull_id = hull_id
+	preview.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(preview)
+	var name_label := _label(String(design["name"]).to_upper(), 14, Palette.UI_TEXT)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(name_label)
+	if selected:
+		var tag := _label("IN USE", 10, Palette.ACCENT)
+		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(tag)
+	return card
+
+
+## Tiny 3x3 hull in the current color scheme for a hull design card.
+class HullPreview:
+	extends Control
+
+	const CELL: float = 64.0
+	var hull_id: StringName = &"classic"
+	var _geometry: Dictionary = {}
+	var _cells: Array[Vector2i] = []
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(56.0, 56.0)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		for row in range(3):
+			for column in range(3):
+				_cells.append(Vector2i(column, row))
+
+	func _process(_delta: float) -> void:
+		if not _geometry.is_empty() and ShipHullVisual.is_animated(_geometry):
+			queue_redraw()
+
+	func _draw() -> void:
+		if _geometry.is_empty():
+			_geometry = ShipHullVisual.build(_cells, CELL, hull_id)
+		var scale: float = size.x / 260.0
+		var center := Vector2(CELL * 1.5, CELL * 1.5)
+		draw_set_transform(size * 0.5 - center * scale, 0.0, Vector2.ONE * scale)
+		ShipHullVisual.draw_pods(self, _geometry, 0.0)
+		ShipHullVisual.draw_hull(self, _geometry, _cells, CELL)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Four small color chips: tile, frame, frame shade, accent.
+class StyleSwatches:
+	extends Control
+
+	var colors: Array = []
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(74.0, 14.0)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		for index in range(colors.size()):
+			var rect := Rect2(Vector2(float(index) * 19.0, 0.0), Vector2(14.0, 14.0))
+			Palette.draw_rounded_rect(self, rect, 3.0, colors[index])
+
+
+# ==========================================
+# Detail view
+# ==========================================
+
+func _build_detail() -> void:
+	var id := _detail_id
+	var entry := ModuleCatalog.get_entry(id)
+	var stats := ModuleCatalog.get_stats(id)
+	var category := String(stats.get("category", ""))
+	var module_unlocked := ModuleCatalog.is_module_unlocked(id)
+
+	var back := Button.new()
+	back.text = "‹  ALL MODULES"
+	back.flat = true
+	back.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	back.focus_mode = Control.FOCUS_NONE
+	back.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	back.add_theme_color_override("font_color", Palette.UI_MUTED)
+	back.add_theme_color_override("font_hover_color", Palette.UI_TEXT)
+	back.add_theme_font_size_override("font_size", 13)
+	back.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	back.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
+	back.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
+	back.pressed.connect(show_list)
+	_body.add_child(back)
+
+	# Big icon + identity.
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 14)
+	_body.add_child(top)
+	var icon := ModuleIcon.new()
+	icon.setup(id, 96.0, 1.45)
+	top.add_child(icon)
+	var identity := VBoxContainer.new()
+	identity.alignment = BoxContainer.ALIGNMENT_CENTER
+	identity.add_theme_constant_override("separation", 6)
+	top.add_child(identity)
+	var title := _label(String(entry.get("name", "")).to_upper(), 20, Palette.UI_TEXT)
+	identity.add_child(title)
+	var tags := HBoxContainer.new()
+	tags.add_theme_constant_override("separation", 6)
+	identity.add_child(tags)
+	var category_pill := PanelContainer.new()
+	category_pill.add_theme_stylebox_override("panel", Palette.make_panel_style(Palette.UI_PANEL_RAISED, 11, 10.0, 2.0))
+	category_pill.add_child(_label(category.to_upper(), 10, Palette.UI_MUTED))
+	tags.add_child(category_pill)
+	var pill := PowerPill.new()
+	pill.setup(stats)
+	tags.add_child(pill)
+	identity.add_child(_label(
+		"INSTALLED" if _detail_installed else ("IN SLOT" if id == _slot_module_id and has_slot() else "NOT INSTALLED"),
+		11, Palette.ACCENT if _detail_installed else Palette.UI_MUTED
+	))
+
+	_body.add_child(HSeparator.new())
+	if not module_unlocked:
+		var requirement := _label(
+			"LOCKED  //  %s" % ModuleCatalog.get_unlock_requirement(id).to_upper(),
+			12,
+			Palette.UI_MUTED
+		)
+		requirement.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_body.add_child(requirement)
+	var turret_cell := _detail_turret_cell(category)
+	var stats_header := HBoxContainer.new()
+	_body.add_child(stats_header)
+	var stats_label := _label("STATS", 11, Palette.UI_MUTED)
+	stats_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_header.add_child(stats_label)
+	if turret_cell.x >= 0 and not ChipManager.get_module_chips(turret_cell).is_empty():
+		stats_header.add_child(_label("GOLD = FROM CHIPS", 10, Palette.GOLD))
+	for row in _stat_rows(id, stats, category, turret_cell):
+		_body.add_child(row)
+	if turret_cell.x >= 0:
+		_build_chip_sockets(id, turret_cell)
+		_build_module_artifact_socket(id, turret_cell)
+
+	# Footer actions.
+	if _detail_installed:
+		var remove := Button.new()
+		remove.text = "REMOVE"
+		remove.custom_minimum_size = Vector2(110.0, 44.0)
+		remove.focus_mode = Control.FOCUS_NONE
+		remove.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		remove.pressed.connect(func() -> void: remove_requested.emit())
+		_footer.add_child(remove)
+		var change := Button.new()
+		change.text = "CHANGE MODULE"
+		change.custom_minimum_size = Vector2(0.0, 44.0)
+		change.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		change.focus_mode = Control.FOCUS_NONE
+		change.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		_style_primary(change, 8)
+		change.pressed.connect(show_list)
+		_footer.add_child(change)
+	else:
+		var install := Button.new()
+		install.text = "INSTALL TO SLOT" if has_slot() else "SELECT A SLOT FIRST"
+		install.custom_minimum_size = Vector2(0.0, 44.0)
+		install.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		install.focus_mode = Control.FOCUS_NONE
+		install.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		_style_primary(install, 8)
+		var allowed := module_unlocked and can_install(id) and id != _slot_module_id
+		install.disabled = not allowed
+		if not module_unlocked:
+			install.text = "WEAPON LOCKED"
+		elif not allowed and has_slot():
+			install.text = "ALREADY IN SLOT" if id == _slot_module_id else "NOT ENOUGH POWER"
+		install.pressed.connect(func() -> void: install_requested.emit(id))
+		_footer.add_child(install)
+
+
+func _stat_rows(id: StringName, stats: Dictionary, category: String, turret_cell: Vector2i = Vector2i(-1, -1)) -> Array[Control]:
+	var rows: Array[Control] = []
+	match category:
+		"weapon":
+			var damage := float(stats.get("damage", 0.0))
+			var rate := float(stats.get("fire_rate", 0.0))
+			var chip_damage := _chip_damage(id, stats, turret_cell)
+			var chip_rate := _chip_fire_rate(rate, turret_cell)
+			var damage_max := ModuleCatalog.get_stat_max("damage")
+			var rate_max := ModuleCatalog.get_stat_max("fire_rate")
+			var dps_max := ModuleCatalog.get_stat_max("dps")
+			rows.append(StatRow.make("DAMAGE", ModuleCatalog.format_number(damage), damage / damage_max,
+					_bonus_text(chip_damage - damage), (chip_damage - damage) / damage_max))
+			rows.append(StatRow.make("FIRE RATE", "%s / s" % ModuleCatalog.format_number(rate), rate / rate_max,
+					_bonus_text(chip_rate - rate), (chip_rate - rate) / rate_max))
+			if stats.has("attack_radius"):
+				var radius := float(stats["attack_radius"])
+				rows.append(StatRow.make("RADIUS", ModuleCatalog.format_number(radius), radius / ModuleCatalog.get_stat_max("attack_range")))
+			elif stats.has("attack_range"):
+				var reach := float(stats["attack_range"])
+				rows.append(StatRow.make("RANGE", ModuleCatalog.format_number(reach), reach / ModuleCatalog.get_stat_max("attack_range")))
+			if stats.has("aoe_radius"):
+				var aoe := float(stats["aoe_radius"])
+				rows.append(StatRow.make("BLAST RADIUS", ModuleCatalog.format_number(aoe), aoe / ModuleCatalog.get_stat_max("aoe_radius")))
+			var dps_bonus := chip_damage * chip_rate - damage * rate
+			rows.append(StatRow.make("DPS", ModuleCatalog.format_number(damage * rate), damage * rate / dps_max,
+					_bonus_text(dps_bonus), dps_bonus / dps_max))
+		"energy":
+			rows.append(StatRow.make("POWER", "+%d" % int(stats.get("power_capacity", 0)), 1.0))
+		"mining":
+			var ore := float(stats.get("mining_rate", 0.0))
+			rows.append(StatRow.make("ORE", "%s / s" % ModuleCatalog.format_number(ore), ore / ModuleCatalog.get_stat_max("mining_rate")))
+		"shield":
+			rows.append(StatRow.make("MAX HULL", "+%s" % ModuleCatalog.format_number(stats.get("max_hp_bonus", 0.0)), 1.0))
+			var regeneration := float(stats.get("regeneration_per_second", 0.0))
+			if regeneration > 0.0:
+				rows.append(StatRow.make("REPAIR", "%s / s" % ModuleCatalog.format_number(regeneration), 1.0))
+	rows.append(StatRow.make("POWER USE", str(int(stats.get("power_cost", 0))), -1.0))
+	return rows
+
+
+# ==========================================
+# Chip sockets (per turret)
+# ==========================================
+
+## Ship cell of the installed weapon shown in the detail view, else (-1, -1).
+func _detail_turret_cell(category: String) -> Vector2i:
+	if not _detail_installed or not has_slot() or category not in ["weapon", "shield"]:
+		return Vector2i(-1, -1)
+	if ChipManager.get_module_id(Vector2i(_slot_row, _slot_column)) != _detail_id:
+		return Vector2i(-1, -1)
+	return Vector2i(_slot_row, _slot_column)
+
+
+func _chip_damage(id: StringName, stats: Dictionary, cell: Vector2i) -> float:
+	var damage := float(stats.get("damage", 0.0))
+	if cell.x < 0 or not stats.has("base_damage"):
+		return damage
+	var modifiers := ResearchManager.get_weapon_stat_modifiers(id, &"damage")
+	modifiers.append_array(ChipManager.get_stat_modifiers({"stat_id": &"damage", "weapon_type_id": id, "cell": cell}))
+	return StatModifierPipeline.calculate(&"damage", float(stats["base_damage"]), modifiers)
+
+
+func _chip_fire_rate(rate: float, cell: Vector2i) -> float:
+	if cell.x < 0:
+		return rate
+	var modifiers := ChipManager.get_stat_modifiers({"stat_id": &"fire_rate", "cell": cell})
+	return maxf(StatModifierPipeline.calculate(&"fire_rate", rate, modifiers), 0.0)
+
+
+func _bonus_text(delta: float) -> String:
+	return ("+" + ModuleCatalog.format_number(snappedf(delta, 0.01))) if delta > 0.004 else ""
+
+
+func _build_chip_sockets(weapon_id: StringName, cell: Vector2i) -> void:
+	var is_weapon := ChipManager.get_module_kind(cell) == &"weapon"
+	var maximum := ChipManager.configuration.max_weapon_chip_slots if is_weapon else maxi(int(ModuleCatalog.get_stats(weapon_id).get("max_chip_slots", 3)), 1)
+	var unlocked := ChipManager.get_module_slot_count(cell)
+	var header := HBoxContainer.new()
+	_body.add_child(header)
+	var title := _label("CHIPS · THIS MODULE", 11, Palette.UI_MUTED)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	header.add_child(_label("%d / %d" % [ChipManager.get_module_chips(cell).size(), maximum], 11, Palette.UI_MUTED))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 9)
+	_body.add_child(row)
+	for index in range(maximum):
+		var socket := ChipSocket.new()
+		socket.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		socket.slot_index = index
+		if index >= unlocked:
+			var level := ChipManager.get_weapon_slot_unlock_level(weapon_id, index) if is_weapon else ResearchManager.get_shield_bonus_slot_unlock_level(weapon_id, index)
+			socket.locked_text = ("RESEARCH\nLV %d" % level) if level > 0 else "CHIP LAB\nLOCKED"
+		else:
+			socket.chip_id = ChipManager.get_instance_chip_type(ChipManager.get_module_chip(cell, index))
+			socket.selected = index == _picker_slot
+			socket.pressed.connect(_open_picker.bind(index))
+		row.add_child(socket)
+	if unlocked == 0:
+		var hint_text := "Unlock the Chip Laboratory to use this module socket."
+		if ChipManager.is_chip_laboratory_unlocked():
+			var first_level := ChipManager.get_weapon_slot_unlock_level(weapon_id, 0) if is_weapon else ResearchManager.get_shield_bonus_slot_unlock_level(weapon_id, 0)
+			hint_text = "Research this module to Lv %d to open its first chip socket." % first_level
+		var hint := _label(hint_text, 10, Palette.UI_MUTED)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_body.add_child(hint)
+
+
+func _build_storage() -> void:
+	_storage = StoragePicker.new()
+	_storage.visible = false
+	_storage.close_requested.connect(_close_picker)
+	add_child(_storage)
+
+
+func _process(_delta: float) -> void:
+	if _storage != null and _storage.visible:
+		var parent_control := get_parent() as Control
+		var height: float = parent_control.size.y if parent_control != null else get_viewport_rect().size.y
+		_storage.pin_left(height)
+
+
+func _open_picker(slot_index: int) -> void:
+	_reset_pickers()
+	_picker_slot = slot_index
+	_rebuild()
+
+
+## Forgets which picker is open (without rebuilding).
+func _reset_pickers() -> void:
+	_picker_slot = -1
+	_artifact_picker_slot = -1
+	_module_artifact_picker_open = false
+
+
+func _close_picker() -> void:
+	if not is_picker_open() and (_storage == null or not _storage.visible):
+		return
+	_reset_pickers()
+	_rebuild()
+
+
+func is_picker_open() -> bool:
+	return _picker_slot >= 0 or _artifact_picker_slot >= 0 or _module_artifact_picker_open
+
+
+## Cells of the open storage picker (exposed for tests).
+func get_picker_rows() -> Array[Node]:
+	return _storage.get_cells() if _storage != null and _storage.visible else ([] as Array[Node])
+
+
+## Fills the left storage grid for whichever picker is open, or hides it.
+func _refresh_storage() -> void:
+	if _storage == null:
+		return
+	var was_visible: bool = _storage.visible
+	var shown := false
+	if _picker_slot >= 0:
+		shown = _fill_chip_storage()
+	elif _artifact_picker_slot >= 0 and _view == View.LIST:
+		shown = _fill_ship_artifact_storage(_artifact_picker_slot)
+	elif _module_artifact_picker_open and _view == View.DETAIL and _detail_installed:
+		shown = _fill_module_artifact_storage()
+	if not shown:
+		_reset_pickers()
+	_storage.visible = shown
+	if shown and not was_visible:
+		_storage.modulate.a = 0.0
+		_storage.create_tween().tween_property(_storage, "modulate:a", 1.0, 0.14)
+
+
+func _fill_chip_storage() -> bool:
+	var cell := Vector2i(_slot_row, _slot_column)
+	if _view != View.DETAIL or _detail_turret_cell(String(ModuleCatalog.get_stats(_detail_id).get("category", ""))).x < 0:
+		return false
+	var entries: Array = []
+	var current := ChipManager.get_module_chip(cell, _picker_slot)
+	if not current.is_empty():
+		var current_type := ChipManager.get_instance_chip_type(current)
+		entries.append({
+			"kind": &"remove", "id": current_type, "tag": "REMOVE",
+			"name": "REMOVE " + ChipVisual.get_display_name(current_type),
+			"detail": "", "note": "Back to the Warehouse.", "action": "REMOVE",
+			"callback": _uninstall_from_picker,
+		})
+	# Idle chips first (one cell per chip type with a count), then chips
+	# installed elsewhere (MOVE), then owned chips that cannot go here.
+	var idle_by_type: Dictionary = {}
+	var elsewhere: Array[StringName] = []
+	for instance_id in ChipManager.get_owned_instances():
+		var chip_id := ChipManager.get_instance_chip_type(instance_id)
+		if not ChipManager.is_chip_compatible_with_module(cell, chip_id) or instance_id == current:
+			continue
+		if ChipManager.is_instance_equipped(instance_id):
+			elsewhere.append(instance_id)
+		else:
+			if not idle_by_type.has(chip_id):
+				idle_by_type[chip_id] = []
+			(idle_by_type[chip_id] as Array).append(instance_id)
+	for definition in ChipManager.configuration.chips:
+		if definition == null or not idle_by_type.has(definition.chip_id):
+			continue
+		var copies: Array = idle_by_type[definition.chip_id]
+		entries.append({
+			"kind": &"chip", "id": definition.chip_id, "badge": "×%d" % copies.size(),
+			"name": ChipVisual.get_display_name(definition.chip_id),
+			"detail": ChipVisual.get_effect_text(definition.chip_id),
+			"note": _adapted_chip_note(definition.chip_id, cell), "action": "INSTALL",
+			"callback": _install_from_picker.bind(StringName(copies[0])),
+		})
+	for instance_id in elsewhere:
+		var chip_id := ChipManager.get_instance_chip_type(instance_id)
+		var location := ChipManager.get_instance_location(instance_id)
+		var where := ChipVisual.cell_label(location)
+		if location == cell:
+			where = "SLOT %d" % (ChipManager.get_instance_slot_index(instance_id) + 1)
+		entries.append({
+			"kind": &"chip", "id": chip_id, "tag": where,
+			"name": ChipVisual.get_display_name(chip_id),
+			"detail": ChipVisual.get_effect_text(chip_id),
+			"note": "Installed on %s; moving takes it off there." % where, "action": "MOVE",
+			"callback": _install_from_picker.bind(instance_id),
+		})
+	for definition in ChipManager.configuration.chips:
+		if definition == null or ChipManager.is_chip_compatible_with_module(cell, definition.chip_id):
+			continue
+		var count := ChipManager.get_owned_count(definition.chip_id)
+		if count <= 0:
+			continue
+		entries.append({
+			"kind": &"chip", "id": definition.chip_id, "badge": "×%d" % count, "tag": "BLOCKED",
+			"name": ChipVisual.get_display_name(definition.chip_id),
+			"detail": ChipVisual.get_effect_text(definition.chip_id),
+			"note": "Does not fit this module (no active skill).", "action": "BLOCKED",
+			"enabled": false,
+		})
+	_storage.show_entries(
+		"CHIPS",
+		"%s · SOCKET %d" % [ChipVisual.cell_label(cell), _picker_slot + 1],
+		entries,
+		"No chips yet. Craft them in the LABORATORY (Chip Lab)."
+	)
+	return true
+
+
+func _fill_ship_artifact_storage(slot_index: int) -> bool:
+	if not ArtifactManager.is_ship_slot_unlocked(slot_index):
+		return false
+	var entries: Array = []
+	var current := ArtifactManager.get_ship_artifact(slot_index)
+	if not current.is_empty():
+		entries.append(_artifact_remove_entry(current, func() -> void:
+			ArtifactManager.unequip_ship_artifact(slot_index)
+			_close_picker()
+		))
+	for artifact_id in ArtifactManager.get_owned_artifact_ids():
+		var definition := ArtifactManager.get_definition(artifact_id)
+		if definition == null or definition.equip_target != MagicArtifactDefinition.EquipTarget.SHIP or artifact_id == current:
+			continue
+		entries.append(_artifact_entry(definition, func() -> void:
+			ArtifactManager.equip_ship_artifact(slot_index, artifact_id)
+			_close_picker()
+		))
+	_storage.show_entries("ARTIFACTS", "SHIP SLOT %d" % (slot_index + 1), entries, "Collect artifacts on planets; they are kept at the Magic Stall.")
+	return true
+
+
+func _fill_module_artifact_storage() -> bool:
+	if not ArtifactManager.is_stall_unlocked() or not has_slot():
+		return false
+	var cell := Vector2i(_slot_row, _slot_column)
+	var entries: Array = []
+	var current := ArtifactManager.get_module_artifact(cell)
+	if not current.is_empty():
+		entries.append(_artifact_remove_entry(current, func() -> void:
+			ArtifactManager.unequip_module_artifact(cell)
+			_close_picker()
+		))
+	for artifact_id in ArtifactManager.get_owned_artifact_ids():
+		var definition := ArtifactManager.get_definition(artifact_id)
+		if definition == null or not definition.is_compatible_with_module(_detail_id) or artifact_id == current:
+			continue
+		entries.append(_artifact_entry(definition, func() -> void:
+			ArtifactManager.equip_module_artifact(cell, artifact_id)
+			_close_picker()
+		))
+	_storage.show_entries("ARTIFACTS", "%s · THIS MODULE" % ChipVisual.cell_label(cell), entries, "No artifact fits this module yet.")
+	return true
+
+
+func _artifact_entry(definition: MagicArtifactDefinition, callback: Callable) -> Dictionary:
+	var rarity := ArtifactVisual.rarity_index(definition)
+	var in_use := ArtifactManager.is_artifact_equipped(definition.artifact_id)
+	var stats: Array[String] = []
+	for chip in ArtifactVisual.stat_chips(definition):
+		stats.append(String(chip[1]))
+	return {
+		"kind": &"artifact", "id": definition.artifact_id, "rarity": rarity,
+		"tag": "IN USE" if in_use else "",
+		"name": definition.display_name.to_upper(),
+		"detail": definition.description.strip_edges() if not definition.description.strip_edges().is_empty() else "  ".join(stats),
+		"note": ArtifactVisual.rarity_name(rarity) + ("  ·  equipped elsewhere; moves here" if in_use else ""),
+		"action": "EQUIP", "callback": callback,
+	}
+
+
+func _artifact_remove_entry(artifact_id: StringName, callback: Callable) -> Dictionary:
+	var definition := ArtifactManager.get_definition(artifact_id)
+	return {
+		"kind": &"remove", "id": artifact_id, "tag": "REMOVE",
+		"name": "REMOVE " + (definition.display_name.to_upper() if definition != null else ""),
+		"detail": "", "note": "Back to the Magic Stall collection.", "action": "REMOVE",
+		"callback": callback,
+	}
+
+
+func _adapted_chip_note(chip_id: StringName, cell: Vector2i) -> String:
+	var kind := ChipManager.get_module_kind(cell)
+	var stats := ModuleCatalog.get_stats(ChipManager.get_module_id(cell))
+	match chip_id:
+		&"attack_chip":
+			var base := float(stats.get("damage", stats.get("knockback_damage", stats.get("healing_amount", 0.0))))
+			return "%s: %s → %s" % [String(kind).to_upper(), ModuleCatalog.format_number(base), ModuleCatalog.format_number(base + 1.0)]
+		&"attack_speed_chip":
+			if kind == &"knockback":
+				var cooldown := float(stats.get("cooldown", 0.0))
+				return "KNOCKBACK COOLDOWN: %ss → %ss" % [ModuleCatalog.format_number(cooldown), ModuleCatalog.format_number(cooldown / 1.2)]
+			if kind == &"regeneration":
+				var interval := float(stats.get("healing_interval", 0.0))
+				return "HEAL INTERVAL: %ss → %ss" % [ModuleCatalog.format_number(interval), ModuleCatalog.format_number(interval / 1.2)]
+			var fire_rate := float(stats.get("fire_rate", 0.0))
+			return "FIRE RATE: %s → %s" % [ModuleCatalog.format_number(fire_rate), ModuleCatalog.format_number(fire_rate * 1.2)]
+		&"damage_chip":
+			var power := float(stats.get("damage", stats.get("knockback_damage", stats.get("healing_amount", 0.0))))
+			return "%s: %s → %s" % [String(kind).to_upper(), ModuleCatalog.format_number(power), ModuleCatalog.format_number(power * 1.2)]
+		&"range_chip":
+			if kind == &"knockback":
+				var trigger := float(stats.get("trigger_range", 0.0))
+				var splash := float(stats.get("splash_radius", 0.0))
+				return "TRIGGER %s → %s · SPLASH %s → %s" % [ModuleCatalog.format_number(trigger), ModuleCatalog.format_number(trigger * 1.35), ModuleCatalog.format_number(splash), ModuleCatalog.format_number(splash * 1.35)]
+			var reach := float(stats.get("healing_radius", stats.get("attack_radius", stats.get("attack_range", 0.0))))
+			return "%s RANGE: %s → %s" % [String(kind).to_upper(), ModuleCatalog.format_number(reach), ModuleCatalog.format_number(reach * 1.35)]
+	return ""
+
+
+func _install_from_picker(instance_id: StringName) -> void:
+	var slot := _picker_slot
+	if ChipManager.equip_module_chip(Vector2i(_slot_row, _slot_column), slot, instance_id):
+		_close_picker()
+
+
+func _uninstall_from_picker() -> void:
+	ChipManager.unequip_module_chip(Vector2i(_slot_row, _slot_column), _picker_slot)
+	_close_picker()
+
+
+func _on_chip_data_changed() -> void:
+	if _view == View.DETAIL:
+		_rebuild()
+
+
+# ==========================================
+# Helpers
+# ==========================================
+
+func _label(text: String, font_size: int, color: Color) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label
+
+
+func _style_primary(button: Button, radius: int) -> void:
+	var normal := Palette.make_panel_style(Palette.ACCENT, radius, 10.0, 6.0)
+	var hover := Palette.make_panel_style(Color("FFA04A"), radius, 10.0, 6.0)
+	var disabled := Palette.make_panel_style(Palette.UI_PANEL_RAISED, radius, 10.0, 6.0)
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", hover)
+	button.add_theme_stylebox_override("disabled", disabled)
+	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		button.add_theme_color_override(state, Palette.UI_PANEL)
+	button.add_theme_color_override("font_disabled_color", Color(Palette.UI_MUTED, 0.7))
+
+
+# ==========================================
+# Small drawn widgets
+# ==========================================
+
+## Small padlock shown on locked module cards.
+## Ship artifact slot: equipped icon, empty "+", or a lock (needs research).
+class ArtifactSlot extends Button:
+	const Visual := preload("res://Scripts/UI/Artifacts/ArtifactVisual.gd")
+	var _definition: MagicArtifactDefinition
+	var _unlocked: bool = false
+	var _open: bool = false
+
+	func setup(definition: MagicArtifactDefinition, unlocked: bool, open: bool) -> void:
+		_definition = definition
+		_unlocked = unlocked
+		_open = open
+		custom_minimum_size = Vector2(62.0, 62.0)
+		focus_mode = Control.FOCUS_NONE
+		disabled = not unlocked
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if unlocked else Control.CURSOR_ARROW
+		var empty := definition == null
+		var color: Color = Visual.rarity_color(Visual.rarity_index(definition)) if not empty else Palette.MECH
+		var normal := Palette.make_panel_style(Color("17120F") if empty else Palette.UI_PANEL_RAISED, 12)
+		normal.set_border_width_all(2)
+		normal.border_color = Palette.ACCENT if open else color
+		var hover := normal.duplicate() as StyleBoxFlat
+		hover.border_color = Palette.ACCENT
+		for state in ["normal", "disabled"]:
+			add_theme_stylebox_override(state, normal)
+		add_theme_stylebox_override("hover", hover)
+		add_theme_stylebox_override("pressed", hover)
+		add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		if not empty:
+			var icon := Visual.IconView.new(46.0)
+			icon.artifact_id = definition.artifact_id
+			icon.rarity = Visual.rarity_index(definition)
+			icon.custom_minimum_size = Vector2.ZERO
+			icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			icon.offset_left = 7.0
+			icon.offset_top = 7.0
+			icon.offset_right = -7.0
+			icon.offset_bottom = -7.0
+			add_child(icon)
+
+	func _draw() -> void:
+		if _definition != null:
+			return
+		var c := size * 0.5
+		if not _unlocked:
+			draw_rect(Rect2(c + Vector2(-7.0, -2.0), Vector2(14.0, 11.0)), Palette.MECH_LIGHT)
+			draw_arc(c + Vector2(0.0, -2.0), 5.0, PI, TAU, 12, Palette.MECH_LIGHT, 2.4)
+			return
+		var color := Palette.ACCENT if _open else Palette.MECH_LIGHT
+		draw_line(c + Vector2(-8.0, 0.0), c + Vector2(8.0, 0.0), color, 2.4)
+		draw_line(c + Vector2(0.0, -8.0), c + Vector2(0.0, 8.0), color, 2.4)
+
+
+class LockIcon extends Control:
+	func _init() -> void:
+		custom_minimum_size = Vector2(32.0, 32.0)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var c := size * 0.5 + Vector2(0.0, 2.0)
+		draw_arc(c + Vector2(0.0, -4.0), 5.5, PI, TAU, 16, Palette.UI_MUTED, 2.4)
+		draw_line(c + Vector2(-5.5, -4.0), c + Vector2(-5.5, -1.0), Palette.UI_MUTED, 2.4)
+		draw_line(c + Vector2(5.5, -4.0), c + Vector2(5.5, -1.0), Palette.UI_MUTED, 2.4)
+		Palette.draw_rounded_rect(self, Rect2(c + Vector2(-8.0, -2.0), Vector2(16.0, 12.0)), 2.5, Palette.UI_MUTED)
+		draw_circle(c + Vector2(0.0, 3.5), 1.8, Palette.UI_PANEL_RAISED)
+
+
+## Segmented power budget bar.
+class PowerBar extends Control:
+	var used: int = 0
+	var capacity: int = 0
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(0.0, 12.0)
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func set_values(new_used: int, new_capacity: int) -> void:
+		used = new_used
+		capacity = new_capacity
+		queue_redraw()
+
+	func _draw() -> void:
+		var segments := maxi(capacity, 1)
+		var gap := 4.0
+		var width := (size.x - gap * float(segments - 1)) / float(segments)
+		for index in range(segments):
+			var color := Palette.MECH
+			if index < used:
+				color = Palette.UI_TEXT
+			if used > capacity:
+				color = Palette.THREAT
+			Palette.draw_rounded_rect(self, Rect2(float(index) * (width + gap), 0.0, width, size.y), 3.0, color)
+
+
+## Pill showing a module's power use (or "+N" for energy producers).
+class PowerPill extends Control:
+	var text: String = ""
+
+	func setup(stats: Dictionary) -> void:
+		var capacity := int(stats.get("power_capacity", 0))
+		text = ("+%d" % capacity) if capacity > 0 else str(int(stats.get("power_cost", 0)))
+		custom_minimum_size = Vector2(44.0, 22.0)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tooltip_text = "Power"
+		queue_redraw()
+
+	func _draw() -> void:
+		Palette.draw_rounded_rect(self, Rect2(Vector2.ZERO, size), size.y * 0.5, Palette.UI_PANEL)
+		var c := Vector2(13.0, size.y * 0.5)
+		draw_colored_polygon(PackedVector2Array([
+			c + Vector2(1.5, -6.0), c + Vector2(-4.0, 1.0), c + Vector2(0.0, 1.0),
+			c + Vector2(-1.5, 6.0), c + Vector2(4.0, -1.0), c + Vector2(0.0, -1.0),
+		]), Palette.ACCENT)
+		var font := get_theme_default_font()
+		draw_string(font, Vector2(20.0, size.y * 0.5 + 5.0), text, HORIZONTAL_ALIGNMENT_CENTER, size.x - 24.0, 13, Palette.UI_TEXT)
+
+
+## Label, value and a thin bar. fraction < 0 hides the bar. A chip bonus adds
+## a gold "+N" after the value and a gold segment after the white bar.
+class StatRow extends Control:
+	var label_text: String = ""
+	var value_text: String = ""
+	var fraction: float = 0.0
+	var bonus_text: String = ""
+	var bonus_fraction: float = 0.0
+
+	static func make(label: String, value: String, frac: float, bonus: String = "", bonus_frac: float = 0.0) -> StatRow:
+		var row := StatRow.new()
+		row.label_text = label
+		row.value_text = value
+		row.fraction = frac
+		row.bonus_text = bonus
+		row.bonus_fraction = maxf(bonus_frac, 0.0) if not bonus.is_empty() else 0.0
+		row.custom_minimum_size = Vector2(0.0, 22.0 if frac < 0.0 else 32.0)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return row
+
+	func _draw() -> void:
+		var font := get_theme_default_font()
+		draw_string(font, Vector2(0.0, 15.0), label_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 13, Palette.UI_TEXT)
+		var bonus_width := 0.0
+		if not bonus_text.is_empty():
+			bonus_width = font.get_string_size(" " + bonus_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+			draw_string(font, Vector2(size.x - bonus_width, 15.0), " " + bonus_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 14, Palette.GOLD)
+		draw_string(font, Vector2(0.0, 15.0), value_text, HORIZONTAL_ALIGNMENT_RIGHT, size.x - bonus_width, 14, Palette.UI_TEXT)
+		if fraction >= 0.0:
+			var track := Rect2(0.0, 23.0, size.x, 6.0)
+			Palette.draw_rounded_rect(self, track, 3.0, Palette.MECH)
+			# When base + bonus overflow the bar, shrink both so the gold part stays visible.
+			var base_part := clampf(fraction, 0.0, 1.0)
+			var bonus_part := bonus_fraction
+			if base_part + bonus_part > 1.0:
+				var total := base_part + bonus_part
+				base_part /= total
+				bonus_part /= total
+			var base_width := maxf(track.size.x * base_part, 6.0)
+			if bonus_part > 0.0:
+				var end_x := minf(base_width + maxf(track.size.x * bonus_part, 4.0), track.size.x)
+				Palette.draw_rounded_rect(self, Rect2(track.position, Vector2(end_x, 6.0)), 3.0, Palette.GOLD)
+			Palette.draw_rounded_rect(self, Rect2(track.position, Vector2(base_width, 6.0)), 3.0, Palette.UI_TEXT)
+
+
+## One turret chip socket: installed chip / empty "+" / locked.
+class ChipSocket extends Button:
+	const ChipVisual := preload("res://Scripts/UI/Chips/ChipVisual.gd")
+
+	var slot_index: int = 0
+	var chip_id: StringName = &""
+	## Non-empty means locked; shown under the padlock ("RESEARCH\nLV 30").
+	var locked_text: String = ""
+	var selected: bool = false
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(0.0, 92.0)
+		focus_mode = Control.FOCUS_NONE
+		flat = true
+		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+			add_theme_stylebox_override(state, StyleBoxEmpty.new())
+		mouse_entered.connect(queue_redraw)
+		mouse_exited.connect(queue_redraw)
+
+	func _ready() -> void:
+		disabled = not locked_text.is_empty()
+		mouse_default_cursor_shape = Control.CURSOR_ARROW if disabled else Control.CURSOR_POINTING_HAND
+		tooltip_text = "" if disabled else ("Click to swap or remove" if not chip_id.is_empty() else "Click to install a chip")
+
+	func _draw() -> void:
+		var rect := Rect2(Vector2(1.0, 1.0), size - Vector2(2.0, 2.0))
+		var font := get_theme_default_font()
+		var outline := Palette.rounded_rect_points(rect, 10.0, 3)
+		outline.append(outline[0])
+		if not locked_text.is_empty():
+			Palette.draw_rounded_rect(self, rect, 10.0, Color("1A1512"))
+			for index in range(outline.size() - 1):
+				draw_dashed_line(outline[index], outline[index + 1], Palette.MECH, 1.0, 5.0)
+			var c := Vector2(size.x * 0.5, size.y * 0.36)
+			LaboratoryPanel.draw_lock(self, c, 1.1, Palette.UI_MUTED)
+			var lines := locked_text.split("\n")
+			for line_index in range(lines.size()):
+				draw_string(font, Vector2(0.0, size.y * 0.62 + 12.0 * float(line_index)), lines[line_index], HORIZONTAL_ALIGNMENT_CENTER, size.x, 9, Palette.UI_MUTED)
+			return
+		var hovered := is_hovered()
+		Palette.draw_rounded_rect(self, rect, 10.0, Palette.UI_PANEL_RAISED.lightened(0.05) if hovered else Palette.UI_PANEL_RAISED)
+		draw_polyline(outline, Palette.ACCENT if selected else (Palette.MECH_LIGHT if hovered else Palette.MECH), 2.0 if selected else 1.0)
+		if chip_id.is_empty():
+			var box := Rect2(Vector2(size.x * 0.5 - 17.0, size.y * 0.42 - 17.0), Vector2(34.0, 34.0))
+			var dash := Palette.rounded_rect_points(box, 8.0, 3)
+			dash.append(dash[0])
+			for index in range(dash.size() - 1):
+				draw_dashed_line(dash[index], dash[index + 1], Palette.UI_MUTED, 2.0, 4.0)
+			var c := box.get_center()
+			draw_line(c + Vector2(-7.0, 0.0), c + Vector2(7.0, 0.0), Palette.UI_MUTED, 2.0)
+			draw_line(c + Vector2(0.0, -7.0), c + Vector2(0.0, 7.0), Palette.UI_MUTED, 2.0)
+			draw_string(font, Vector2(0.0, size.y - 10.0), "EMPTY", HORIZONTAL_ALIGNMENT_CENTER, size.x, 9, Palette.UI_MUTED)
+			return
+		ChipVisual.draw_chip(self, chip_id, Vector2(size.x * 0.5, size.y * 0.38), 42.0, 1.0, true)
+		draw_string(font, Vector2(0.0, size.y - 16.0), ChipVisual.get_effect_text(chip_id), HORIZONTAL_ALIGNMENT_CENTER, size.x, 10, ChipVisual.get_color(chip_id))
+		Palette.draw_rounded_rect(self, Rect2(8.0, size.y - 8.0, size.x - 16.0, 3.0), 1.5, Color(ChipVisual.get_color(chip_id), 0.7))

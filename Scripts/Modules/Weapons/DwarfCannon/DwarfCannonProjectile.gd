@@ -9,6 +9,8 @@ extends Area2D
 @export var maximum_lifetime: float = 2.0
 
 var direction: Vector2 = Vector2.RIGHT
+var source_weapon: WeaponModule
+var _direct_target: BasicEnemy
 var _remaining_lifetime: float
 var _has_exploded: bool = false
 var _damage_applied: bool = false
@@ -41,9 +43,10 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_area_entered(area: Area2D) -> void:
-	if _has_exploded or not area is BasicEnemy:
+	if _has_exploded or not area is BasicEnemy or (area as BasicEnemy).is_dying():
 		return
 
+	_direct_target = area as BasicEnemy
 	_has_exploded = true
 	set_physics_process(false)
 	set_deferred("monitoring", false)
@@ -83,7 +86,10 @@ func _explode() -> void:
 			continue
 
 		damaged_enemy_ids[enemy_id] = true
-		enemy.take_damage(damage)
+		var before := enemy.get_current_health()
+		enemy.take_damage(damage, false, true, source_weapon if is_instance_valid(source_weapon) else null)
+		if enemy == _direct_target and is_instance_valid(source_weapon) and is_instance_valid(enemy):
+			source_weapon.projectile_hit.emit(enemy, maxf(before - enemy.get_current_health(), 0.0))
 
 	FlatBurst.spawn(get_parent(), global_position, explosion_radius + 10.0, Palette.SHOT)
 	print("Cannonball exploded! Enemies hit: ", damaged_enemy_ids.size())

@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Enemies/RedRock.gd" id="1_red"]
+
+[sub_resource type="CircleShape2D" id="CircleShape_red"]
+radius = 12.0
+
+[node name="RedRock" type="Area2D"]
+script = ExtResource("1_red")
+enemy_id = &"red_rock"
+enemy_name = "Red Rock"
+max_health = 50.0
+move_speed = 75.0
+attack_damage = 20.0
+attack_interval = 1.0
+attack_range = 10.0
+damage_reduction = 0.0
+reward_ore = 1.0
+attack_type = 0
+enemy_tier = 0
+explosion_radius = 70.0
+explosion_damage = 20.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape_red")
+
+[node name="AttackTimer" type="Timer" parent="."]
+
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

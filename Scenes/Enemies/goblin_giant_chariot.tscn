@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://duc6gkmjrsi3n"]
+
+[ext_resource type="Script" uid="uid://cu3sod8vb3ek8" path="res://Scripts/Enemies/GoblinGiantChariot.gd" id="1_chariot"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/goblin.tscn" id="2_goblin"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/elite_goblin.tscn" id="3_elite"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape_chariot"]
+radius = 62.0
+height = 337.0
+
+[node name="GoblinGiantChariot" type="Area2D" unique_id=543613716]
+script = ExtResource("1_chariot")
+goblin_scene = ExtResource("2_goblin")
+elite_goblin_scene = ExtResource("3_elite")
+enemy_id = &"goblin_giant_chariot"
+enemy_name = "Goblin Giant Chariot"
+max_health = 5000.0
+move_speed = 10.0
+attack_damage = 30.0
+reward_ore = 500.0
+damage_reduction = 0.2
+enemy_tier = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1711400269]
+shape = SubResource("CapsuleShape_chariot")
+
+[node name="AttackTimer" type="Timer" parent="." unique_id=369718413]
+
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]
