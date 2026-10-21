@@ -4,7 +4,7 @@ extends WeaponModule
 ## A continuous melee weapon that damages every enemy touching its saw area.
 
 ## Damage applied to each overlapping enemy per tick.
-@export var basic_damage: float = 10.0
+@export var basic_damage: float = 8.0
 
 ## Seconds between circular melee damage ticks.
 @export var attack_interval: float = 0.1

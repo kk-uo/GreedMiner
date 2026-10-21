@@ -15,6 +15,8 @@ const ENTRIES: Array[Dictionary] = [
 		"scene": "res://Scenes/Modules/Weapons/Laser/laser.tscn"},
 	{"id": &"chainsaw", "name": "Chainsaw", "group": &"weapon",
 		"scene": "res://Scenes/Modules/Weapons/Chainsaw/chainsaw.tscn"},
+	{"id": &"flamethrower", "name": "Flamethrower", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Flamethrower/flamethrower.tscn"},
 	{"id": &"energy_module", "name": "Energy", "group": &"system",
 		"scene": "res://Scenes/Modules/Energy/energy_module.tscn"},
 	{"id": &"mining_module", "name": "Mining", "group": &"system",

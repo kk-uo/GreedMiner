@@ -39,10 +39,13 @@ var _selected_chip_id: StringName
 ## CRAFT button of the selected blueprint (null outside the chip category).
 var craft_button: Button
 var _research_tree_view: ResearchTreeView
-## First visit only: a tip recommending the Energy tree root (ProgressionStore
-## section "lab_hints", key "energy_tip_shown").
+## Every visit until it is researched: a tip recommending the Energy tree
+## root (ProgressionStore "lab_hints"."energy_tip_shown" only records that it
+## has been seen at least once).
 const HINT_SECTION: StringName = &"lab_hints"
 const ENERGY_TIP_RESEARCH: StringName = &"energy_install_slot_unlock"
+## The tip below is now shown by TutorialGuide instead (kept for reference).
+const ENERGY_TIP_MERGED_INTO_GUIDE: bool = true
 var energy_tip: PanelContainer
 ## Category the content was last built for (scroll is kept while unchanged).
 var _last_built_category: StringName = &""
@@ -97,11 +100,13 @@ func close_panel() -> void:
 func _maybe_show_energy_tip() -> void:
 	if energy_tip != null and is_instance_valid(energy_tip):
 		return
-	var section := ProgressionStore.get_section(HINT_SECTION)
-	if bool(section.get("energy_tip_shown", false)):
+	# Merged into the base TutorialGuide (Laboratory part) by user request:
+	# the guide now leads to ENERGY MODULE EXPANSION on every visit.
+	if ENERGY_TIP_MERGED_INTO_GUIDE:
 		return
 	if ResearchManager.get_definition(ENERGY_TIP_RESEARCH) == null or ResearchManager.is_research_completed(ENERGY_TIP_RESEARCH):
 		return
+	var section := ProgressionStore.get_section(HINT_SECTION)
 	section["energy_tip_shown"] = true
 	ProgressionStore.set_section(HINT_SECTION, section)
 	_build_energy_tip()
@@ -138,7 +143,7 @@ func _build_energy_tip() -> void:
 	row.add_child(column)
 	column.add_child(_label("POWER FIRST", 16, Palette.UI_TEXT))
 	var cost := ResearchManager.get_upgrade_cost(ENERGY_TIP_RESEARCH)
-	var body := _label("Save up %d ore and research ENERGY MODULE EXPANSION in Energy. A second battery means more Power for more turrets, and it leads to farther planets." % cost, 12, Palette.UI_MUTED)
+	var body := _label(tr("Save up %d ore and research ENERGY MODULE EXPANSION in Energy. A second battery means more Power for more turrets, and it leads to farther planets.") % cost, 12, Palette.UI_MUTED)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.custom_minimum_size = Vector2(300.0, 0.0)
 	column.add_child(body)
@@ -341,7 +346,7 @@ func _build_category_content() -> void:
 	if category == null:
 		_show_placeholder("NO CATEGORY", "")
 		return
-	_subtitle.text = "·  %s RESEARCH" % category.display_name.to_upper()
+	_subtitle.text = tr("·  %s RESEARCH") % tr(category.display_name.to_upper())
 	if not category.implemented:
 		_show_placeholder("COMING SOON", category.description)
 		return
@@ -452,7 +457,7 @@ func _build_blueprint_detail(definition: ChipDefinition) -> Control:
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(description)
 	var quality := definition.get_quality(0)
-	var info := _label("Quality: %s  ·  works on every weapon  ·  owned ×%d" % [
+	var info := _label(tr("Quality: %s  ·  works on every weapon  ·  owned ×%d") % [
 		(quality.display_name if quality != null else "Basic").to_upper(),
 		ChipManager.get_owned_count(definition.chip_id),
 	], 11, Palette.UI_MUTED)
@@ -468,7 +473,7 @@ func _build_blueprint_detail(definition: ChipDefinition) -> Control:
 	var cost := ChipManager.configuration.get_crafting_cost(definition.chip_id)
 	var affordable := ResourceManager.stored_ore >= float(cost)
 	craft_button = Button.new()
-	craft_button.text = ("CRAFT  ·  ◆ %s" if affordable else "NEED ORE  ·  ◆ %s") % _thousands(cost)
+	craft_button.text = tr("CRAFT  ·  ◆ %s" if affordable else "NEED ORE  ·  ◆ %s") % _thousands(cost)
 	craft_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	craft_button.custom_minimum_size = Vector2(0.0, 46.0)
 	craft_button.focus_mode = Control.FOCUS_NONE
@@ -489,7 +494,7 @@ func _build_blueprint_detail(definition: ChipDefinition) -> Control:
 		ResearchCard.style_button(upgrade, &"locked")
 	else:
 		var upgrade_cost := ChipManager.get_quality_upgrade_cost(upgrade_target)
-		upgrade.text = "UPGRADE QUALITY  ◆ %s" % _thousands(upgrade_cost)
+		upgrade.text = tr("UPGRADE QUALITY  ◆ %s") % _thousands(upgrade_cost)
 		upgrade.disabled = ResourceManager.stored_ore < float(upgrade_cost)
 		ResearchCard.style_button(upgrade, &"locked" if upgrade.disabled else &"primary")
 		upgrade.pressed.connect(_upgrade_chip.bind(upgrade_target))
@@ -665,8 +670,8 @@ class CategoryButton:
 	func setup(category: ResearchCategory, project_count: int) -> void:
 		category_id = category.category_id
 		_implemented = category.implemented
-		_name = category.display_name
-		_status = ("%d PROJECTS" % project_count) if _implemented else "COMING SOON"
+		_name = tr(category.display_name)
+		_status = (tr("%d PROJECTS") % project_count) if _implemented else tr("COMING SOON")
 		custom_minimum_size = Vector2(LaboratoryPanel.RAIL_WIDTH, 48.0)
 		focus_mode = Control.FOCUS_NONE
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -819,17 +824,17 @@ class ResearchCard:
 		)
 		var maximum_slots := int(ModuleCatalog.get_stats(_definition.target_id).get("max_chip_slots", 3)) if is_shield_research else ChipManager.configuration.max_weapon_chip_slots
 		if not module_unlocked:
-			_slot_label.text = "REQUIRES: %s" % WeaponUnlockManager.get_unlock_requirement(_definition.target_id).to_upper()
+			_slot_label.text = tr("REQUIRES: %s") % tr(WeaponUnlockManager.get_unlock_requirement(_definition.target_id).to_upper())
 			_slot_label.add_theme_color_override("font_color", Palette.UI_MUTED)
 		else:
-			_slot_label.text = "%d / %d CHIP SLOTS" % [unlocked_slots, maximum_slots]
+			_slot_label.text = tr("%d / %d CHIP SLOTS") % [unlocked_slots, maximum_slots]
 			_slot_label.add_theme_color_override("font_color", Palette.GOLD if unlocked_slots > 0 else Palette.UI_MUTED)
 		var next_milestone: ResearchMilestone = (
 			_definition.get_milestone(level + 1) if not maxed else null
 		)
 		_milestone_label.visible = next_milestone != null and not next_milestone.display_text.is_empty()
 		if _milestone_label.visible:
-			_milestone_label.text = next_milestone.display_text.to_upper()
+			_milestone_label.text = tr(next_milestone.display_text.to_upper())
 
 		var cost: int = ResearchManager.get_upgrade_cost(_definition.research_id)
 		var cost_text := LaboratoryPanel._thousands(cost)
@@ -843,15 +848,15 @@ class ResearchCard:
 			button.disabled = true
 		elif next_milestone != null:
 			ResearchCard.style_button(button, &"primary" if ResourceManager.stored_ore >= float(cost) else &"poor")
-			button.text = "UPGRADE TO LEVEL %d — ◆ %s ORE" % [level + 1, cost_text]
+			button.text = tr("UPGRADE TO LEVEL %d — ◆ %s ORE") % [level + 1, cost_text]
 			button.disabled = ResourceManager.stored_ore < float(cost)
 		elif ResourceManager.stored_ore < float(cost):
 			ResearchCard.style_button(button, &"poor")
-			button.text = "NEED MORE ORE     ◆ %s" % cost_text
+			button.text = tr("NEED MORE ORE     ◆ %s") % cost_text
 			button.disabled = true
 		else:
 			ResearchCard.style_button(button, &"primary")
-			button.text = "UPGRADE     ◆ %s" % cost_text
+			button.text = tr("UPGRADE     ◆ %s") % cost_text
 			button.disabled = false
 
 	func _refresh_module_limit(
@@ -891,7 +896,7 @@ class ResearchCard:
 		var cost := ResearchManager.get_upgrade_cost(_definition.research_id)
 		var cost_text := LaboratoryPanel._thousands(cost)
 		_milestone_label.visible = not maxed
-		_milestone_label.text = "UNLOCK COST: %s ORE" % cost_text
+		_milestone_label.text = tr("UNLOCK COST: %s ORE") % cost_text
 		if maxed:
 			ResearchCard.style_button(button, &"max")
 			button.text = "UNLOCKED"

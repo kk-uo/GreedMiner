@@ -76,6 +76,9 @@ func _process(delta: float) -> void:
 
 func _apply_damage() -> void:
 	var center := global_position
+	for node in get_tree().get_nodes_in_group("mining_dwarves"):
+		if is_instance_valid(node) and node.has_method("is_enemy_targetable") and node.call("is_enemy_targetable") and center.distance_to(node.call("get_enemy_target_position")) <= radius:
+			node.call("take_damage", damage)
 	if damage_enemies:
 		for node in get_tree().get_nodes_in_group("enemies"):
 			var enemy := node as BasicEnemy

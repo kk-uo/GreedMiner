@@ -49,7 +49,7 @@ static func draw_click_label(canvas: CanvasItem, center: Vector2, radius: float,
 		return
 	var pulse: float = 0.8 + 0.2 * sin(time * 6.0)
 	var size: int = 16
-	var text := "CLICK"
+	var text := TranslationServer.translate("CLICK")
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var at := center + Vector2(-width * 0.5, radius + 22.0)
 	canvas.draw_string_outline(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 5, Color(0.08, 0.06, 0.05, 0.7 * alpha * pulse))

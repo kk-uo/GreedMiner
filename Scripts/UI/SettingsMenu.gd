@@ -21,6 +21,14 @@ const DROPDOWN_WIDTH: float = 240.0
 ## Whether the Main Menu / Developer Mode items work yet.
 @export var main_menu_enabled: bool = false
 @export var developer_mode_enabled: bool = false
+## Only battle opts in; the base menu leaves simulation running.
+@export var pause_game_when_open: bool = false
+## Battle has no developer panel, so do not offer a nonfunctional action there.
+@export var allow_developer_mode: bool = true
+## Language changes are offered in the base, not during combat.
+@export var allow_language_change: bool = true
+## The base places settings in the top-right; battle retains its existing layout.
+@export var align_right: bool = false
 
 var _gear: GearButton
 var _catcher: Control
@@ -29,11 +37,12 @@ var _quit_button: Button
 var _quit_hint: Label
 var _quit_armed_time: float = 0.0
 var _available: bool = true
+var _owns_pause: bool = false
 
 
 func _ready() -> void:
 	# Presentation mirrors the centralized guard; command methods enforce it too.
-	developer_mode_enabled = DeveloperCommands.is_available()
+	developer_mode_enabled = allow_developer_mode and DeveloperCommands.is_available()
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
@@ -50,7 +59,15 @@ func _ready() -> void:
 	add_child(_catcher)
 
 	_gear = GearButton.new()
-	_gear.position = Vector2(MARGIN, MARGIN)
+	if align_right:
+		_gear.anchor_left = 1.0
+		_gear.anchor_right = 1.0
+		_gear.offset_left = -MARGIN - GEAR_SIZE
+		_gear.offset_right = -MARGIN
+		_gear.offset_top = MARGIN
+		_gear.offset_bottom = MARGIN + GEAR_SIZE
+	else:
+		_gear.position = Vector2(MARGIN, MARGIN)
 	_gear.size = Vector2.ONE * GEAR_SIZE
 	_gear.tooltip_text = "Settings"
 	_gear.pressed.connect(toggle_menu)
@@ -67,8 +84,8 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if is_open() and event.is_action_pressed("ui_cancel"):
-		close_menu()
+	if _available and event.is_action_pressed("ui_cancel"):
+		toggle_menu()
 		get_viewport().set_input_as_handled()
 
 
@@ -94,6 +111,8 @@ func toggle_menu() -> void:
 
 
 func open_menu() -> void:
+	if not _available or is_open():
+		return
 	_set_quit_armed(false)
 	_dropdown.visible = true
 	_catcher.visible = true
@@ -103,6 +122,9 @@ func open_menu() -> void:
 	var tween := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(_dropdown, "modulate:a", 1.0, 0.14)
 	tween.tween_property(_dropdown, "position:y", MARGIN + GEAR_SIZE + 8.0, 0.16)
+	if pause_game_when_open and not get_tree().paused:
+		_owns_pause = true
+		get_tree().paused = true
 
 
 func close_menu() -> void:
@@ -110,6 +132,18 @@ func close_menu() -> void:
 	_catcher.visible = false
 	_gear.set_active(false)
 	_set_quit_armed(false)
+	_release_owned_pause()
+
+
+## Never clear a pause that was already active before this menu opened.
+func _release_owned_pause() -> void:
+	if _owns_pause and is_inside_tree():
+		get_tree().paused = false
+	_owns_pause = false
+
+
+func _exit_tree() -> void:
+	_release_owned_pause()
 
 
 # ==========================================
@@ -124,6 +158,11 @@ func _build_dropdown() -> void:
 	style.shadow_offset = Vector2(4.0, 6.0)
 	_dropdown.add_theme_stylebox_override("panel", style)
 	_dropdown.position = Vector2(MARGIN, MARGIN + GEAR_SIZE + 8.0)
+	if align_right:
+		_dropdown.anchor_left = 1.0
+		_dropdown.anchor_right = 1.0
+		_dropdown.offset_left = -MARGIN - DROPDOWN_WIDTH
+		_dropdown.offset_right = -MARGIN
 	_dropdown.custom_minimum_size = Vector2(DROPDOWN_WIDTH, 0.0)
 	_dropdown.visible = false
 	add_child(_dropdown)
@@ -134,6 +173,20 @@ func _build_dropdown() -> void:
 	var title := _label("SETTINGS", 11, Palette.UI_MUTED)
 	title.custom_minimum_size = Vector2(0.0, 22.0)
 	column.add_child(title)
+	if allow_language_change:
+		var language_row := HBoxContainer.new()
+		language_row.add_child(_label("LANGUAGE", 11, Palette.UI_MUTED))
+		var language := OptionButton.new()
+		language.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		language.add_item("English")
+		language.add_item("简体中文")
+		language.select(1 if TranslationServer.get_locale().begins_with("zh") else 0)
+		language.item_selected.connect(func(index: int) -> void:
+			if not LanguageManager.request_language(&"zh_CN" if index == 1 else &"en"):
+				language.select(1 if TranslationServer.get_locale().begins_with("zh") else 0)
+		)
+		language_row.add_child(language)
+		column.add_child(language_row)
 
 	column.add_child(_item("MAIN MENU", main_menu_enabled, func() -> void:
 		close_menu()

@@ -4,8 +4,8 @@ extends Node2D
 ## Precision Mining arc skill check (v0.7, Identity V style), drawn in the
 ## battlefield right above its Mining Module — no separate panel.
 ##
-## WARNING (precision_warning_duration s): the arc appears dimmed with
-## "GET READY" + countdown. CHECK: a needle sweeps the arc once from its left
+## WARNING (precision_warning_duration s): the arc flashes twice.
+## CHECK: a needle sweeps the arc once from its left
 ## end to its right end at needle_speed_degrees. One attempt: Space, or a click
 ## anywhere on the battlefield (the bar or empty ground), stops it. A green Success region (success_zone_degrees) sits at
 ## a random spot; a gold Perfect region (perfect_zone_degrees) is centred in
@@ -53,6 +53,7 @@ var show_click_label: bool = false
 var anchor: Node2D
 
 var _timer: float = 0.0
+var _warning_duration: float = 0.0
 var _age: float = 0.0
 var _result_age: float = 0.0
 ## Result line set by the event, e.g. "PERFECT! +120".
@@ -99,6 +100,7 @@ func _ready() -> void:
 func start_warning(duration: float) -> void:
 	phase = Phase.WARNING
 	_timer = maxf(duration, 0.0)
+	_warning_duration = _timer
 	needle = 0.0
 	if _timer <= 0.0:
 		_begin_check()
@@ -230,12 +232,18 @@ func _draw() -> void:
 	var fade: float = 1.0
 	if phase == Phase.RESULT:
 		fade = clampf((RESULT_TIME - _result_age) / 0.3, 0.0, 1.0)
-	var dim: float = 0.45 if warning else 1.0
+	var flash: float = 0.0
+	if warning and _warning_duration > 0.0:
+		var progress := clampf(1.0 - _timer / _warning_duration, 0.0, 1.0)
+		flash = pow(sin(progress * TAU), 2.0)
+	var dim: float = 0.35 + 0.65 * flash if warning else 1.0
 	var c := _circle_center()
 	# Backing + track.
 	draw_arc(c + Vector2(2.0, 3.0), ARC_RADIUS, _rad(0.0), _rad(sweep), 40, Color(0, 0, 0, 0.25 * fade), TRACK_WIDTH + 7.0)
-	_bar(0.0, sweep, Color(1, 1, 1, 0.16 * fade), TRACK_WIDTH + 7.0, 40)
-	_bar(0.0, sweep, Color(1, 1, 1, 0.22 * fade), TRACK_WIDTH, 40)
+	_bar(0.0, sweep, Color(0.08, 0.07, 0.06, 0.85 * fade), TRACK_WIDTH + 7.0, 40)
+	_bar(0.0, sweep, Color(0.18, 0.16, 0.14, 0.95 * fade), TRACK_WIDTH, 40)
+	if warning:
+		_bar(0.0, sweep, Color(1, 1, 1, 0.45 * flash * fade), TRACK_WIDTH, 40)
 	# Regions.
 	var success_color := SUCCESS_COLOR
 	var perfect_color := Palette.GOLD
@@ -259,13 +267,10 @@ func _draw() -> void:
 		draw_line(tip_in, tip_out, Color(1, 1, 1, fade), 3.4)
 		draw_circle(tip_out, 4.4, Color(1, 1, 1, fade))
 	# Text: no backing, large, semi-transparent, above the bar.
-	if warning:
-		var pulse: float = 0.5 + 0.5 * sin(_age * 10.0)
-		MiningQteVisual.draw_text(self, TEXT_OFFSET, "GET READY  %d" % ceili(maxf(_timer, 0.0)), 20, Palette.UI_TEXT, TEXT_ALPHA * (0.75 + 0.25 * pulse))
-	elif phase == Phase.CHECK:
+	if phase == Phase.CHECK:
 		if show_click_label:
-			MiningQteVisual.draw_text(self, TEXT_OFFSET, "SPACE / CLICK", 18, Palette.UI_TEXT, TEXT_ALPHA * 0.85)
-	else:
+			MiningQteVisual.draw_text(self, TEXT_OFFSET, tr("SPACE / CLICK"), 18, Palette.UI_TEXT, TEXT_ALPHA * 0.85)
+	elif phase == Phase.RESULT:
 		var k: float = clampf(_result_age / 0.45, 0.0, 1.0)
 		var pulse_color: Color = FAIL_COLOR
 		if result == MiningQteEvent.OUTCOME_PERFECT:
@@ -276,5 +281,5 @@ func _draw() -> void:
 		draw_arc(c, ARC_RADIUS - 2.0 - 18.0 * k, _rad(0.0), _rad(sweep), 40, Color(pulse_color, (1.0 - k) * 0.9 * strength), 4.0 * (1.0 - k) + 0.6)
 		var pop: float = 1.0 + 0.25 * maxf(1.0 - _result_age / 0.18, 0.0)
 		draw_set_transform(TEXT_OFFSET + Vector2(0.0, -10.0 * minf(_result_age / 0.4, 1.0)), 0.0, Vector2.ONE * pop)
-		MiningQteVisual.draw_text(self, Vector2.ZERO, result_text, 24, pulse_color, TEXT_ALPHA * fade)
+		MiningQteVisual.draw_text(self, Vector2.ZERO, tr(result_text), 24, pulse_color, TEXT_ALPHA * fade)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

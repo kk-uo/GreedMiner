@@ -29,8 +29,15 @@ func get_power_capacity() -> int:
 	return maxi(power_capacity + ResearchManager.get_energy_module_power_bonus(), 0)
 
 
+## Base expansion plus research (Expandable Cells). Only an interface for
+## the future hull slot expansion; it adds no slot by itself.
 func get_expansion_capacity() -> int:
-	return maxi(expansion_capacity, 0)
+	return maxi(expansion_capacity + ResearchManager.get_energy_module_expansion_bonus(), 0)
+
+
+## Shielded Cells research: every installed battery reinforces the hull.
+func get_max_hp_bonus() -> float:
+	return maxf(ResearchManager.get_energy_module_hp_bonus(), 0.0)
 
 
 # ==========================================

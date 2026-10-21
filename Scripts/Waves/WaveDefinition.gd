@@ -57,6 +57,11 @@ enum SpawnDirection {
 ## Optional full-duration spawn phases; disabled for existing planets.
 @export var wait_for_spawn_phase_end: bool = false
 
+## Negative fractions disable graveyard weather on this wave.
+@export_range(-1.0, 1.0, 0.01) var lightning_fraction: float = -1.0
+@export_range(-1.0, 1.0, 0.01) var blood_moon_start_fraction: float = -1.0
+@export_range(-1.0, 1.0, 0.01) var blood_moon_end_fraction: float = -1.0
+
 ## A pending wave is a deliberate development stop, not an empty completed wave.
 @export var configuration_pending: bool = false
 @export_multiline var configuration_message: String = ""

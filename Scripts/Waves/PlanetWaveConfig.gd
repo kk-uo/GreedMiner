@@ -5,6 +5,8 @@ extends Resource
 
 @export var planet_id: StringName = &"rocky_planet"
 @export var display_name: String = "Rocky Planet"
+## Advance immediately once the wave's scheduled spawns and all enemies are cleared.
+@export var advance_on_wave_clear: bool = false
 @export var waves: Array[WaveDefinition] = []
 @export var special_spawn_rules: Array[SpecialSpawnEventRule] = []
 

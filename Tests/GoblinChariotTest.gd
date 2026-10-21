@@ -135,7 +135,7 @@ func _test_defaults() -> void:
 	_expect_equal(c.max_health, 5000.0, "HP 5000")
 	_expect_equal(c.throw_elite_count, 1, "throws 1 elite goblin")
 	_expect_true(c.elite_goblin_scene != null, "elite goblin scene assigned")
-	_expect_equal(c.move_speed, 10.0, "speed 10")
+	_expect_equal(c.move_speed, 15.0, "speed 15")
 	_expect_equal(c.attack_damage, 30.0, "contact damage 30")
 	_expect_equal(c.attack_interval, 1.0, "interval 1")
 	_expect_equal(c.attack_range, 10.0, "range 10")
@@ -237,10 +237,10 @@ func _test_berserk() -> void:
 	await get_tree().create_timer(1.0).timeout
 	_expect_true(chariot.is_berserk(), "berserk within 200 of the ship")
 	_expect_true(chariot._distance_to_ship() <= 200.0, "berserk distance is measured from the front")
-	_expect_equal(chariot.move_speed, 20.0, "berserk doubles speed 10 -> 20")
+	_expect_equal(chariot.move_speed, 30.0, "berserk doubles speed 15 -> 30")
 	_expect_equal(throws[0], 0, "no throwing once berserk")
 	chariot._enter_berserk()
-	_expect_equal(chariot.move_speed, 20.0, "berserk applies only once")
+	_expect_equal(chariot.move_speed, 30.0, "berserk applies only once")
 	_expect_equal(berserks[0], 1, "berserk_started emitted once")
 	chariot.queue_free()
 	await get_tree().process_frame
@@ -261,7 +261,7 @@ func _test_berserk() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	_expect_true(canceling.is_berserk(), "entering 200px during wind-up cancels throwing")
-	_expect_equal(canceling.move_speed, 20.0, "canceled throw transitions directly to double speed")
+	_expect_equal(canceling.move_speed, 30.0, "canceled throw transitions directly to double speed")
 	await get_tree().create_timer(1.1).timeout
 	_expect_equal(releases[0], 0, "no goblins release after the 200px threshold")
 	canceling.queue_free()

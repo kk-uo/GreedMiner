@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://Scripts/Enemies/GraveyardEnemy.gd" id="1"]
+[sub_resource type="CircleShape2D" id="shape"]
+radius = 20.0
+[node name="Vampire" type="Area2D"]
+script = ExtResource("1")
+enemy_id = &"vampire"
+enemy_name = "Vampire"
+max_health = 200.0
+move_speed = 25.0
+attack_damage = 5.0
+attack_interval = 5.0
+attack_range = 15.0
+damage_reduction = 0.5
+reward_ore = 5.0
+enemy_tier = 1
+spawn_map_id = &"graveyard_planet"
+minimum_spawn_wave = 5
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("shape")
+[node name="AttackTimer" type="Timer" parent="."]
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

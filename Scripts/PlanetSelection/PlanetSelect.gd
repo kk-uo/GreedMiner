@@ -47,6 +47,17 @@ const PLANETS: Array[Dictionary] = [
 		"enemies": ["Demon", "Hellhunter", "Big Demon", "Imp"],
 		"theme": &"volcanic",
 	},
+	{
+		"id": &"graveyard_planet",
+		"name": "GRAVEYARD PLANET",
+		"description": "Endless fields of tombstones where the dead refuse to rest... yet beneath them lie the richest biomass deposits ever charted.",
+		# The encounter uses the existing locate cost and progression flow.
+		"unlocked": true,
+		"playable": true,
+		"locate_cost": 2000,
+		"enemies": ["Skeleton", "Zombie", "Werewolf", "Vampire", "Giant Frank"],
+		"theme": &"graveyard",
+	},
 ]
 
 const PLANET_VISUAL_SIZE: Vector2 = Vector2(320.0, 320.0)
@@ -259,7 +270,10 @@ func _update_planet_information() -> void:
 	if enemies.is_empty():
 		enemies_label.text = "KNOWN THREATS  //  UNKNOWN"
 	else:
-		enemies_label.text = "KNOWN THREATS  //  %s" % ", ".join(enemies)
+		var translated_enemies: Array[String] = []
+		for enemy in enemies:
+			translated_enemies.append(tr(String(enemy)))
+		enemies_label.text = tr("KNOWN THREATS  //  %s") % ", ".join(translated_enemies)
 
 	energy_requirements_label.text = _format_location(launch_status)
 	deploy_button.disabled = not bool(launch_status.eligible) and not bool(launch_status.can_locate)
@@ -314,21 +328,21 @@ func _format_location(status: Dictionary) -> String:
 	if not bool(status.unlocked):
 		return "COORDINATES  //  OUT OF RANGE"
 	if not bool(status.get("in_range", true)):
-		return "OUT OF RANGE  //  RESEARCH %s IN THE LABORATORY (%s)" % [String(status.range_research_name).to_upper(), String(status.get("range_research_category", ""))]
+		return tr("OUT OF RANGE  //  RESEARCH %s IN THE LABORATORY (%s)") % [tr(String(status.range_research_name).to_upper()), tr(String(status.get("range_research_category", "")))]
 	if bool(status.located):
 		return "COORDINATES  //  LOCKED ON"
-	return "COORDINATES  //  UNKNOWN   ·   PRECISE LOCATE COSTS %d ORE" % int(status.locate_cost)
+	return tr("COORDINATES  //  UNKNOWN   ·   PRECISE LOCATE COSTS %d ORE") % int(status.locate_cost)
 
 
 func _get_deploy_button_text(status: Dictionary) -> String:
 	if not bool(status.unlocked):
 		return "DESTINATION LOCKED"
 	if not bool(status.get("in_range", true)):
-		return "NEED %s" % String(status.range_research_name).to_upper()
+		return tr("NEED %s") % tr(String(status.range_research_name).to_upper())
 	if not bool(status.located):
 		if bool(status.can_locate):
-			return "PRECISE LOCATE  ·  ◆ %d" % int(status.locate_cost)
-		return "NEED ◆ %d ORE TO LOCATE" % int(status.locate_cost)
+			return tr("PRECISE LOCATE  ·  ◆ %d") % int(status.locate_cost)
+		return tr("NEED ◆ %d ORE TO LOCATE") % int(status.locate_cost)
 	if not bool(status.playable):
 		return "WAVES COMING SOON"
 	if not bool(status.loadout_valid):

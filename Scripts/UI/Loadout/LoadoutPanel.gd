@@ -11,6 +11,9 @@ extends Control
 ## Every weapon and Shield module instance owns the sockets attached to its cell.
 ## BaseMain owns install/remove while this panel only presents and emits.
 
+## A module card in the list was clicked (BaseMain shows why a locked or
+## over-limit module cannot be installed).
+signal module_card_pressed(module_id: StringName)
 signal install_requested(module_id: StringName)
 signal remove_requested
 ## A module card was dragged; BaseMain follows the mouse and drops it on a slot.
@@ -232,7 +235,7 @@ func _rebuild() -> void:
 	# Slot pill: orange when a slot is selected, muted otherwise.
 	var pill_style := Palette.make_panel_style(Palette.ACCENT if has_slot() else Palette.UI_PANEL_RAISED, 11, 10.0, 3.0)
 	_slot_pill.add_theme_stylebox_override("panel", pill_style)
-	_slot_pill_label.text = ("SLOT R%d · C%d" % [_slot_row + 1, _slot_column + 1]) if has_slot() else "NO SLOT"
+	_slot_pill_label.text = (tr("SLOT R%d · C%d") % [_slot_row + 1, _slot_column + 1]) if has_slot() else "NO SLOT"
 	_slot_pill_label.add_theme_color_override("font_color", Palette.UI_PANEL if has_slot() else Palette.UI_MUTED)
 
 	if _view == View.LIST:
@@ -373,6 +376,7 @@ func _make_card(entry: Dictionary) -> Control:
 			_drag_active = false
 			return
 		show_detail(id, false)
+		module_card_pressed.emit(id)
 	)
 	card.gui_input.connect(_on_card_gui_input.bind(id))
 
@@ -395,9 +399,9 @@ func _make_card(entry: Dictionary) -> Control:
 	text.add_theme_constant_override("separation", 0)
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(text)
-	var name_text: String = entry["name"]
+	var name_text: String = tr(String(entry["name"]))
 	if id == _slot_module_id and has_slot():
-		name_text += "  ·  IN SLOT"
+		name_text += tr("  ·  IN SLOT")
 	# Cards stay minimal: just the name. Stats live in the detail view.
 	# Locked modules are dimmed and show a padlock instead of the "+" button.
 	text.add_child(_label(name_text, 16, Palette.UI_TEXT if unlocked else Palette.UI_MUTED))
@@ -908,7 +912,7 @@ func _build_chip_sockets(weapon_id: StringName, cell: Vector2i) -> void:
 		socket.slot_index = index
 		if index >= unlocked:
 			var level := ChipManager.get_weapon_slot_unlock_level(weapon_id, index) if is_weapon else ResearchManager.get_shield_bonus_slot_unlock_level(weapon_id, index)
-			socket.locked_text = ("RESEARCH\nLV %d" % level) if level > 0 else "CHIP LAB\nLOCKED"
+			socket.locked_text = (tr("RESEARCH\nLV %d") % level) if level > 0 else tr("CHIP LAB\nLOCKED")
 		else:
 			socket.chip_id = ChipManager.get_instance_chip_type(ChipManager.get_module_chip(cell, index))
 			socket.selected = index == _picker_slot
@@ -918,7 +922,7 @@ func _build_chip_sockets(weapon_id: StringName, cell: Vector2i) -> void:
 		var hint_text := "Unlock the Chip Laboratory to use this module socket."
 		if ChipManager.is_chip_laboratory_unlocked():
 			var first_level := ChipManager.get_weapon_slot_unlock_level(weapon_id, 0) if is_weapon else ResearchManager.get_shield_bonus_slot_unlock_level(weapon_id, 0)
-			hint_text = "Research this module to Lv %d to open its first chip socket." % first_level
+			hint_text = tr("Research this module to Lv %d to open its first chip socket.") % first_level
 		var hint := _label(hint_text, 10, Palette.UI_MUTED)
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_body.add_child(hint)

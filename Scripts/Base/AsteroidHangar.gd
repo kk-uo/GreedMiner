@@ -31,9 +31,10 @@ const MineRails := preload("res://Scripts/Base/MineRails.gd")
 ## Which MineRails layout the hold uses (0 = A, 1 = B, 2 = C).
 const RAIL_LAYOUT: int = 1
 
-## Research lab, top-left of the hall (mock coords) and its design-to-mock scale.
+## Research lab node origin (mock coords) and its design-to-mock scale; the
+## curved bench itself follows the hall wall (ResearchLab.bench_path_mock()).
 const LAB_CENTER := Vector2(332.0, 238.0)
-const LAB_SCALE: float = 0.8
+const LAB_SCALE: float = 0.62
 
 const PAD_RECT := Rect2(562.0, 282.0, 156.0, 156.0)
 const STAR_MAP_CENTER := Vector2(960.0, 230.0)
@@ -133,6 +134,7 @@ func _ready() -> void:
 	_live.draw.connect(_draw_live)
 	add_child(_live)
 	_spawn_lab()
+	_spawn_trophies()
 	_spawn_dwarves()
 	_stall_wake = 1.0 if ArtifactManager.is_stall_unlocked() else 0.0
 	ArtifactManager.stall_unlocked_changed.connect(queue_redraw.unbind(1))
@@ -164,7 +166,7 @@ func get_hotspot_at(global_point: Vector2) -> StringName:
 		return HOTSPOT_HANGAR
 	if mock.distance_to(STAR_MAP_CENTER) <= STAR_MAP_RADIUS + 8.0:
 		return HOTSPOT_STAR_MAP
-	if _lab != null and ResearchLab.get_hit_rect().has_point(_lab.to_local(global_point)):
+	if _lab != null and _lab.contains_local(_lab.to_local(global_point)):
 		return HOTSPOT_LAB
 	if WarehouseVault.contains(mock):
 		return HOTSPOT_WAREHOUSE
@@ -179,7 +181,7 @@ func get_hotspot_center(hotspot: StringName) -> Vector2:
 		HOTSPOT_STAR_MAP:
 			return to_global(mock_to_local(STAR_MAP_CENTER))
 		HOTSPOT_LAB:
-			return to_global(mock_to_local(LAB_CENTER))
+			return to_global(mock_to_local(ResearchLab.center_mock_point()))
 		HOTSPOT_WAREHOUSE:
 			return to_global(mock_to_local(WarehouseVault.CENTER))
 		HOTSPOT_MAGIC_STALL:
@@ -451,12 +453,13 @@ func _rect_points(xf: Transform2D, rect_size: Vector2) -> PackedVector2Array:
 func _draw_name_tags() -> void:
 	_draw_tag(mock_to_local(Vector2(640.0, PAD_RECT.end.y + 36.0)), "HANGAR", hovered == HOTSPOT_HANGAR)
 	_draw_tag(mock_to_local(STAR_MAP_CENTER + Vector2(0.0, -STAR_MAP_RADIUS - 24.0)), "STAR MAP", hovered == HOTSPOT_STAR_MAP)
-	_draw_tag(mock_to_local(LAB_CENTER + Vector2(0.0, -ResearchLab.SIZE.y * LAB_SCALE * 0.5 - 22.0)), "LAB", hovered == HOTSPOT_LAB)
+	_draw_tag(mock_to_local(ResearchLab.tag_mock_point()), "LAB", hovered == HOTSPOT_LAB)
 	_draw_tag(mock_to_local(WarehouseVault.CENTER + WarehouseVault.floor_direction() * 74.0), "WAREHOUSE", hovered == HOTSPOT_WAREHOUSE)
 	_draw_tag(mock_to_local(MAGIC_STALL_RECT.get_center() + Vector2(0.0, 66.0)), "MAGIC STALL", hovered == HOTSPOT_MAGIC_STALL)
 
 
 func _draw_tag(center: Vector2, text: String, active: bool) -> void:
+	text = tr(text)
 	var font := ThemeDB.fallback_font
 	var theme := ThemeDB.get_project_theme()
 	if theme != null and theme.default_font != null:
@@ -490,6 +493,22 @@ func _spawn_lab() -> void:
 	_lab.scale = Vector2.ONE * LAB_SCALE * LAYOUT_SCALE
 	add_child(_lab)
 	hover_changed.connect(func(hotspot: StringName) -> void: _lab.hovered = hotspot == HOTSPOT_LAB)
+
+
+## Trophy decorations earned in battle (BaseTrophies).
+const BaseTrophies := preload("res://Scripts/Base/BaseTrophies.gd")
+const BaseSnowman := preload("res://Scripts/Base/BaseSnowman.gd")
+## Where the Frozen Planet boss snowman stands (mock coords).
+const SNOWMAN_AT := Vector2(470.0, 480.0)
+
+
+func _spawn_trophies() -> void:
+	if BaseTrophies.has_trophy(&"snowman"):
+		var snowman: Node2D = BaseSnowman.new()
+		snowman.name = "TrophySnowman"
+		snowman.position = mock_to_local(SNOWMAN_AT)
+		snowman.scale = Vector2.ONE * LAYOUT_SCALE
+		add_child(snowman)
 
 
 ## The base crew: everyone has a job or wanders the hall (see BaseDwarf).
@@ -558,9 +577,12 @@ func _spawn_dwarves() -> void:
 
 ## Things the walking crew steer around (world space).
 func _crew_obstacles() -> Array:
-	var rects := [PAD_RECT.grow(14.0), Rect2(240.0, 180.0, 190.0, 155.0), MAGIC_STALL_RECT.grow(4.0)]
+	var rects := [PAD_RECT.grow(14.0), MAGIC_STALL_RECT.grow(4.0)]
 	var circles := [[STAR_MAP_CENTER, 84.0], [STAR_MAP_CENTER + Vector2(-85.0, 57.0), 18.0], [WarehouseVault.CENTER, 58.0],
 			[CRANE_BASE, 15.0], [SUPPLY_PILE, 16.0], [CRANE_PILE, 15.0], [VAULT_PILE, 14.0]]
+	if BaseTrophies.has_trophy(&"snowman"):
+		circles.append([SNOWMAN_AT, 26.0])
+	circles.append_array(ResearchLab.obstacle_circles_mock())
 	var result := []
 	for rect in rects:
 		var r: Rect2 = rect

@@ -283,14 +283,14 @@ func _refresh_strip() -> void:
 	_strip_icon.tier = info["tier"]
 	_strip_icon.state = state
 	_strip_icon.queue_redraw()
-	_strip_name.text = node.display_name
+	_strip_name.text = tr(node.display_name)
 	_strip_stat_icon.kind = info["stat_icon"]
 	_strip_stat_icon.queue_redraw()
 	_strip_stat_label.text = info["stat"]
 	_strip_stat.visible = not String(info["stat"]).is_empty()
 
 	var missing := _missing_prerequisites(node)
-	_strip_note.text = ("Requires " + ", ".join(missing)) if state == &"LOCKED" and not missing.is_empty() else ""
+	_strip_note.text = (tr("Requires %s") % ", ".join(missing)) if state == &"LOCKED" and not missing.is_empty() else tr(node.description)
 	_strip_note.visible = not _strip_note.text.is_empty()
 
 	var cost := ResearchManager.get_upgrade_cost(selected_id)
@@ -319,7 +319,7 @@ func _missing_prerequisites(node: ResearchTreeNode) -> Array[String]:
 	for id in node.prerequisite_ids:
 		if not ResearchManager.is_research_completed(id):
 			var parent := tree.get_node(id)
-			missing.append(parent.display_name if parent != null else String(id))
+			missing.append(tr(parent.display_name) if parent != null else String(id))
 	return missing
 
 
@@ -335,7 +335,7 @@ func _on_node_pressed(research_id: StringName) -> void:
 	if state == &"LOCKED":
 		var node := tree.get_node(research_id)
 		var names := _missing_prerequisites(node) if node != null else ([] as Array[String])
-		message_requested.emit("Requires: " + ", ".join(names) if not names.is_empty() else "Research configuration is invalid.")
+		message_requested.emit(tr("Requires: %s") % ", ".join(names) if not names.is_empty() else tr("Research configuration is invalid."))
 	elif state == &"AVAILABLE":
 		if ResearchManager.purchase_research(research_id):
 			_canvas.flash(research_id)
@@ -345,6 +345,20 @@ func _on_node_pressed(research_id: StringName) -> void:
 # ==========================================
 # What a node gives (icon, tier, stat chip)
 # ==========================================
+
+## Mining tree research id (without the tier suffix) -> glyph.
+const MINING_GLYPHS := {
+	"mining_value": &"crystal_value",
+	"mining_respawn": &"regrow",
+	"mining_qte": &"qte",
+	"mining_passive": &"ore_flow",
+	"mining_hp": &"dwarf_hp",
+	"mining_time": &"dig_speed",
+	"mining_worker": &"dwarf_pair",
+	"mining_detection": &"dwarf_stealth",
+	"mining_move_speed": &"dwarf_run",
+}
+
 
 ## {"glyph", "tier", "stat_icon", "stat"} for a node, read from its research
 ## effect so new nodes get a sensible icon without extra data.
@@ -370,7 +384,7 @@ static func node_info(node: ResearchTreeNode) -> Dictionary:
 		elif ship_effect.base_power_bonus > 0:
 			info["glyph"] = &"energy"
 			info["stat_icon"] = &"energy"
-			info["stat"] = "+%d POWER" % ship_effect.base_power_bonus
+			info["stat"] = TranslationServer.translate("+%d POWER") % ship_effect.base_power_bonus
 		elif ship_effect.unlocks_ship_style:
 			info["glyph"] = &"style"
 			info["stat_icon"] = &"style"
@@ -378,26 +392,38 @@ static func node_info(node: ResearchTreeNode) -> Dictionary:
 		elif ship_effect.power_bonus > 0:
 			info["glyph"] = &"energy"
 			info["stat_icon"] = &"energy"
-			info["stat"] = "+%d POWER" % ship_effect.power_bonus
+			info["stat"] = TranslationServer.translate("+%d POWER") % ship_effect.power_bonus
 		elif ship_effect.artifact_slots > 0:
 			info["glyph"] = &"magic"
 			info["stat_icon"] = &"gem"
-			info["stat"] = "+%d slot" % ship_effect.artifact_slots
+			info["stat"] = TranslationServer.translate("+%d slot") % ship_effect.artifact_slots
 		elif ship_effect.regeneration_amount > 0.0:
 			info["glyph"] = &"regen"
 			info["stat_icon"] = &"clock"
 			info["stat"] = "+%s HP / %ss" % [_number(ship_effect.regeneration_amount), _number(ship_effect.regeneration_interval)]
+		elif ship_effect.expansion_capacity_bonus > 0:
+			info["glyph"] = &"expand"
+			info["stat_icon"] = &"energy"
+			info["stat"] = "SLOT EXPANSION READY"
+		elif ship_effect.energy_module_hp_bonus > 0.0:
+			info["glyph"] = &"shielded"
+			info["stat_icon"] = &"shield"
+			info["stat"] = "+%s HP / BATTERY" % _number(ship_effect.energy_module_hp_bonus)
 		elif ship_effect.max_hp_bonus > 0.0:
 			info["glyph"] = &"hp"
 			info["stat_icon"] = &"shield"
 			info["stat"] = "+%s HP" % _number(ship_effect.max_hp_bonus)
+	elif MINING_GLYPHS.has(id.trim_suffix("_" + tail) if tail.is_valid_int() else id):
+		# Mining tree projects have no effect resource yet: icon by id.
+		info["glyph"] = MINING_GLYPHS[id.trim_suffix("_" + tail) if tail.is_valid_int() else id]
+		info["stat_icon"] = &"mining"
 	elif effect is ModuleInstallationLimitResearchEffect:
 		var limit_effect := effect as ModuleInstallationLimitResearchEffect
 		var target := String(definition.target_id)
 		# Node shows an extra module slot; the stat chip names which module.
 		info["glyph"] = &"slot"
 		info["stat_icon"] = &"mining" if target.contains("mining") else (&"energy" if target.contains("energy") else &"plus")
-		info["stat"] = "+%d slot" % maxi(limit_effect.unlocked_installation_limit - limit_effect.initial_installation_limit, 1)
+		info["stat"] = TranslationServer.translate("+%d slot") % maxi(limit_effect.unlocked_installation_limit - limit_effect.initial_installation_limit, 1)
 	return info
 
 
@@ -506,15 +532,110 @@ static func draw_glyph(canvas: CanvasItem, center: Vector2, scale: float, glyph:
 			canvas.draw_arc(p.call(2.5, -1.5), 8.5 * scale, -0.35, PI - 0.35, 16, color, 1.6 * scale)
 			for dot in range(3):
 				canvas.draw_circle(p.call(-8.0 + float(dot) * 2.6, 7.5 - float(dot) * 2.2), 1.1 * scale, color)
+		&"shielded":
+			# A shield with a battery bolt cut through it.
+			canvas.draw_colored_polygon(PackedVector2Array([p.call(-7, -7), p.call(0, -9), p.call(7, -7), p.call(7, 0), p.call(0, 9), p.call(-7, 0)]), color)
+			canvas.draw_colored_polygon(PackedVector2Array([p.call(1.5, -6), p.call(-3.5, 1), p.call(-0.5, 1), p.call(-1.5, 6), p.call(3.5, -1), p.call(0.5, -1)]), Color(COLOR_DARK, 0.55))
+		&"expand":
+			# A battery whose frame opens outward: corner brackets pushing out.
+			canvas.draw_rect(Rect2(p.call(-4.0, -5.5), Vector2(8.0, 11.0) * scale), color)
+			canvas.draw_rect(Rect2(p.call(-1.8, -7.2), Vector2(3.6, 1.8) * scale), color)
+			canvas.draw_colored_polygon(PackedVector2Array([p.call(1.2, -3.5), p.call(-1.8, 0.6), p.call(0.0, 0.6), p.call(-1.0, 3.8), p.call(2.0, -0.4), p.call(0.2, -0.4)]), Color(COLOR_DARK, 0.55))
+			for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+				var c: Vector2 = p.call(corner.x * 9.0, corner.y * 8.5)
+				canvas.draw_line(c, c - Vector2(corner.x * 3.6, 0.0) * scale, color, 1.6 * scale)
+				canvas.draw_line(c, c - Vector2(0.0, corner.y * 3.6) * scale, color, 1.6 * scale)
 		&"slot":
 			# A second module slot: one filled cell and a "+" cell.
 			canvas.draw_rect(Rect2(p.call(-9.0, -4.5), Vector2(8.0, 9.0) * scale), color)
 			canvas.draw_rect(Rect2(p.call(1.0, -4.5), Vector2(8.0, 9.0) * scale), color, false, 1.6 * scale)
 			canvas.draw_rect(Rect2(p.call(4.2, -2.6), Vector2(1.6, 5.2) * scale), color)
 			canvas.draw_rect(Rect2(p.call(2.4, -0.8), Vector2(5.2, 1.6) * scale), color)
+		&"crystal_value":
+			# A crystal with a rising arrow: more ore per crystal.
+			_draw_crystal(canvas, p.call(-3.5, 0.0), scale, color)
+			canvas.draw_colored_polygon(PackedVector2Array([p.call(6, -9), p.call(10, -3.5), p.call(2, -3.5)]), color)
+			canvas.draw_rect(Rect2(p.call(5.0, -3.6), Vector2(2.0, 8.0) * scale), color)
+		&"regrow":
+			# A crystal inside a circling arrow: it grows back.
+			canvas.draw_arc(center, 8.0 * scale, -PI * 0.35, PI * 1.35, 20, color, 1.8 * scale)
+			var end: Vector2 = p.call(cos(-PI * 0.35) * 8.0, sin(-PI * 0.35) * 8.0)
+			canvas.draw_colored_polygon(PackedVector2Array([end + Vector2(-3.6, -1.8) * scale, end + Vector2(2.6, -2.6) * scale, end + Vector2(1.0, 3.4) * scale]), color)
+			_draw_crystal(canvas, center, scale * 0.6, color)
+		&"qte":
+			# A cursor tapping, with a burst: quick-time mining reward.
+			for k in range(5):
+				var a := -PI * 0.95 + float(k) * PI * 0.22
+				var at: Vector2 = p.call(-3.0, -3.0)
+				canvas.draw_line(at + Vector2(cos(a), sin(a)) * 3.8 * scale, at + Vector2(cos(a), sin(a)) * 7.0 * scale, color, 1.6 * scale)
+			canvas.draw_colored_polygon(PackedVector2Array([p.call(-2, -2), p.call(-2, 9), p.call(1, 6.5), p.call(3, 10), p.call(5, 9), p.call(3, 5.5), p.call(7, 5)]), color)
+		&"ore_flow":
+			# Ore drops pouring steadily out of a small chute: ore per second.
+			canvas.draw_colored_polygon(PackedVector2Array([p.call(-9, -8), p.call(1, -8), p.call(-1, -3), p.call(-7, -3)]), color)
+			for k in range(3):
+				var d: Vector2 = p.call(-4.0 + float(k) * 4.2, -0.5 + float(k) * 3.8)
+				var r := (2.2 + 0.5 * float(k)) * scale
+				canvas.draw_colored_polygon(PackedVector2Array([d + Vector2(0, -r), d + Vector2(r, 0), d + Vector2(0, r), d + Vector2(-r, 0)]), color)
+			canvas.draw_arc(p.call(6.0, -4.5), 3.6 * scale, 0.0, TAU, 14, color, 1.4 * scale)
+			canvas.draw_line(p.call(6.0, -4.5), p.call(6.0, -6.6), color, 1.2 * scale)
+			canvas.draw_line(p.call(6.0, -4.5), p.call(7.6, -4.5), color, 1.2 * scale)
+		&"dwarf_hp":
+			# A dwarf's helmet with its lamp, and a heart: tougher dwarves.
+			_draw_helmet(canvas, p.call(-1.5, 2.0), scale, color)
+			var heart := PackedVector2Array()
+			for index in range(20):
+				var t: float = TAU * float(index) / 20.0
+				heart.append(p.call(6.0 + 3.6 * pow(sin(t), 3.0), -5.5 - (3.0 * cos(t) - 1.2 * cos(2.0 * t) - 0.45 * cos(3.0 * t) - 0.2 * cos(4.0 * t))))
+			canvas.draw_colored_polygon(heart, color)
+		&"dig_speed":
+			# A pickaxe with speed lines: faster digging.
+			canvas.draw_line(p.call(-2.0, 8.0), p.call(5.0, -1.0), color, 2.4 * scale)
+			canvas.draw_colored_polygon(PackedVector2Array([p.call(-2, -5), p.call(4, -8), p.call(10, -4), p.call(9, -1), p.call(4, -5), p.call(-1, -2.5)]), color)
+			for k in range(3):
+				var y := -3.0 + float(k) * 4.0
+				canvas.draw_line(p.call(-10.0 + float(k) * 1.5, y), p.call(-5.0 + float(k) * 1.5, y), color, 1.5 * scale)
+		&"dwarf_stealth":
+			# An enemy's eye struck through: dwarves are spotted from less far.
+			var eye := PackedVector2Array()
+			for index in range(24):
+				var t: float = TAU * float(index) / 24.0
+				eye.append(p.call(cos(t) * 9.0, sin(t) * 5.2 * absf(sin(t)) * (1.0 if sin(t) >= 0.0 else 1.0)))
+			canvas.draw_colored_polygon(eye, color)
+			canvas.draw_circle(center, 3.4 * scale, Color(COLOR_DARK, 0.6))
+			canvas.draw_circle(p.call(-1.0, -1.0), 1.1 * scale, color)
+			canvas.draw_line(p.call(-8.0, 8.0), p.call(8.0, -8.0), Color(COLOR_DARK, 0.85), 3.6 * scale)
+			canvas.draw_line(p.call(-8.0, 8.0), p.call(8.0, -8.0), color, 1.8 * scale)
+		&"dwarf_run":
+			# A dwarf's helmet dashing forward, speed lines streaming behind.
+			_draw_helmet(canvas, p.call(3.0, 2.0), scale * 0.95, color)
+			for k in range(3):
+				var y := -3.0 + float(k) * 3.4
+				canvas.draw_line(p.call(-10.0 + float(k) * 1.2, y), p.call(-5.0 + float(k) * 1.2, y), color, 1.5 * scale)
+		&"dwarf_pair":
+			# Two dwarf helmets: a second dwarf per module.
+			_draw_helmet(canvas, p.call(4.0, -1.5), scale * 0.85, Color(color, 0.55))
+			_draw_helmet(canvas, p.call(-3.0, 3.0), scale, color)
 		_:
 			canvas.draw_rect(Rect2(p.call(-1.3, -6.0), Vector2(2.6, 12.0) * scale), color)
 			canvas.draw_rect(Rect2(p.call(-6.0, -1.3), Vector2(12.0, 2.6) * scale), color)
+
+
+## A standing hexagonal crystal with its left face shaded.
+static func _draw_crystal(canvas: CanvasItem, at: Vector2, scale: float, color: Color) -> void:
+	var q := func(x: float, y: float) -> Vector2: return at + Vector2(x, y) * scale
+	canvas.draw_colored_polygon(PackedVector2Array([q.call(0, -10), q.call(4.5, -5.5), q.call(4.5, 6), q.call(0, 9.5), q.call(-4.5, 6), q.call(-4.5, -5.5)]), color)
+	canvas.draw_colored_polygon(PackedVector2Array([q.call(0, -10), q.call(0, 9.5), q.call(-4.5, 6), q.call(-4.5, -5.5)]), Color(COLOR_DARK, 0.28))
+
+
+## A dwarf's round mining helmet with a brim and a lamp (cut out).
+static func _draw_helmet(canvas: CanvasItem, at: Vector2, scale: float, color: Color) -> void:
+	var dome := PackedVector2Array()
+	for index in range(13):
+		var a := PI + PI * float(index) / 12.0
+		dome.append(at + Vector2(cos(a) * 7.0, sin(a) * 6.5) * scale)
+	canvas.draw_colored_polygon(dome, color)
+	canvas.draw_rect(Rect2(at + Vector2(-8.5, -0.2) * scale, Vector2(17.0, 2.6) * scale), color)
+	canvas.draw_circle(at + Vector2(0, -3.0) * scale, 2.0 * scale, Color(COLOR_DARK, 0.55))
 
 
 # ==========================================

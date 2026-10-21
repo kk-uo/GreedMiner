@@ -176,7 +176,7 @@ static func calculate_reward(source_module: MiningModule, qte_config: MiningQteC
 static func calculate_reward_for_seconds(source_module: MiningModule, seconds: float) -> float:
 	if not is_instance_valid(source_module):
 		return 0.0
-	return source_module.get_effective_ore_per_second() * maxf(seconds, 0.0)
+	return source_module.get_effective_ore_per_second() * maxf(seconds, 0.0) * ResearchManager.get_mining_qte_ore_multiplier()
 
 
 ## Screen-space parent for QTE UI (Precision skill check).

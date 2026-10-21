@@ -1,6 +1,8 @@
 class_name FrozenEnemy
 extends RangedEnemy
 
+const BASE_TROPHIES := preload("res://Scripts/Base/BaseTrophies.gd")
+
 ## Frozen units share weather behaviour and the snow-monster art (SnowVisual)
 ## while retaining their individual, Inspector-editable combat statistics in
 ## their scenes.
@@ -147,6 +149,9 @@ func _start_attacking() -> void:
 		_on_attack_timer_timeout()
 
 func _perform_death_effect() -> void:
+	# Defeating the Frozen Planet boss puts a trophy snowman in the base.
+	if enemy_id == &"mega_monster":
+		BASE_TROPHIES.grant(&"snowman")
 	if split_scene == null or get_parent() == null:
 		return
 	var center := global_position

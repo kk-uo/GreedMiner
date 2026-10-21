@@ -12,6 +12,8 @@ const DWARF_CANNON_SCENE: PackedScene = preload("res://Scenes/Modules/Weapons/Dw
 const LASER_SCENE: PackedScene = preload("res://Scenes/Modules/Weapons/Laser/laser.tscn")
 const CHAINSAW_SCENE: PackedScene = preload("res://Scenes/Modules/Weapons/Chainsaw/chainsaw.tscn")
 const MINING_SCENE: PackedScene = preload("res://Scenes/Modules/Mining/mining_module.tscn")
+const KNOCKBACK_SCENE: PackedScene = preload("res://Scenes/Modules/Shield/knockback_module.tscn")
+const REGENERATION_SCENE: PackedScene = preload("res://Scenes/Modules/Shield/regeneration_module.tscn")
 
 var _failures: Array[String] = []
 var _saved_weapon_unlocks: Dictionary
@@ -24,7 +26,7 @@ func _ready() -> void:
 func _run() -> void:
 	TestSave.isolate("energy_system_test")
 	_saved_weapon_unlocks = WeaponUnlockManager.unlocked_weapon_ids.duplicate(true)
-	for weapon_id in [&"machine_gun", &"dwarf_cannon", &"laser", &"chainsaw"]:
+	for weapon_id in [&"machine_gun", &"dwarf_cannon", &"laser", &"chainsaw", &"knockback_module", &"regeneration_module"]:
 		WeaponUnlockManager.unlocked_weapon_ids[String(weapon_id)] = true
 	ShipLoadout.installed_modules.clear()
 	# This test exercises two-module energy aggregation, so explicitly grant the
@@ -87,6 +89,17 @@ func _run() -> void:
 	)
 	_expect_equal(ship.total_power_consumption, 5, "current load consumes 5 power")
 	_expect_equal(ship.available_power, 0, "fully powered example has zero available power")
+	for module_id in [&"knockback_module", &"regeneration_module"]:
+		_expect_equal(ModuleCatalog.get_stats(module_id).get("power_cost"), 1, "%s displays one power" % module_id)
+	for shield_scene in [KNOCKBACK_SCENE, REGENERATION_SCENE]:
+		_expect_false(ship.install_module(shield_scene, Ship.ModuleType.Shield, 1, 2), "shield installation rejected when power is full")
+	_expect_true(ship.remove_module(1, 0), "remove weapon to free one power")
+	_expect_true(ship.install_module(KNOCKBACK_SCENE, Ship.ModuleType.Shield, 1, 2), "Knockback uses the available power")
+	_expect_equal(ship.total_power_consumption, 5, "Knockback consumes one power")
+	_expect_true(ship.replace_module(REGENERATION_SCENE, Ship.ModuleType.Shield, 1, 2), "Regeneration replaces Knockback at equal cost")
+	_expect_equal(ship.total_power_consumption, 5, "Regeneration consumes one power")
+	_expect_true(ship.remove_module(1, 2), "remove shield to free one power")
+	_expect_true(ship.install_module(LASER_SCENE, Ship.ModuleType.Weapon, 1, 0), "restore laser for subsequent checks")
 
 	var overloaded_install := ship.install_module(
 		CHAINSAW_SCENE,

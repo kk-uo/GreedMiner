@@ -1,7 +1,9 @@
-[gd_resource type="Resource" script_class="ResearchTreeDefinition" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="ResearchTreeDefinition" load_steps=48 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="1"]
 [ext_resource type="Script" path="res://Scripts/Research/ResearchTreeNode.gd" id="2"]
+[ext_resource type="Script" path="res://Scripts/Research/ResearchCostConfig.gd" id="3"]
+[ext_resource type="Script" path="res://Scripts/Research/ResearchDefinition.gd" id="4"]
 
 [sub_resource type="Resource" id="Mining"]
 script = ExtResource("2")
@@ -11,8 +13,372 @@ description = "Install up to two Mining Modules."
 tree_category = &"mining"
 visual_position = Vector2(230, 20)
 
+[sub_resource type="Resource" id="Cost_value_1"]
+script = ExtResource("3")
+base_upgrade_cost = 250
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_value_1"]
+script = ExtResource("4")
+research_id = &"mining_value_1"
+category_id = &"mining"
+display_name = "Crystal Value I"
+description = "Crystal ore value +5%."
+starting_level = 0
+cost_configuration = SubResource("Cost_value_1")
+implemented = true
+
+[sub_resource type="Resource" id="Node_value_1"]
+script = ExtResource("2")
+research_id = &"mining_value_1"
+definition = SubResource("Definition_value_1")
+display_name = "Crystal Value I"
+description = "Crystal ore value +5%."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_install_slot_unlock"])
+visual_position = Vector2(520, 0)
+
+[sub_resource type="Resource" id="Cost_value_2"]
+script = ExtResource("3")
+base_upgrade_cost = 450
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_value_2"]
+script = ExtResource("4")
+research_id = &"mining_value_2"
+category_id = &"mining"
+display_name = "Crystal Value II"
+description = "Crystal ore value +5% of base."
+starting_level = 0
+cost_configuration = SubResource("Cost_value_2")
+implemented = true
+
+[sub_resource type="Resource" id="Node_value_2"]
+script = ExtResource("2")
+research_id = &"mining_value_2"
+definition = SubResource("Definition_value_2")
+display_name = "Crystal Value II"
+description = "Crystal ore value +5% of base."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_value_1"])
+visual_position = Vector2(810, 0)
+
+[sub_resource type="Resource" id="Cost_respawn_1"]
+script = ExtResource("3")
+base_upgrade_cost = 500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_respawn_1"]
+script = ExtResource("4")
+research_id = &"mining_respawn_1"
+category_id = &"mining"
+display_name = "Crystal Regrowth I"
+description = "Depleted crystals regrow after 150 seconds."
+starting_level = 0
+cost_configuration = SubResource("Cost_respawn_1")
+implemented = true
+
+[sub_resource type="Resource" id="Node_respawn_1"]
+script = ExtResource("2")
+research_id = &"mining_respawn_1"
+definition = SubResource("Definition_respawn_1")
+display_name = "Crystal Regrowth I"
+description = "Depleted crystals regrow after 150 seconds."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_value_2"])
+visual_position = Vector2(1100, -100)
+
+[sub_resource type="Resource" id="Cost_respawn_2"]
+script = ExtResource("3")
+base_upgrade_cost = 750
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_respawn_2"]
+script = ExtResource("4")
+research_id = &"mining_respawn_2"
+category_id = &"mining"
+display_name = "Crystal Regrowth II"
+description = "Crystals regrow after 140 seconds."
+starting_level = 0
+cost_configuration = SubResource("Cost_respawn_2")
+implemented = true
+
+[sub_resource type="Resource" id="Node_respawn_2"]
+script = ExtResource("2")
+research_id = &"mining_respawn_2"
+definition = SubResource("Definition_respawn_2")
+display_name = "Crystal Regrowth II"
+description = "Crystals regrow after 140 seconds."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_respawn_1"])
+visual_position = Vector2(1390, -100)
+
+[sub_resource type="Resource" id="Cost_qte"]
+script = ExtResource("3")
+base_upgrade_cost = 500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_qte"]
+script = ExtResource("4")
+research_id = &"mining_qte"
+category_id = &"mining"
+display_name = "Mining QTE Reward"
+description = "QTE ore rewards +25%."
+starting_level = 0
+cost_configuration = SubResource("Cost_qte")
+implemented = true
+
+[sub_resource type="Resource" id="Node_qte"]
+script = ExtResource("2")
+research_id = &"mining_qte"
+definition = SubResource("Definition_qte")
+display_name = "Mining QTE Reward"
+description = "QTE ore rewards +25%."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_value_2"])
+visual_position = Vector2(1100, 80)
+
+[sub_resource type="Resource" id="Cost_passive"]
+script = ExtResource("3")
+base_upgrade_cost = 750
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_passive"]
+script = ExtResource("4")
+research_id = &"mining_passive"
+category_id = &"mining"
+display_name = "Mining Output"
+description = "Each mining module produces +0.5 ore per second."
+starting_level = 0
+cost_configuration = SubResource("Cost_passive")
+implemented = true
+
+[sub_resource type="Resource" id="Node_passive"]
+script = ExtResource("2")
+research_id = &"mining_passive"
+definition = SubResource("Definition_passive")
+display_name = "Mining Output"
+description = "Each mining module produces +0.5 ore per second."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_qte"])
+visual_position = Vector2(1390, 80)
+
+[sub_resource type="Resource" id="Cost_hp_1"]
+script = ExtResource("3")
+base_upgrade_cost = 50
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_hp_1"]
+script = ExtResource("4")
+research_id = &"mining_hp_1"
+category_id = &"mining"
+display_name = "Dwarf Health I"
+description = "Mining dwarves gain 10 HP."
+starting_level = 0
+cost_configuration = SubResource("Cost_hp_1")
+implemented = true
+
+[sub_resource type="Resource" id="Node_hp_1"]
+script = ExtResource("2")
+research_id = &"mining_hp_1"
+definition = SubResource("Definition_hp_1")
+display_name = "Dwarf Health I"
+description = "Mining dwarves gain 10 HP."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_install_slot_unlock"])
+visual_position = Vector2(520, 290)
+
+[sub_resource type="Resource" id="Cost_time_1"]
+script = ExtResource("3")
+base_upgrade_cost = 125
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_time_1"]
+script = ExtResource("4")
+research_id = &"mining_time_1"
+category_id = &"mining"
+display_name = "Dwarf Mining Speed I"
+description = "Crystal mining time -0.5 seconds."
+starting_level = 0
+cost_configuration = SubResource("Cost_time_1")
+implemented = true
+
+[sub_resource type="Resource" id="Node_time_1"]
+script = ExtResource("2")
+research_id = &"mining_time_1"
+definition = SubResource("Definition_time_1")
+display_name = "Dwarf Mining Speed I"
+description = "Crystal mining time -0.5 seconds."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_hp_1"])
+visual_position = Vector2(810, 250)
+
+[sub_resource type="Resource" id="Cost_time_2"]
+script = ExtResource("3")
+base_upgrade_cost = 250
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_time_2"]
+script = ExtResource("4")
+research_id = &"mining_time_2"
+category_id = &"mining"
+display_name = "Dwarf Mining Speed II"
+description = "Crystal mining time -0.5 seconds."
+starting_level = 0
+cost_configuration = SubResource("Cost_time_2")
+implemented = true
+
+[sub_resource type="Resource" id="Node_time_2"]
+script = ExtResource("2")
+research_id = &"mining_time_2"
+definition = SubResource("Definition_time_2")
+display_name = "Dwarf Mining Speed II"
+description = "Crystal mining time -0.5 seconds."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_time_1"])
+visual_position = Vector2(1100, 250)
+
+[sub_resource type="Resource" id="Cost_worker"]
+script = ExtResource("3")
+base_upgrade_cost = 1000
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_worker"]
+script = ExtResource("4")
+research_id = &"mining_worker"
+category_id = &"mining"
+display_name = "Second Dwarf"
+description = "Each mining module gains a second dwarf."
+starting_level = 0
+cost_configuration = SubResource("Cost_worker")
+implemented = true
+
+[sub_resource type="Resource" id="Node_worker"]
+script = ExtResource("2")
+research_id = &"mining_worker"
+definition = SubResource("Definition_worker")
+display_name = "Second Dwarf"
+description = "Each mining module gains a second dwarf."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_time_2"])
+visual_position = Vector2(1390, 250)
+
+[sub_resource type="Resource" id="Cost_hp_2"]
+script = ExtResource("3")
+base_upgrade_cost = 175
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_hp_2"]
+script = ExtResource("4")
+research_id = &"mining_hp_2"
+category_id = &"mining"
+display_name = "Dwarf Health II"
+description = "Mining dwarves gain another 10 HP."
+starting_level = 0
+cost_configuration = SubResource("Cost_hp_2")
+implemented = true
+
+[sub_resource type="Resource" id="Node_hp_2"]
+script = ExtResource("2")
+research_id = &"mining_hp_2"
+definition = SubResource("Definition_hp_2")
+display_name = "Dwarf Health II"
+description = "Mining dwarves gain another 10 HP."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_hp_1"])
+visual_position = Vector2(810, 420)
+
+[sub_resource type="Resource" id="Cost_hp_3"]
+script = ExtResource("3")
+base_upgrade_cost = 325
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_hp_3"]
+script = ExtResource("4")
+research_id = &"mining_hp_3"
+category_id = &"mining"
+display_name = "Dwarf Health III"
+description = "Mining dwarves gain another 10 HP."
+starting_level = 0
+cost_configuration = SubResource("Cost_hp_3")
+implemented = true
+
+[sub_resource type="Resource" id="Node_hp_3"]
+script = ExtResource("2")
+research_id = &"mining_hp_3"
+definition = SubResource("Definition_hp_3")
+display_name = "Dwarf Health III"
+description = "Mining dwarves gain another 10 HP."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_hp_2"])
+visual_position = Vector2(1100, 420)
+
+[sub_resource type="Resource" id="Cost_detection"]
+script = ExtResource("3")
+base_upgrade_cost = 500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_detection"]
+script = ExtResource("4")
+research_id = &"mining_detection"
+category_id = &"mining"
+display_name = "Dwarf Stealth"
+description = "Enemy detection range for dwarves is reduced to 175 pixels."
+starting_level = 0
+cost_configuration = SubResource("Cost_detection")
+implemented = true
+
+[sub_resource type="Resource" id="Node_detection"]
+script = ExtResource("2")
+research_id = &"mining_detection"
+definition = SubResource("Definition_detection")
+display_name = "Dwarf Stealth"
+description = "Enemy detection range for dwarves is reduced to 175 pixels."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_hp_3"])
+visual_position = Vector2(1390, 420)
+
+[sub_resource type="Resource" id="Cost_move_speed"]
+script = ExtResource("3")
+base_upgrade_cost = 1500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Definition_move_speed"]
+script = ExtResource("4")
+research_id = &"mining_move_speed"
+category_id = &"mining"
+display_name = "Dwarf Movement Speed"
+description = "Mining dwarf movement speed +5 pixels per second."
+starting_level = 0
+cost_configuration = SubResource("Cost_move_speed")
+implemented = true
+
+[sub_resource type="Resource" id="Node_move_speed"]
+script = ExtResource("2")
+research_id = &"mining_move_speed"
+definition = SubResource("Definition_move_speed")
+display_name = "Dwarf Movement Speed"
+description = "Mining dwarf movement speed +5 pixels per second."
+tree_category = &"mining"
+prerequisite_ids = Array[StringName]([&"mining_worker", &"mining_detection"])
+visual_position = Vector2(1680, 335)
+
 [resource]
 script = ExtResource("1")
 tree_id = &"mining"
 display_name = "Mining Research"
-nodes = Array[ExtResource("2")]([SubResource("Mining")])
+nodes = Array[ExtResource("2")]([SubResource("Mining"), SubResource("Node_value_1"), SubResource("Node_value_2"), SubResource("Node_respawn_1"), SubResource("Node_respawn_2"), SubResource("Node_qte"), SubResource("Node_passive"), SubResource("Node_hp_1"), SubResource("Node_time_1"), SubResource("Node_time_2"), SubResource("Node_worker"), SubResource("Node_hp_2"), SubResource("Node_hp_3"), SubResource("Node_detection"), SubResource("Node_move_speed")])

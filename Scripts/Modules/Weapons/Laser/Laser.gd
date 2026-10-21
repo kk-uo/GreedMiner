@@ -45,6 +45,19 @@ func get_fire_rate() -> float:
 	return get_modified_fire_rate(1.0 / attack_interval)
 
 
+## Range bonuses (Range Chip, Demon Prism) also widen the beam, both visually
+## and for hits, at BEAM_WIDTH_RANGE_FACTOR times the range bonus
+## (+35% range -> +350% width).
+const BEAM_WIDTH_RANGE_FACTOR: float = 10.0
+
+
+func get_effective_beam_width() -> float:
+	if attack_range <= 0.0:
+		return beam_width
+	var range_bonus := get_modified_attack_range(attack_range) / attack_range - 1.0
+	return beam_width * maxf(1.0 + range_bonus * BEAM_WIDTH_RANGE_FACTOR, 0.1)
+
+
 func _ready() -> void:
 	_beam.width = beam_width
 	_update_beam_length()
@@ -104,7 +117,7 @@ func _physics_process(delta: float) -> void:
 func fire() -> void:
 	var effective_range := get_modified_attack_range(attack_range)
 	var beam_shape := RectangleShape2D.new()
-	beam_shape.size = Vector2(effective_range, beam_width)
+	beam_shape.size = Vector2(effective_range, get_effective_beam_width())
 
 	var beam_direction := Vector2.RIGHT.rotated(_muzzle.global_rotation)
 	var beam_center := (
@@ -124,6 +137,12 @@ func fire() -> void:
 
 	for result in results:
 		var collider: Object = result.get("collider")
+		# Trees standing in the beam get burned too.
+		if collider is Node and (collider as Node).is_in_group(&"destructible_props"):
+			if not damaged_enemy_ids.has(collider.get_instance_id()):
+				damaged_enemy_ids[collider.get_instance_id()] = true
+				collider.call("take_damage", get_damage())
+			continue
 		if not collider is BasicEnemy:
 			continue
 
@@ -140,6 +159,7 @@ func fire() -> void:
 
 
 func _update_beam_length() -> void:
+	_beam.width = get_effective_beam_width()
 	_beam.points = PackedVector2Array([
 		Vector2.ZERO,
 		Vector2(get_modified_attack_range(attack_range), 0.0),

@@ -11,6 +11,7 @@ const DWARF_CANNON_SCENE: PackedScene = preload("res://Scenes/Modules/Weapons/Dw
 const LASER_SCENE: PackedScene = preload("res://Scenes/Modules/Weapons/Laser/laser.tscn")
 const ROCKY_CONFIG: PlanetWaveConfig = preload("res://Resources/Waves/RockyPlanetWaves.tres")
 const GOBLIN_CONFIG: PlanetWaveConfig = preload("res://Resources/Waves/VerdantPlanetWaves.tres")
+const GRAVEYARD_CONFIG: PlanetWaveConfig = preload("res://Resources/Waves/GraveyardPlanetWaves.tres")
 
 var _failures: Array[String] = []
 var _unlock_signal_count: int = 0
@@ -33,6 +34,9 @@ func _run() -> void:
 	_test_persistence_and_duplicate_reward()
 	_test_goblin_and_laser_rules()
 	await _test_legacy_loadout_safety()
+	_test_late_planet_weapons()
+	await _test_graveyard_completion()
+	_test_graveyard_legacy_migration()
 	_cleanup()
 
 	if _failures.is_empty():
@@ -131,8 +135,8 @@ func _test_goblin_and_laser_rules() -> void:
 	_expect_true(unlocked.has(&"knockback_module"), "Goblin Planet (boss) completion unlocks Knockback")
 	_expect_true(WeaponUnlockManager.is_weapon_unlocked(&"knockback_module"), "Knockback remains unlocked")
 	_expect_true(ResearchManager.is_unlocked(&"shield_power.knockback_module"), "Knockback research follows its module unlock")
-	_expect_false(unlocked.has(&"chainsaw"), "Chainsaw is planned for later, not a Goblin reward")
-	_expect_false(WeaponUnlockManager.is_weapon_unlocked(&"regeneration_module"), "Regeneration is planned for later")
+	_expect_false(unlocked.has(&"chainsaw"), "Chainsaw is not a Goblin reward")
+	_expect_false(WeaponUnlockManager.is_weapon_unlocked(&"regeneration_module"), "Regeneration stays locked until Graveyard completion")
 	_expect_false(ResearchManager.is_unlocked(&"shield_power.regeneration_module"), "Regeneration research remains locked with its module")
 	_expect_false(WeaponUnlockManager.is_weapon_unlocked(&"laser"), "Laser remains locked after known planets")
 	_expect_false(ResearchManager.is_unlocked(&"weapon_damage.laser"), "Laser research remains locked")
@@ -195,3 +199,49 @@ func _expect_false(value: bool, description: String) -> void:
 func _expect_equal(actual: Variant, expected: Variant, description: String) -> void:
 	if actual != expected:
 		_failures.append("%s (expected %s, got %s)" % [description, expected, actual])
+
+
+## Laser: clear the Frozen Planet. Flamethrower: clear the Volcanic Planet.
+func _test_late_planet_weapons() -> void:
+	var frozen_unlocked := WeaponUnlockManager.record_planet_completion(&"frozen_planet")
+	_expect_true(frozen_unlocked.has(&"laser") and WeaponUnlockManager.is_weapon_unlocked(&"laser"), "Frozen Planet completion unlocks the Laser")
+	_expect_false(WeaponUnlockManager.is_weapon_unlocked(&"flamethrower"), "Flamethrower stays locked until the Volcanic Planet")
+	var volcanic_unlocked := WeaponUnlockManager.record_planet_completion(&"volcanic_planet")
+	_expect_true(volcanic_unlocked.has(&"flamethrower") and WeaponUnlockManager.is_weapon_unlocked(&"flamethrower"), "Volcanic Planet completion unlocks the Flamethrower")
+
+
+func _test_graveyard_completion() -> void:
+	_expect_false(WeaponUnlockManager.is_weapon_unlocked(&"chainsaw"), "Chainsaw stays locked before Graveyard completion")
+	_expect_false(WeaponUnlockManager.is_weapon_unlocked(&"regeneration_module"), "Regeneration stays locked before Graveyard completion")
+	_expect_equal(WeaponUnlockManager.get_unlock_requirement(&"chainsaw"), "Clear the Graveyard Planet.", "Chainsaw displays Graveyard requirement")
+	var battle := BATTLE_SCENE.instantiate()
+	(battle.get_node("WaveManager") as WaveManager).auto_start = false
+	add_child(battle)
+	await get_tree().process_frame
+	var before := _unlock_signal_count
+	battle._on_planet_completed(GRAVEYARD_CONFIG)
+	_expect_true(WeaponUnlockManager.is_weapon_unlocked(&"chainsaw"), "Graveyard completion unlocks Chainsaw")
+	_expect_true(WeaponUnlockManager.is_weapon_unlocked(&"regeneration_module"), "Graveyard completion unlocks Regeneration")
+	_expect_true(ResearchManager.is_unlocked(&"weapon_damage.chainsaw"), "Chainsaw research unlocks")
+	_expect_true(ResearchManager.is_unlocked(&"shield_power.regeneration_module"), "Regeneration research unlocks")
+	_expect_equal(_unlock_signal_count - before, 2, "both unlock signals emitted once")
+	var label := battle.get_node("BattleUI/UIRoot/CompletionPanel/VBoxContainer/UnlockLabel") as Label
+	_expect_true(label.visible and label.text.contains("Chainsaw") and label.text.contains("Regeneration"), "victory displays both rewards")
+	ProgressionStore.reload_from_disk()
+	WeaponUnlockManager.reload_progress()
+	_expect_true(WeaponUnlockManager.is_weapon_unlocked(&"chainsaw") and WeaponUnlockManager.is_weapon_unlocked(&"regeneration_module"), "both unlocks survive restart")
+	_expect_true(WeaponUnlockManager.record_planet_completion(&"graveyard_planet").is_empty(), "repeat completion gives no duplicate unlock")
+	battle.queue_free()
+	await get_tree().process_frame
+
+
+func _test_graveyard_legacy_migration() -> void:
+	var data := ProgressionStore.get_section(&"weapon_unlocks")
+	var unlocked: Dictionary = data.get("unlocked_weapons", {})
+	unlocked.erase("chainsaw")
+	unlocked.erase("regeneration_module")
+	data["unlocked_weapons"] = unlocked
+	ProgressionStore.set_section(&"weapon_unlocks", data)
+	WeaponUnlockManager.reload_progress()
+	_expect_true(WeaponUnlockManager.is_weapon_unlocked(&"chainsaw") and WeaponUnlockManager.is_weapon_unlocked(&"regeneration_module"), "old Graveyard clear unlocks both on reload")
+	_expect_true(WeaponUnlockManager.is_weapon_unlocked(&"laser"), "migration preserves other unlocks")

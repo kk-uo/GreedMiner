@@ -25,6 +25,10 @@ var damage: float:
 
 ## A battle artifact can provide an instance-local additive fire-rate ratio.
 var artifact_fire_rate_bonus: Callable
+## A battle artifact can provide an instance-local additive attack-range ratio.
+var artifact_range_bonus: Callable
+## Optional per-shot penetration count supplied by an equipped artifact.
+var artifact_projectile_pierces: Callable
 var fire_rate: float:
 	get:
 		return get_fire_rate()
@@ -83,6 +87,12 @@ func get_modified_attack_range(base_range: float) -> float:
 		"weapon_instance": self,
 		"module_kind": get_chip_module_kind(),
 	})
+	if artifact_range_bonus.is_valid():
+		var modifier := StatModifier.new()
+		modifier.source_id = &"equipped_magic_artifact_range"
+		modifier.stat_id = &"attack_range"
+		modifier.base_additive_ratio = maxf(float(artifact_range_bonus.call()), 0.0)
+		modifiers.append(modifier)
 	return maxf(StatModifierPipeline.calculate(&"attack_range", base_range, modifiers), 0.0)
 
 

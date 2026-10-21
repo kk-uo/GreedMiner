@@ -21,6 +21,7 @@ developer_mode/enabled=true
 
 [autoload]
 
+LanguageManager="*res://Scripts/Core/LanguageManager.gd"
 ProgressionStore="*res://Scripts/Core/ProgressionStore.gd"
 WeaponUnlockManager="*res://Scripts/Progression/WeaponUnlockManager.gd"
 ShipLoadout="*res://Scripts/Ship/ShipLoadout.gd"
@@ -45,6 +46,10 @@ theme/custom="res://Resources/UI/greedminer_theme.tres"
 [physics]
 
 3d/physics_engine="Jolt Physics"
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://Translations/zh_CN.po")
 
 [rendering]
 

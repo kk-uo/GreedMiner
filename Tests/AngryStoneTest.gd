@@ -17,6 +17,7 @@ func _run() -> void:
 	ShipLoadout.load_saved()
 	ArtifactManager.reload_progress()
 	ArtifactManager.set_equipment_changes_enabled(true)
+	ResourceManager.current_expedition_planet_id = &"rocky_planet"
 	check(ArtifactManager.get_unowned_mining_chest_artifacts().size() == 1, "chest pool")
 	check(ArtifactManager.get_definition(&"angry_stone").rarity == "Common", "rarity")
 	var conf := MiningQteConfig.new()

@@ -28,7 +28,7 @@ extends WeaponModule
 @export var aim_tolerance: float = 12.0
 
 ## Projectile movement speed in pixels per second.
-@export var projectile_speed: float = 400.0
+@export var projectile_speed: float = 450.0
 
 ## Number of projectiles created by each attack.
 @export_range(1, 1, 1) var projectile_count: int = 1
@@ -204,4 +204,6 @@ func fire() -> void:
 	# Apply the machine gun's configured statistics.
 	projectile.damage = damage
 	projectile.source_weapon = self
+	if artifact_projectile_pierces.is_valid():
+		projectile.enable_ghost_piercing(int(artifact_projectile_pierces.call()))
 	projectile.speed = projectile_speed

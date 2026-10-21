@@ -1,0 +1,403 @@
+[gd_resource type="Resource" script_class="PlanetWaveConfig" format=3]
+
+[ext_resource type="Script" path="res://Scripts/Waves/EnemySpawnEntry.gd" id="entry"]
+[ext_resource type="Script" path="res://Scripts/Waves/WaveDefinition.gd" id="wave"]
+[ext_resource type="Script" path="res://Scripts/Waves/PlanetWaveConfig.gd" id="config"]
+[ext_resource type="Script" path="res://Scripts/Waves/SpecialSpawnEventRule.gd" id="rule"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/skeleton.tscn" id="skeleton"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/zombie.tscn" id="zombie"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/werewolf.tscn" id="werewolf"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/vampire.tscn" id="vampire"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/giant_frank.tscn" id="giant_frank"]
+
+[sub_resource type="Resource" id="E1_skeleton"]
+script = ExtResource("entry")
+enemy_id = &"skeleton"
+enemy_scene = ExtResource("skeleton")
+spawn_count = 27
+
+[sub_resource type="Resource" id="E1_zombie"]
+script = ExtResource("entry")
+enemy_id = &"zombie"
+enemy_scene = ExtResource("zombie")
+spawn_count = 4
+
+[sub_resource type="Resource" id="W1"]
+script = ExtResource("wave")
+wave_number = 1
+spawn_interval = 1.0
+spawn_phase_duration = 60.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("E1_skeleton"), SubResource("E1_zombie")])
+
+[sub_resource type="Resource" id="E2_skeleton"]
+script = ExtResource("entry")
+enemy_id = &"skeleton"
+enemy_scene = ExtResource("skeleton")
+spawn_count = 44
+
+[sub_resource type="Resource" id="E2_zombie"]
+script = ExtResource("entry")
+enemy_id = &"zombie"
+enemy_scene = ExtResource("zombie")
+spawn_count = 7
+
+[sub_resource type="Resource" id="W2"]
+script = ExtResource("wave")
+wave_number = 2
+spawn_interval = 1.0
+spawn_phase_duration = 60.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("E2_skeleton"), SubResource("E2_zombie")])
+
+[sub_resource type="Resource" id="E3_skeleton"]
+script = ExtResource("entry")
+enemy_id = &"skeleton"
+enemy_scene = ExtResource("skeleton")
+spawn_count = 51
+
+[sub_resource type="Resource" id="E3_zombie"]
+script = ExtResource("entry")
+enemy_id = &"zombie"
+enemy_scene = ExtResource("zombie")
+spawn_count = 10
+
+[sub_resource type="Resource" id="E3_werewolf"]
+script = ExtResource("entry")
+enemy_id = &"werewolf"
+enemy_scene = ExtResource("werewolf")
+spawn_count = 4
+
+[sub_resource type="Resource" id="W3"]
+script = ExtResource("wave")
+wave_number = 3
+lightning_fraction = 0.5
+spawn_interval = 1.0
+spawn_phase_duration = 60.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("E3_skeleton"), SubResource("E3_zombie"), SubResource("E3_werewolf")])
+
+[sub_resource type="Resource" id="E4_skeleton"]
+script = ExtResource("entry")
+enemy_id = &"skeleton"
+enemy_scene = ExtResource("skeleton")
+spawn_count = 58
+
+[sub_resource type="Resource" id="E4_zombie"]
+script = ExtResource("entry")
+enemy_id = &"zombie"
+enemy_scene = ExtResource("zombie")
+spawn_count = 12
+
+[sub_resource type="Resource" id="E4_werewolf"]
+script = ExtResource("entry")
+enemy_id = &"werewolf"
+enemy_scene = ExtResource("werewolf")
+spawn_count = 5
+
+[sub_resource type="Resource" id="W4"]
+script = ExtResource("wave")
+wave_number = 4
+spawn_interval = 1.0
+spawn_phase_duration = 60.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("E4_skeleton"), SubResource("E4_zombie"), SubResource("E4_werewolf")])
+
+[sub_resource type="Resource" id="E5_skeleton"]
+script = ExtResource("entry")
+enemy_id = &"skeleton"
+enemy_scene = ExtResource("skeleton")
+spawn_count = 60
+
+[sub_resource type="Resource" id="E5_zombie"]
+script = ExtResource("entry")
+enemy_id = &"zombie"
+enemy_scene = ExtResource("zombie")
+spawn_count = 12
+
+[sub_resource type="Resource" id="E5_werewolf"]
+script = ExtResource("entry")
+enemy_id = &"werewolf"
+enemy_scene = ExtResource("werewolf")
+spawn_count = 6
+
+[sub_resource type="Resource" id="E5_vampire"]
+script = ExtResource("entry")
+enemy_id = &"vampire"
+enemy_scene = ExtResource("vampire")
+spawn_count = 2
+
+[sub_resource type="Resource" id="W5"]
+script = ExtResource("wave")
+wave_number = 5
+blood_moon_start_fraction = 0.4
+blood_moon_end_fraction = 0.8
+spawn_interval = 1.0
+spawn_phase_duration = 60.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("E5_skeleton"), SubResource("E5_zombie"), SubResource("E5_werewolf"), SubResource("E5_vampire")])
+
+[sub_resource type="Resource" id="E6_skeleton"]
+script = ExtResource("entry")
+enemy_id = &"skeleton"
+enemy_scene = ExtResource("skeleton")
+spawn_count = 64
+
+[sub_resource type="Resource" id="E6_zombie"]
+script = ExtResource("entry")
+enemy_id = &"zombie"
+enemy_scene = ExtResource("zombie")
+spawn_count = 14
+
+[sub_resource type="Resource" id="E6_werewolf"]
+script = ExtResource("entry")
+enemy_id = &"werewolf"
+enemy_scene = ExtResource("werewolf")
+spawn_count = 8
+
+[sub_resource type="Resource" id="E6_vampire"]
+script = ExtResource("entry")
+enemy_id = &"vampire"
+enemy_scene = ExtResource("vampire")
+spawn_count = 3
+
+[sub_resource type="Resource" id="W6"]
+script = ExtResource("wave")
+wave_number = 6
+lightning_fraction = 0.5
+spawn_interval = 1.0
+spawn_phase_duration = 60.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("E6_skeleton"), SubResource("E6_zombie"), SubResource("E6_werewolf"), SubResource("E6_vampire")])
+
+[sub_resource type="Resource" id="E7_skeleton"]
+script = ExtResource("entry")
+enemy_id = &"skeleton"
+enemy_scene = ExtResource("skeleton")
+spawn_count = 73
+
+[sub_resource type="Resource" id="E7_zombie"]
+script = ExtResource("entry")
+enemy_id = &"zombie"
+enemy_scene = ExtResource("zombie")
+spawn_count = 16
+
+[sub_resource type="Resource" id="E7_werewolf"]
+script = ExtResource("entry")
+enemy_id = &"werewolf"
+enemy_scene = ExtResource("werewolf")
+spawn_count = 10
+
+[sub_resource type="Resource" id="E7_vampire"]
+script = ExtResource("entry")
+enemy_id = &"vampire"
+enemy_scene = ExtResource("vampire")
+spawn_count = 4
+
+[sub_resource type="Resource" id="W7"]
+script = ExtResource("wave")
+wave_number = 7
+blood_moon_start_fraction = 0.3
+blood_moon_end_fraction = 0.7
+spawn_interval = 1.0
+spawn_phase_duration = 60.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("E7_skeleton"), SubResource("E7_zombie"), SubResource("E7_werewolf"), SubResource("E7_vampire")])
+
+[sub_resource type="Resource" id="E8_skeleton"]
+script = ExtResource("entry")
+enemy_id = &"skeleton"
+enemy_scene = ExtResource("skeleton")
+spawn_count = 83
+
+[sub_resource type="Resource" id="E8_zombie"]
+script = ExtResource("entry")
+enemy_id = &"zombie"
+enemy_scene = ExtResource("zombie")
+spawn_count = 16
+
+[sub_resource type="Resource" id="E8_werewolf"]
+script = ExtResource("entry")
+enemy_id = &"werewolf"
+enemy_scene = ExtResource("werewolf")
+spawn_count = 11
+
+[sub_resource type="Resource" id="E8_vampire"]
+script = ExtResource("entry")
+enemy_id = &"vampire"
+enemy_scene = ExtResource("vampire")
+spawn_count = 5
+
+[sub_resource type="Resource" id="W8"]
+script = ExtResource("wave")
+wave_number = 8
+lightning_fraction = 0.6
+spawn_interval = 1.0
+spawn_phase_duration = 60.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("E8_skeleton"), SubResource("E8_zombie"), SubResource("E8_werewolf"), SubResource("E8_vampire")])
+
+[sub_resource type="Resource" id="E9_skeleton"]
+script = ExtResource("entry")
+enemy_id = &"skeleton"
+enemy_scene = ExtResource("skeleton")
+spawn_count = 93
+
+[sub_resource type="Resource" id="E9_zombie"]
+script = ExtResource("entry")
+enemy_id = &"zombie"
+enemy_scene = ExtResource("zombie")
+spawn_count = 19
+
+[sub_resource type="Resource" id="E9_werewolf"]
+script = ExtResource("entry")
+enemy_id = &"werewolf"
+enemy_scene = ExtResource("werewolf")
+spawn_count = 13
+
+[sub_resource type="Resource" id="E9_vampire"]
+script = ExtResource("entry")
+enemy_id = &"vampire"
+enemy_scene = ExtResource("vampire")
+spawn_count = 6
+
+[sub_resource type="Resource" id="W9"]
+script = ExtResource("wave")
+wave_number = 9
+lightning_fraction = 0.5
+blood_moon_start_fraction = 0.25
+blood_moon_end_fraction = 0.75
+spawn_interval = 1.0
+spawn_phase_duration = 60.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("E9_skeleton"), SubResource("E9_zombie"), SubResource("E9_werewolf"), SubResource("E9_vampire")])
+
+[sub_resource type="Resource" id="E10_skeleton"]
+script = ExtResource("entry")
+enemy_id = &"skeleton"
+enemy_scene = ExtResource("skeleton")
+spawn_count = 16
+
+[sub_resource type="Resource" id="E10_zombie"]
+script = ExtResource("entry")
+enemy_id = &"zombie"
+enemy_scene = ExtResource("zombie")
+spawn_count = 3
+
+[sub_resource type="Resource" id="E10_werewolf"]
+script = ExtResource("entry")
+enemy_id = &"werewolf"
+enemy_scene = ExtResource("werewolf")
+spawn_count = 3
+
+[sub_resource type="Resource" id="E10_vampire"]
+script = ExtResource("entry")
+enemy_id = &"vampire"
+enemy_scene = ExtResource("vampire")
+spawn_count = 2
+
+[sub_resource type="Resource" id="boss"]
+script = ExtResource("entry")
+enemy_id = &"giant_frank"
+enemy_scene = ExtResource("giant_frank")
+spawn_count = 1
+spawn_first = true
+is_boss = true
+
+[sub_resource type="Resource" id="W10"]
+script = ExtResource("wave")
+wave_number = 10
+spawn_interval = 1.0
+spawn_phase_duration = 60.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+boss_wave = true
+boss_summons_consume_wave_quota = false
+enemy_entries = Array[ExtResource("entry")]([SubResource("E10_skeleton"), SubResource("E10_zombie"), SubResource("E10_werewolf"), SubResource("E10_vampire"), SubResource("boss")])
+
+[sub_resource type="Resource" id="R2"]
+script = ExtResource("rule")
+event_id = &"skeleton_pack"
+enemy_id = &"skeleton"
+trigger_mode = 1
+exact_wave = 2
+trigger_phase_fraction = 0.4
+fixed_group_size = 8
+pattern = 1
+formation_spacing = 26.0
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="R4"]
+script = ExtResource("rule")
+event_id = &"skeleton_pack"
+enemy_id = &"skeleton"
+trigger_mode = 1
+exact_wave = 4
+trigger_phase_fraction = 0.4
+fixed_group_size = 10
+pattern = 1
+formation_spacing = 26.0
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="R6"]
+script = ExtResource("rule")
+event_id = &"skeleton_pack"
+enemy_id = &"skeleton"
+trigger_mode = 1
+exact_wave = 6
+trigger_phase_fraction = 0.5
+fixed_group_size = 12
+pattern = 1
+formation_spacing = 26.0
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="R8"]
+script = ExtResource("rule")
+event_id = &"skeleton_pack"
+enemy_id = &"skeleton"
+trigger_mode = 1
+exact_wave = 8
+trigger_phase_fraction = 0.35
+fixed_group_size = 12
+pattern = 1
+formation_spacing = 26.0
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="R9"]
+script = ExtResource("rule")
+event_id = &"skeleton_pack"
+enemy_id = &"skeleton"
+trigger_mode = 1
+exact_wave = 9
+trigger_phase_fraction = 0.3
+fixed_group_size = 15
+pattern = 1
+formation_spacing = 26.0
+with_flag_bearer = false
+
+[resource]
+script = ExtResource("config")
+planet_id = &"graveyard_planet"
+display_name = "Graveyard Planet"
+advance_on_wave_clear = true
+waves = Array[ExtResource("wave")]([SubResource("W1"), SubResource("W2"), SubResource("W3"), SubResource("W4"), SubResource("W5"), SubResource("W6"), SubResource("W7"), SubResource("W8"), SubResource("W9"), SubResource("W10")])
+special_spawn_rules = Array[ExtResource("rule")]([SubResource("R2"), SubResource("R4"), SubResource("R6"), SubResource("R8"), SubResource("R9")])

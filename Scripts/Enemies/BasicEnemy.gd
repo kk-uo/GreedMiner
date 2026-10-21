@@ -92,6 +92,9 @@ var _current_health: float
 
 ## Reference to the ship that this enemy attacks.
 var target_ship: Node2D
+## Working or ore-carrying workers attract nearby ordinary melee enemies.
+var _mining_target: Node2D
+@export_range(0.0, 1000.0, 1.0) var mining_target_range: float = 200.0
 
 ## Whether the enemy is currently attacking.
 var _is_attacking: bool = false
@@ -157,6 +160,21 @@ func _physics_process(delta: float) -> void:
 		_stop_attacking()
 		return
 
+	var dwarf := _find_targetable_dwarf()
+	if dwarf != _mining_target:
+		_stop_attacking()
+		_mining_target = dwarf
+	if is_instance_valid(dwarf):
+		var dwarf_position: Vector2 = dwarf.call("get_enemy_target_position")
+		var distance := global_position.distance_to(dwarf_position)
+		_facing = (dwarf_position - global_position).angle()
+		if distance <= attack_range + 10.0:
+			_start_attacking()
+		else:
+			_stop_attacking()
+			global_position = global_position.move_toward(dwarf_position, minf(get_effective_move_speed() * delta, maxf(distance - attack_range - 10.0, 0.0)))
+		return
+
 	# Calculate the closest point on the transformed ship-grid boundary.
 	var closest_point: Vector2 = _get_nearest_ship_boundary_world(
 		ship,
@@ -204,11 +222,29 @@ func _physics_process(delta: float) -> void:
 	)
 
 	var movement: float = minf(
-		move_speed * delta,
+		get_effective_move_speed() * delta,
 		remaining_approach_distance
 	)
 
 	global_position += direction * movement
+
+## Weather is a transient additive modifier and never changes saved base stats.
+func get_effective_move_speed() -> float:
+	var weather := get_node_or_null("../../WeatherManager")
+	if weather != null and weather.has_method("blood_moon_speed_bonus"):
+		return move_speed + float(weather.call("blood_moon_speed_bonus"))
+	return move_speed
+
+
+## Weather is read at the moment of damage so spawned enemies inherit it too.
+func is_blood_moon_active() -> bool:
+	var weather := get_node_or_null("../../WeatherManager") as WeatherManager
+	return weather != null and weather.blood_moon_active
+
+
+## A nonnegative override replaces the total reduction during a blood moon.
+func get_blood_moon_total_damage_reduction() -> float:
+	return -1.0
 
 
 ## Keeps the hit flash and facing up to date on screen.
@@ -300,6 +336,12 @@ func _stop_attacking() -> void:
 func _on_attack_timer_timeout() -> void:
 	if not _is_attacking:
 		return
+	if is_instance_valid(_mining_target):
+		if _mining_target.call("is_enemy_targetable") and global_position.distance_to(_mining_target.call("get_enemy_target_position")) <= attack_range + 10.5:
+			_mining_target.call("take_damage", attack_damage)
+		else:
+			_stop_attacking()
+		return
 
 	if not is_instance_valid(target_ship):
 		_stop_attacking()
@@ -323,6 +365,23 @@ func _on_attack_timer_timeout() -> void:
 		return
 
 	_perform_attack(ship)
+
+func _find_targetable_dwarf() -> Node2D:
+	if attack_type != AttackType.MELEE or enemy_tier == EnemyTier.BOSS:
+		return null
+	var closest: Node2D
+	var best := maxf(ResearchManager.get_dwarf_detection_range(mining_target_range), 0.0)
+	if is_instance_valid(_mining_target) and _mining_target.call("is_enemy_targetable") and global_position.distance_to(_mining_target.call("get_enemy_target_position")) < best:
+		return _mining_target
+	for node in get_tree().get_nodes_in_group("mining_dwarves"):
+		var dwarf := node as Node2D
+		if not is_instance_valid(dwarf) or not dwarf.has_method("is_enemy_targetable") or not dwarf.call("is_enemy_targetable"):
+			continue
+		var distance := global_position.distance_to(dwarf.call("get_enemy_target_position"))
+		if distance < best:
+			best = distance
+			closest = dwarf
+	return closest
 
 
 ## Performs one attack. Ranged enemies override this to create a projectile.
@@ -436,6 +495,13 @@ func take_damage(damage: float, ignore_damage_reduction: bool = false, count_for
 
 	# Damage reduction is applied exactly once per incoming hit.
 	var final_damage := damage if ignore_damage_reduction else damage * (1.0 - clampf(damage_reduction, 0.0, 1.0))
+	var weather := get_node_or_null("../../WeatherManager") as WeatherManager
+	if weather != null and weather.blood_moon_active:
+		var total_reduction := get_blood_moon_total_damage_reduction()
+		if total_reduction >= 0.0:
+			final_damage = damage * (1.0 - clampf(total_reduction, 0.0, 1.0))
+		else:
+			final_damage *= 1.0 - clampf(weather.blood_moon_damage_reduction, 0.0, 1.0)
 	var previous_health := _current_health
 	_current_health = maxf(_current_health - final_damage, 0.0)
 	if count_for_artifact:
@@ -468,12 +534,24 @@ func _die() -> void:
 	var death_position := global_position
 	_spawn_death_visual(death_position)
 	if _death_effects_enabled:
+		# Presentation: every boss's killing blow gets the cinema finisher
+		# (hit-stop, bullet time, letterbox, grey world, camera punch).
+		if enemy_tier == EnemyTier.BOSS:
+			BOSS_FINISHER.play(self, death_position, _finisher_keeps_camera())
 		_grant_reward(death_position)
 		_perform_death_effect()
 	died.emit(enemy_id, death_position)
 	print("%s destroyed!" % enemy_name)
 
 	queue_free()
+
+
+const BOSS_FINISHER := preload("res://Scripts/VFX/BossFinisher.gd")
+
+
+## Overridden by a boss whose death starts a cinematic that owns the camera.
+func _finisher_keeps_camera() -> bool:
+	return false
 
 
 ## Adds reward_ore to the mission; bosses also show a floating "+N" pickup.

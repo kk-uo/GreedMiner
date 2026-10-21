@@ -111,7 +111,7 @@ func _on_stored_ore_changed(_amount: float) -> void:
 
 func _refresh_balance() -> void:
 	if balance_label != null:
-		balance_label.text = "Current Ore: %d" % floori(ResourceManager.stored_ore)
+		balance_label.text = tr("Current Ore: %d") % floori(ResourceManager.stored_ore)
 
 
 func _show_result(result: Dictionary) -> void:

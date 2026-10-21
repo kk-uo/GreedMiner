@@ -3,6 +3,9 @@ extends Node
 
 ## Sources are independent; the highest-priority active contribution wins.
 signal weather_changed(weather: int)
+signal blood_moon_started
+signal blood_moon_ended
+signal lightning_triggered
 signal ship_freeze_changed(frozen: bool)
 signal boss_entrance_started(duration: float)
 ## QTE while the ship is frozen: every click chips the ice (remaining seconds).
@@ -22,6 +25,14 @@ var _overlay: ColorRect
 ## Snow, fog and gusts under the HUD (design 2; the boss blizzard adds 3).
 const BlizzardOverlay := preload("res://Scripts/VFX/BlizzardOverlay.gd")
 var _blizzard: Control
+## Graveyard Planet lightning (v2) and blood moon (v3), created on first use.
+## Visual only for now: nothing schedules them and they change no stats.
+const GraveyardWeatherOverlay := preload("res://Scripts/VFX/GraveyardWeatherOverlay.gd")
+var _graveyard_fx: Control
+var blood_moon_active: bool = false
+@export var blood_moon_speed_amount: float = 10.0
+## Additional damage reduction, applied after an enemy's own defenses.
+@export_range(0.0, 1.0, 0.01) var blood_moon_damage_reduction: float = 0.5
 
 func _ready() -> void:
 	add_to_group("battle_weather_manager")
@@ -139,3 +150,43 @@ func _refresh() -> void:
 
 func speed_bonus() -> float:
 	return normal_speed_bonus if current_weather == Weather.BLIZZARD_NORMAL else 0.0
+
+
+# ==========================================
+# Graveyard Planet weather (presentation only)
+# ==========================================
+
+## The graveyard weather overlay (lightning + blood moon), created on demand
+## under the HUD. Connect its blackout_started / blackout_ended signals to
+## spawn things out of the graves during the dark.
+func get_graveyard_weather() -> Control:
+	if not is_instance_valid(_graveyard_fx):
+		var layer := CanvasLayer.new()
+		layer.layer = 1
+		layer.name = "GraveyardWeather"
+		add_child(layer)
+		_graveyard_fx = GraveyardWeatherOverlay.new()
+		_graveyard_fx.name = "GraveyardWeatherOverlay"
+		layer.add_child(_graveyard_fx)
+	return _graveyard_fx
+
+
+## Lightning strike: flash, ~2.45 s of complete darkness, reveal flash.
+func play_graveyard_lightning() -> void:
+	lightning_triggered.emit()
+	get_graveyard_weather().call("play_lightning")
+
+
+## Blood moon on/off: red regrade, falling ash, heartbeat edge, enemy auras.
+func set_blood_moon(active: bool) -> void:
+	if blood_moon_active == active:
+		return
+	blood_moon_active = active
+	get_graveyard_weather().set("blood_moon", active)
+	if active:
+		blood_moon_started.emit()
+	else:
+		blood_moon_ended.emit()
+
+func blood_moon_speed_bonus() -> float:
+	return blood_moon_speed_amount if blood_moon_active else 0.0

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="MagicArtifactConfiguration" load_steps=8 format=3]
+[gd_resource type="Resource" script_class="MagicArtifactConfiguration" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1_definition"]
 [ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactConfiguration.gd" id="2_configuration"]
@@ -7,8 +7,10 @@
 [ext_resource type="Resource" path="res://Resources/Artifacts/GoblinHorn.tres" id="5_horn"]
 [ext_resource type="Resource" path="res://Resources/Artifacts/GoblinFlag.tres" id="6_flag"]
 [ext_resource type="Resource" path="res://Resources/Artifacts/RedCrystal.tres" id="7_red_crystal"]
+[ext_resource type="Resource" path="res://Resources/Artifacts/DemonPrism.tres" id="8_demon_prism"]
+[ext_resource type="Resource" path="res://Resources/Artifacts/GhostBullet.tres" id="9_ghost"]
 
 [resource]
 script = ExtResource("2_configuration")
-definitions = Array[ExtResource("1_definition")]([ExtResource("3_stone_heart"), ExtResource("4_angry_stone"), ExtResource("5_horn"), ExtResource("6_flag"), ExtResource("7_red_crystal")])
+definitions = Array[ExtResource("1_definition")]([ExtResource("3_stone_heart"), ExtResource("4_angry_stone"), ExtResource("5_horn"), ExtResource("6_flag"), ExtResource("7_red_crystal"), ExtResource("8_demon_prism"), ExtResource("9_ghost")])
 

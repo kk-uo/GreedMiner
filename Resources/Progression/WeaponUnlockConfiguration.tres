@@ -22,13 +22,25 @@ requirement_text = "Complete Rocky Planet."
 script = ExtResource("1_definition")
 weapon_id = &"chainsaw"
 display_name = "Chainsaw"
-requirement_text = "Planned for a later update."
+unlock_condition = 1
+required_planet_id = &"graveyard_planet"
+requirement_text = "Clear the Graveyard Planet."
+
+[sub_resource type="Resource" id="Flamethrower"]
+script = ExtResource("1_definition")
+weapon_id = &"flamethrower"
+display_name = "Flamethrower"
+unlock_condition = 1
+required_planet_id = &"volcanic_planet"
+requirement_text = "Clear the Volcanic Planet (Hell)."
 
 [sub_resource type="Resource" id="Laser"]
 script = ExtResource("1_definition")
 weapon_id = &"laser"
 display_name = "Laser"
-requirement_text = "Unlock condition not yet decided."
+unlock_condition = 1
+required_planet_id = &"frozen_planet"
+requirement_text = "Clear the Frozen Planet."
 
 [sub_resource type="Resource" id="Knockback"]
 script = ExtResource("1_definition")
@@ -42,8 +54,10 @@ requirement_text = "Defeat the Goblin boss (clear Verdant Planet)."
 script = ExtResource("1_definition")
 weapon_id = &"regeneration_module"
 display_name = "Regeneration"
-requirement_text = "Planned for a later update."
+unlock_condition = 1
+required_planet_id = &"graveyard_planet"
+requirement_text = "Clear the Graveyard Planet."
 
 [resource]
 script = ExtResource("2_configuration")
-definitions = Array[ExtResource("1_definition")]([SubResource("MachineGun"), SubResource("DwarfCannon"), SubResource("Chainsaw"), SubResource("Laser"), SubResource("Knockback"), SubResource("Regeneration")])
+definitions = Array[ExtResource("1_definition")]([SubResource("MachineGun"), SubResource("DwarfCannon"), SubResource("Chainsaw"), SubResource("Flamethrower"), SubResource("Laser"), SubResource("Knockback"), SubResource("Regeneration")])

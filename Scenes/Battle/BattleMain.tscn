@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://Scripts/UI/WaveHUD.gd" id="13_wave_hud"]
 [ext_resource type="Script" path="res://Scripts/Mining/QTE/MiningQteManager.gd" id="14_mining_qte"]
 [ext_resource type="Script" path="res://Scripts/Battle/WeatherManager.gd" id="15_weather"]
+[ext_resource type="Script" path="res://Scripts/UI/SettingsMenu.gd" id="16_settings"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_ore_counter"]
 content_margin_left = 12.0
@@ -58,6 +59,8 @@ script = ExtResource("15_weather")
 z_index = -100
 script = ExtResource("7_battlefield")
 interactive_rocky_crystals = true
+interactive_verdant_trees = true
+interactive_lava_vents = true
 
 [node name="Ship" parent="." unique_id=358743098 instance=ExtResource("1_rgh2o")]
 
@@ -88,9 +91,9 @@ mouse_filter = 2
 script = ExtResource("6_ui_scale")
 
 [node name="HealthCounter" type="PanelContainer" parent="BattleUI/UIRoot"]
-offset_left = 16.0
+offset_left = 76.0
 offset_top = 16.0
-offset_right = 178.0
+offset_right = 238.0
 offset_bottom = 54.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBox_health_counter")
@@ -256,3 +259,17 @@ autowrap_mode = 2
 layout_mode = 2
 mouse_default_cursor_shape = 2
 text = "RETURN TO BASE"
+
+[node name="SettingsMenu" type="Control" parent="BattleUI/UIRoot"]
+process_mode = 3
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("16_settings")
+pause_game_when_open = true
+allow_developer_mode = false
+allow_language_change = false

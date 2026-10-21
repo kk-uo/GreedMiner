@@ -23,8 +23,53 @@ func _run() -> void:
 	ShipLoadout.installed_modules.clear()
 	await _test_stats_summons_and_abilities()
 	await _test_spatial_priority_with_mining_qte()
+	await _test_teleport_in_crowd()
 	ShipLoadout.installed_modules.clear()
 	_finish()
+
+
+## A packed battlefield (late boss wave) must never cancel the half-health
+## teleport: other enemies used to block every candidate spot.
+func _test_teleport_in_crowd() -> void:
+	var battle := BATTLE_SCENE.instantiate()
+	var manager := battle.get_node("WaveManager") as WaveManager
+	manager.auto_start = false
+	var mining_manager := battle.get_node("MiningQteManager") as MiningQteManager
+	mining_manager.auto_trigger = false
+	add_child(battle)
+	await get_tree().process_frame
+	var ship := battle.get_node("Ship") as Ship
+	var enemies := battle.get_node("Enemies")
+	var battlefield := battle.get_node("Battlefield") as Battlefield
+	var boss := BOSS_SCENE.instantiate() as DemonLord
+	boss.target_ship = ship
+	enemies.add_child(boss)
+	var ship_center := ship.to_global(Ship.SHIP_SIZE * 0.5)
+	boss.global_position = ship_center + Vector2(500.0, 80.0)
+	boss.set_physics_process(false)
+	var bounds := battlefield.get_world_bounds()
+	var crowd := load("res://Scenes/Enemies/little_rock.tscn") as PackedScene
+	var y := bounds.position.y + 30.0
+	while y < bounds.end.y:
+		var x := bounds.position.x + 30.0
+		while x < bounds.end.x:
+			var spot := Vector2(x, y)
+			if spot.distance_to(boss.global_position) > 120.0 and ship.get_distance_to_hull(spot, 20.0) > 30.0:
+				var rock := crowd.instantiate() as BasicEnemy
+				enemies.add_child(rock)
+				rock.global_position = spot
+				rock.set_physics_process(false)
+			x += 70.0
+		y += 70.0
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var old_offset := boss.global_position - ship_center
+	boss.take_damage(3333.0, true)
+	_expect_equal(boss.teleport_count, 1, "crowded field still teleports")
+	_expect_true(old_offset.dot(boss.global_position - ship_center) < 0.0, "crowded teleport crosses to the opposite side")
+	_expect_true(bounds.grow(-boss.get_collision_radius()).has_point(boss.global_position), "crowded teleport stays inside map")
+	battle.queue_free()
+	await get_tree().process_frame
 
 
 func _test_stats_summons_and_abilities() -> void:
@@ -55,7 +100,7 @@ func _test_stats_summons_and_abilities() -> void:
 	_expect_near(boss.attack_damage, 20.0, "melee damage")
 	_expect_near(boss.attack_interval, 1.0, "attack interval")
 	_expect_near(boss.attack_range, 10.0, "attack range")
-	_expect_near(boss.damage_reduction, 0.4, "base damage reduction is 0.4")
+	_expect_near(boss.damage_reduction, 0.5, "base damage reduction is 0.5")
 	_expect_equal(boss.attack_type, BasicEnemy.AttackType.MELEE, "melee attack type")
 	_expect_equal(boss.enemy_tier, BasicEnemy.EnemyTier.BOSS, "boss tier")
 	_expect_near(boss.reward_ore, 666.0, "boss reward")
@@ -63,7 +108,7 @@ func _test_stats_summons_and_abilities() -> void:
 	_expect_near(boss.normal_charge_duration, 4.0, "normal charge duration")
 	_expect_equal(boss.normal_required_clicks, 10, "normal click requirement")
 	_expect_near(boss.special_charge_duration, 5.0, "special charge duration")
-	_expect_equal(boss.special_clicks_per_part, 3, "special clicks per part")
+	_expect_equal(boss.special_clicks_per_part, 2, "special clicks per part")
 	_expect_near(boss.recovery_duration, 2.0, "recovery duration")
 	_expect_near(boss.laser_damage, 50.0, "laser damage")
 
@@ -108,7 +153,7 @@ func _test_stats_summons_and_abilities() -> void:
 		_expect_true(boss.route_qte_click(boss.global_position), "normal QTE reserves boss body click %d" % click)
 	_expect_equal(boss.normal_click_count, 10, "ten valid clicks counted")
 	_expect_equal(boss.boss_state, DemonLord.BossState.RECOVERY, "normal success enters recovery")
-	_expect_near(boss.damage_reduction, 0.4, "normal success restores reduction")
+	_expect_near(boss.damage_reduction, 0.5, "normal success restores reduction")
 	_expect_near(boss.get_qte_time_left(), 0.0, "completed QTE removes interaction timer")
 	_expect_false(boss.route_qte_click(boss.global_position), "completed QTE removes reserved click region")
 	boss._physics_process(2.01)
@@ -120,7 +165,7 @@ func _test_stats_summons_and_abilities() -> void:
 	_expect_equal(boss.lasers_fired_count, 1, "failed normal QTE fires one laser")
 	_expect_near(ship.current_hp, hp_before - 50.0, "failed normal QTE deals exactly 50 ship damage")
 	_expect_equal(boss.boss_state, DemonLord.BossState.FIRING_LASER, "failure enters laser state")
-	_expect_near(boss.damage_reduction, 0.4, "failed QTE restores reduction")
+	_expect_near(boss.damage_reduction, 0.5, "failed QTE restores reduction")
 	_expect_false(boss.route_qte_click(boss.global_position), "timeout immediately removes QTE click region")
 	boss._physics_process(boss.laser_visual_duration + 0.01)
 	_expect_equal(boss.boss_state, DemonLord.BossState.RECOVERY, "laser enters recovery")
@@ -156,17 +201,17 @@ func _test_stats_summons_and_abilities() -> void:
 	var head_world := boss.get_body_part_world_position(DemonLord.BodyPart.HEAD)
 	for click in range(4):
 		boss.route_qte_click(head_world)
-	_expect_equal(int(boss.special_part_clicks[DemonLord.BodyPart.HEAD]), 3, "completed head cannot receive extra progress")
-	_expect_equal(boss.get_special_total_clicks(), 3, "extra head click does not advance another part")
+	_expect_equal(int(boss.special_part_clicks[DemonLord.BodyPart.HEAD]), 2, "completed head cannot receive extra progress")
+	_expect_equal(boss.get_special_total_clicks(), 2, "extra head click does not advance another part")
 	for part in DemonLord.BODY_PARTS:
 		if part == DemonLord.BodyPart.HEAD:
 			continue
-		for click in range(3):
+		for click in range(2):
 			boss.route_qte_click(boss.get_body_part_world_position(part))
 	_expect_true(boss.is_special_qte_complete(), "all five independent body parts complete")
-	_expect_equal(boss.get_special_total_clicks(), 15, "special QTE requires fifteen valid clicks")
+	_expect_equal(boss.get_special_total_clicks(), 10, "special QTE requires ten valid clicks")
 	_expect_equal(boss.boss_state, DemonLord.BossState.RECOVERY, "special success enters recovery")
-	_expect_near(boss.damage_reduction, 0.4, "special success restores reduction")
+	_expect_near(boss.damage_reduction, 0.5, "special success restores reduction")
 	boss._physics_process(2.01)
 	ship.heal(1000.0)
 

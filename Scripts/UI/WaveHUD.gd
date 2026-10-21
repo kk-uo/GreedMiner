@@ -7,31 +7,65 @@ extends VBoxContainer
 @onready var status_label: Label = $StatusLabel
 @onready var remaining_label: Label = $RemainingLabel
 
+var _wave_number := 0
+var _total_waves := 0
+var _remaining := 0
+var _preparation_seconds := 0
+var _mode := &""
+var _blocked_message := ""
+
+
+func _ready() -> void:
+	LanguageManager.language_changed.connect(_on_language_changed)
+
+
+func _on_language_changed(_locale: StringName) -> void:
+	match _mode:
+		&"preparation":
+			show_preparation(_wave_number, _total_waves, float(_preparation_seconds))
+		&"wave":
+			show_wave(_wave_number, _total_waves, status_label.visible)
+		&"blocked":
+			show_configuration_blocked(_wave_number, _blocked_message)
+	update_remaining(_remaining)
+
 
 func show_preparation(wave_number: int, total_waves: int, duration: float) -> void:
-	wave_label.text = "WAVE  %d / %d" % [wave_number, total_waves]
-	status_label.text = "PREP  %d" % ceili(duration)
+	_mode = &"preparation"
+	_wave_number = wave_number
+	_total_waves = total_waves
+	_preparation_seconds = ceili(duration)
+	wave_label.text = tr("WAVE  %d / %d") % [wave_number, total_waves]
+	status_label.text = tr("PREP  %d") % ceili(duration)
 	_set_status_visible(true)
 
 
 func update_preparation(seconds_remaining: int) -> void:
-	status_label.text = "PREP  %d" % seconds_remaining
+	_preparation_seconds = seconds_remaining
+	status_label.text = tr("PREP  %d") % seconds_remaining
 
 
 func show_wave(wave_number: int, total_waves: int, boss_wave: bool) -> void:
-	wave_label.text = "WAVE  %d / %d" % [wave_number, total_waves]
+	_mode = &"wave"
+	_wave_number = wave_number
+	_total_waves = total_waves
+	wave_label.text = tr("WAVE  %d / %d") % [wave_number, total_waves]
 	# Normal waves show no status line; only the boss wave is called out.
 	status_label.text = "BOSS WAVE"
 	_set_status_visible(boss_wave)
 
 
 func update_remaining(remaining_count: int) -> void:
-	remaining_label.text = "ENEMIES  %d" % remaining_count
+	_remaining = remaining_count
+	remaining_label.text = tr("ENEMIES  %d") % remaining_count
 
 
 ## Development-only state for a deliberately reserved, unconfigured boss wave.
 func show_configuration_blocked(wave_number: int, message: String) -> void:
-	wave_label.text = "WAVE  %d  //  DEVELOPMENT" % wave_number
+	_mode = &"blocked"
+	_wave_number = wave_number
+	_blocked_message = message
+	wave_label.text = tr("WAVE  %d  //  DEVELOPMENT") % wave_number
 	status_label.text = message.to_upper()
 	_set_status_visible(true)
 

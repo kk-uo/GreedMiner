@@ -34,6 +34,7 @@ const SUBTITLES := {
 	&"rock_titan": "THE WALKING MOUNTAIN",
 	&"goblin_giant_chariot": "THE WARBAND WAGON",
 	&"demon_lord": "SOVEREIGN OF THE INFERNO",
+	&"giant_frank": "THE STITCHED COLOSSUS",
 	&"mega_monster": "KING OF THE BLIZZARD",
 }
 
@@ -64,6 +65,18 @@ const THEMES := {
 		"chip": Color("E4F59A"),
 		"body": Color("4F8A2A"),
 		"top": Color("8CCB45"),
+	},
+	&"giant_frank": {
+		"badge": &"frank",
+		"chip": Color("B8E8FF"),
+		"body": Color("3E6B3A"),
+		"top": Color("8DBA7A"),
+	},
+	&"demon_lord": {
+		"badge": &"demon",
+		"chip": Color("FFD23F"),
+		"body": Color("A82A26"),
+		"top": Color("FF6A3D"),
 	},
 	&"mega_monster": {
 		"badge": &"yeti",
@@ -266,6 +279,10 @@ func _draw_badge(center: Vector2) -> void:
 		_draw_chariot_badge(center)
 	elif _theme.get("badge", &"stone") == &"yeti":
 		_draw_yeti_badge(center)
+	elif _theme.get("badge", &"stone") == &"demon":
+		_draw_demon_badge(center)
+	elif _theme.get("badge", &"stone") == &"frank":
+		_draw_frank_badge(center)
 	else:
 		_draw_stone_badge(center)
 
@@ -395,6 +412,166 @@ func _draw_yeti_badge(center: Vector2) -> void:
 	draw_colored_polygon(PackedVector2Array([c + Vector2(-5.0, 9.0), c + Vector2(5.0, 9.0), c + Vector2(4.0, 13.0), c + Vector2(-4.0, 13.0)]), Color("1A2633"))
 	for side in [-1.0, 1.0]:
 		draw_colored_polygon(PackedVector2Array([c + Vector2(side * 4.5, 9.0), c + Vector2(side * 2.0, 9.0), c + Vector2(side * 3.2, 13.5)]), Color.WHITE)
+
+
+## Giant Frank portrait: the classic flat-topped green giant, front-on -
+## black hair with a jagged fringe, a stitched brow, neck bolts and pale
+## glowing eyes, on a lab-steel plate crackling with blue electricity.
+func _draw_frank_badge(center: Vector2) -> void:
+	var t: float = Time.get_ticks_msec() / 1000.0
+	var pulse: float = 0.5 + 0.5 * sin(t * 2.2)
+	var hexagon := PackedVector2Array()
+	for index in range(6):
+		hexagon.append(center + Vector2.RIGHT.rotated(PI / 6.0 + PI / 3.0 * float(index)) * BADGE_RADIUS)
+	draw_colored_polygon(Palette.offset_points(hexagon, Vector2(4.0, 6.0)), Palette.SHADOW_COLOR)
+	draw_colored_polygon(hexagon, Color("1C2226"))
+	var inner := PackedVector2Array()
+	for point in hexagon:
+		inner.append(center + (point - center) * 0.84)
+	draw_colored_polygon(inner, Color("2E3A40"))
+	draw_colored_polygon(PackedVector2Array([
+		center + Vector2(-30.0, -10.0), center + Vector2(-10.0, -30.0), center + Vector2(0.0, -27.0), center + Vector2(-26.0, -1.0),
+	]), Color("3E4C54"))
+	var c: Vector2 = center + Vector2(0.0, 4.0)
+	# Neck and bolts.
+	draw_rect(Rect2(c + Vector2(-9.0, 12.0), Vector2(18.0, 10.0)), Color("3E6B3A"))
+	for side in [-1.0, 1.0]:
+		draw_rect(Rect2(c + Vector2(side * 9.0 - (5.0 if side < 0 else 0.0), 14.0), Vector2(5.0, 4.0)), Color("8A9097"))
+		draw_circle(c + Vector2(side * 15.0, 16.0), 3.2, Color("4A4E53"))
+		draw_circle(c + Vector2(side * 15.0, 16.0), 2.0, Color("C9CED3"))
+	# Square green face.
+	draw_rect(Rect2(c + Vector2(-15.0, -16.0), Vector2(30.0, 30.0)), Color("3E6B3A"))
+	draw_rect(Rect2(c + Vector2(-13.0, -15.0), Vector2(26.0, 27.0)), Color("5E8F52"))
+	draw_rect(Rect2(c + Vector2(-13.0, -15.0), Vector2(9.0, 27.0)), Color("8DBA7A", 0.55))
+	# Flat-top black hair with a jagged fringe.
+	draw_rect(Rect2(c + Vector2(-16.0, -24.0), Vector2(32.0, 11.0)), Color("141414"))
+	var fringe := PackedVector2Array([c + Vector2(-16.0, -13.0)])
+	for k in range(9):
+		fringe.append(c + Vector2(-16.0 + 4.0 * float(k), -13.0 + (4.0 if k % 2 == 1 else 0.0)))
+	fringe.append(c + Vector2(16.0, -13.0))
+	fringe.append(c + Vector2(16.0, -14.0))
+	fringe.append(c + Vector2(-16.0, -14.0))
+	draw_colored_polygon(fringe, Color("141414"))
+	draw_line(c + Vector2(-14.0, -21.0), c + Vector2(10.0, -21.0), Color("3A3A42"), 1.4)
+	# Stitched scar across the brow.
+	draw_line(c + Vector2(-11.0, -5.0), c + Vector2(11.0, -5.0), Color("1E1A16"), 1.4)
+	for k in range(6):
+		var x: float = -10.0 + 4.0 * float(k)
+		draw_line(c + Vector2(x, -7.0), c + Vector2(x, -3.0), Color("1E1A16"), 1.2)
+	# Heavy brow, glowing eyes, grim mouth.
+	draw_rect(Rect2(c + Vector2(-12.0, -1.0), Vector2(24.0, 2.6)), Color("2E4A2A"))
+	for side in [-1.0, 1.0]:
+		var eye: Vector2 = c + Vector2(side * 6.0, 4.0)
+		draw_circle(eye, 4.6, Color("FFF2B0", 0.2 + 0.2 * pulse))
+		draw_circle(eye, 2.2, Color("FFF2B0"))
+	draw_line(c + Vector2(-6.0, 10.5), c + Vector2(6.0, 10.5), Color("1E2A1C"), 2.0)
+	# Electricity crackling over the plate.
+	var arc_pts := PackedVector2Array()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(t * 8.0)
+	for k in range(7):
+		arc_pts.append(center + Vector2(-28.0 + 9.0 * float(k), -26.0 + rng.randf_range(-3.0, 3.0)))
+	draw_polyline(arc_pts, Color("7FD8FF", 0.35 + 0.35 * pulse), 3.0)
+	draw_polyline(arc_pts, Color(1, 1, 1, 0.5 + 0.4 * pulse), 1.0)
+
+
+## Demon Lord portrait: a crimson demon face, front-on, with great black
+## horns sweeping up past the plate, a gold circlet set with a red gem,
+## burning yellow slit eyes and fangs, on an obsidian plate licked by flames.
+func _draw_demon_badge(center: Vector2) -> void:
+	var t: float = Time.get_ticks_msec() / 1000.0
+	var pulse: float = 0.5 + 0.5 * sin(t * 2.2)
+	var hexagon := PackedVector2Array()
+	for index in range(6):
+		hexagon.append(center + Vector2.RIGHT.rotated(PI / 6.0 + PI / 3.0 * float(index)) * BADGE_RADIUS)
+	draw_colored_polygon(Palette.offset_points(hexagon, Vector2(4.0, 6.0)), Palette.SHADOW_COLOR)
+	draw_colored_polygon(hexagon, Color("1A0F0E"))
+	var inner := PackedVector2Array()
+	for point in hexagon:
+		inner.append(center + (point - center) * 0.84)
+	draw_colored_polygon(inner, Color("3A1A16"))
+	# Ember glow rising from the bottom of the plate.
+	draw_colored_polygon(PackedVector2Array([
+		center + Vector2(-29.0, 17.0), center + Vector2(29.0, 17.0), center + Vector2(17.0, 34.0), center + Vector2(-17.0, 34.0),
+	]), Color("7A2316", 0.8))
+	draw_colored_polygon(PackedVector2Array([
+		center + Vector2(-30.0, -10.0), center + Vector2(-10.0, -30.0), center + Vector2(0.0, -27.0), center + Vector2(-26.0, -1.0),
+	]), Color("4E2620"))
+	# Flames licking up behind the head.
+	for k in range(4):
+		var x: float = [-25.0, -18.0, 18.0, 25.0][k]
+		var h: float = 12.0 + 5.0 * sin(t * 6.0 + float(k) * 1.7)
+		var base: Vector2 = center + Vector2(x, 30.0)
+		draw_colored_polygon(PackedVector2Array([base + Vector2(-6.0, 0.0), base + Vector2(sin(t * 4.0 + float(k)) * 2.0, -h), base + Vector2(6.0, 0.0)]), Color("E2572A", 0.85))
+		draw_colored_polygon(PackedVector2Array([base + Vector2(-3.0, 0.0), base + Vector2(0.0, -h * 0.55), base + Vector2(3.0, 0.0)]), Color("FFD23F", 0.9))
+	var c: Vector2 = center + Vector2(0.0, 6.0)
+	# Great horns sweeping out and up past the plate.
+	for side in [-1.0, 1.0]:
+		var outer := PackedVector2Array()
+		var inner_edge := PackedVector2Array()
+		for k in range(10):
+			var u: float = float(k) / 9.0
+			var spine: Vector2 = c + Vector2(side * (10.0 + 22.0 * u - 8.0 * u * u * u), -10.0 - 30.0 * u * u)
+			var half: float = lerpf(7.0, 0.6, u)
+			outer.append(spine + Vector2(side * half, half * 0.4))
+			inner_edge.insert(0, spine - Vector2(side * half, half * 0.4))
+		outer.append_array(inner_edge)
+		draw_colored_polygon(Palette.offset_points(outer, Vector2(2.0, 3.0)), Color(0, 0, 0, 0.35))
+		draw_colored_polygon(outer, Color("120D0D"))
+		var core := PackedVector2Array()
+		for k in range(outer.size()):
+			core.append(outer[k].lerp(outer[outer.size() - 1 - k], 0.18))
+		draw_colored_polygon(core, Color("4A3A36"))
+		var ridge := PackedVector2Array()
+		for k in range(9):
+			var u: float = float(k) / 9.0
+			ridge.append(c + Vector2(side * (10.0 + 22.0 * u - 8.0 * u * u * u), -10.0 - 30.0 * u * u) + Vector2(-side * 1.2, -1.0))
+		draw_polyline(ridge, Color("8A746C"), 1.6)
+		for u in [0.25, 0.5]:
+			var ring: Vector2 = c + Vector2(side * (10.0 + 22.0 * u - 8.0 * u * u * u), -10.0 - 30.0 * u * u)
+			draw_line(ring + Vector2(-3.5, -1.5), ring + Vector2(3.5, 1.5).rotated(side * 0.6), Color("3A2A27"), 1.4)
+	# Head: crimson, broad brow narrowing to a pointed chin.
+	var head := PackedVector2Array([
+		c + Vector2(-15.0, -12.0), c + Vector2(-8.0, -17.0), c + Vector2(8.0, -17.0), c + Vector2(15.0, -12.0),
+		c + Vector2(16.0, 0.0), c + Vector2(11.0, 13.0), c + Vector2(0.0, 21.0), c + Vector2(-11.0, 13.0), c + Vector2(-16.0, 0.0),
+	])
+	draw_colored_polygon(head, Color("5E1014"))
+	draw_colored_polygon(PackedVector2Array([
+		c + Vector2(-13.0, -11.0), c + Vector2(-7.0, -15.0), c + Vector2(7.0, -15.0), c + Vector2(13.0, -11.0),
+		c + Vector2(14.0, 0.0), c + Vector2(9.0, 11.0), c + Vector2(0.0, 17.0), c + Vector2(-9.0, 11.0), c + Vector2(-14.0, 0.0),
+	]), Color("A82A26"))
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-12.0, -10.0), c + Vector2(-6.0, -14.0), c + Vector2(-1.0, -13.0), c + Vector2(-10.0, -3.0)]), Color("D9503E"))
+	# Cheekbones.
+	for side in [-1.0, 1.0]:
+		draw_line(c + Vector2(side * 13.0, 3.0), c + Vector2(side * 6.0, 8.0), Color("5E1014"), 1.6)
+	# Gold circlet with a red gem.
+	draw_colored_polygon(PackedVector2Array([
+		c + Vector2(-15.0, -12.0), c + Vector2(-8.0, -16.0), c + Vector2(8.0, -16.0), c + Vector2(15.0, -12.0),
+		c + Vector2(14.0, -9.0), c + Vector2(8.0, -12.5), c + Vector2(-8.0, -12.5), c + Vector2(-14.0, -9.0),
+	]), Color("C99A3A"))
+	draw_line(c + Vector2(-8.0, -15.0), c + Vector2(8.0, -15.0), Color("F0D27A"), 1.2)
+	var gem: Vector2 = c + Vector2(0.0, -15.0)
+	draw_circle(gem, 5.5 + 1.5 * pulse, Color("FF2E3A", 0.25))
+	draw_colored_polygon(PackedVector2Array([gem + Vector2(0.0, -4.5), gem + Vector2(3.5, 0.0), gem + Vector2(0.0, 4.0), gem + Vector2(-3.5, 0.0)]), Color("FF2E3A"))
+	draw_circle(gem + Vector2(-1.0, -1.2), 1.0, Color("FFD0D4"))
+	# Angry brows and burning slit eyes.
+	for side in [-1.0, 1.0]:
+		var eye: Vector2 = c + Vector2(side * 6.5, -3.0)
+		# Brow: low at the nose, sweeping up to the temple (a scowl).
+		draw_colored_polygon(PackedVector2Array([
+			eye + Vector2(-side * 5.5, -1.0), eye + Vector2(side * 5.5, -6.0), eye + Vector2(side * 5.0, -3.5), eye + Vector2(-side * 5.0, 1.2),
+		]), Color("1E0E12"))
+		draw_circle(eye + Vector2(0.0, 1.5), 5.5, Color("FFD23F", 0.2 + 0.2 * pulse))
+		# Almond eye, inner corner low, outer corner raised.
+		draw_colored_polygon(PackedVector2Array([
+			eye + Vector2(-side * 4.5, 2.0), eye + Vector2(side * 4.5, -1.5), eye + Vector2(side * 2.0, 3.5), eye + Vector2(-side * 2.0, 3.8),
+		]), Color("FFD23F"))
+		draw_line(eye + Vector2(0.0, -0.2), eye + Vector2(0.0, 3.6), Color("1E0E12"), 1.4)
+	# Snarl: dark mouth with two fangs, small goatee.
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-7.0, 8.0), c + Vector2(7.0, 8.0), c + Vector2(4.5, 12.0), c + Vector2(-4.5, 12.0)]), Color("1E0E12"))
+	for side in [-1.0, 1.0]:
+		draw_colored_polygon(PackedVector2Array([c + Vector2(side * 5.5, 8.0), c + Vector2(side * 2.5, 8.0), c + Vector2(side * 4.0, 13.0)]), Color("F4E9D8"))
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-2.5, 17.0), c + Vector2(2.5, 17.0), c + Vector2(0.0, 25.0)]), Color("1E1514"))
 
 
 ## Hexagonal stone portrait: a sunken face under a brow, purple eyes, crystal crown.

@@ -55,7 +55,7 @@ func _process(delta: float) -> void:
 func get_effective_ore_per_second() -> float:
 	var timer := get_node_or_null("MiningTimer") as Timer
 	var interval: float = timer.wait_time if timer != null else 1.0
-	return maxf(mining_rate, 0.0) / maxf(interval, 0.001)
+	return maxf(mining_rate, 0.0) / maxf(interval, 0.001) + ResearchManager.get_mining_output_bonus()
 
 
 ## Presentation hook for mining QTEs: jump straight to a boosted breakthrough
@@ -96,7 +96,7 @@ func _on_mining_timer_timeout() -> void:
 	if not mining_enabled:
 		return
 
-	ResourceManager.add_mission_ore(mining_rate)
+	ResourceManager.add_mission_ore(mining_rate + ResearchManager.get_mining_output_bonus() * $MiningTimer.wait_time)
 
 
 ## Whether this module is currently producing ore.

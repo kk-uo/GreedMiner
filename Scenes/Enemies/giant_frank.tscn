@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://Scripts/Enemies/GiantFrank.gd" id="1"]
+[sub_resource type="CircleShape2D" id="shape"]
+radius = 76.0
+
+[node name="GiantFrank" type="Area2D"]
+script = ExtResource("1")
+enemy_id = &"giant_frank"
+enemy_name = "Giant Frank"
+max_health = 10000.0
+move_speed = 10.0
+attack_damage = 20.0
+attack_interval = 3.0
+attack_range = 63.0
+damage_reduction = 0.0
+reward_ore = 800.0
+enemy_tier = 2
+spawn_map_id = &"graveyard_planet"
+minimum_spawn_wave = 10
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("shape")
+[node name="AttackTimer" type="Timer" parent="."]
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

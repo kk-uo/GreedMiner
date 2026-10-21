@@ -15,3 +15,9 @@ extends ResearchEffect
 @export_range(0, 10, 1) var base_power_bonus: int = 0
 ## Unlocks the Hangar's SHIP STYLE (colors and hull designs).
 @export var unlocks_ship_style: bool = false
+## Extra ship-grid expansion capacity every Energy Module supplies. This is
+## only an interface for the future hull slot-expansion research: it raises
+## Ship.total_expansion_capacity but does not add any slot by itself.
+@export_range(0, 10, 1) var expansion_capacity_bonus: int = 0
+## Extra max hull HP every installed Energy Module gives (Shielded Cells).
+@export_range(0.0, 1000.0, 0.1) var energy_module_hp_bonus: float = 0.0

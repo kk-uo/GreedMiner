@@ -57,7 +57,7 @@ var _drain_time: float = 0.0
 func _ready() -> void:
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	focus_mode = Control.FOCUS_ALL
-	tooltip_text = "Press %d times to evacuate" % REQUIRED_CLICKS
+	tooltip_text = tr("Press %d times to evacuate") % REQUIRED_CLICKS
 	mouse_entered.connect(func() -> void: _hovered = true)
 	mouse_exited.connect(func() -> void:
 		_hovered = false
@@ -243,5 +243,6 @@ func _draw_labels(dome_center: Vector2, disabled: bool) -> void:
 		small = "EVACUATE"
 
 	var width := DOME_RADIUS * 2.0
+	small = tr(small)
 	draw_string(font, dome_center + Vector2(-DOME_RADIUS, 4.0), big, HORIZONTAL_ALIGNMENT_CENTER, width, BIG_FONT_SIZE, ink)
 	draw_string(font, dome_center + Vector2(-DOME_RADIUS, 17.0), small, HORIZONTAL_ALIGNMENT_CENTER, width, SMALL_FONT_SIZE, ink)

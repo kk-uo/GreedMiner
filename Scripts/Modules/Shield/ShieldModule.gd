@@ -6,6 +6,8 @@ extends ShipModule
 ## and battle-active state.
 
 @export var max_hp_bonus: float = 50.0
+## Continuous power required by this shield module.
+@export_range(0, 100, 1) var power_consumption: int = 0
 @export_range(0, 8, 1) var chip_slot_count: int = 0
 @export_range(1, 8, 1) var max_chip_slots: int = 3
 
@@ -14,6 +16,10 @@ var module_active: bool = true
 
 func get_module_category() -> StringName:
 	return CATEGORY_SHIELD
+
+
+func get_power_consumption() -> int:
+	return maxi(power_consumption, 0)
 
 
 func get_max_hp_bonus() -> float:

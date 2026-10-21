@@ -41,6 +41,13 @@ var _large_count_warning_emitted: bool = false
 var _last_special_events: Array[Dictionary] = []
 var _executed_special_events: Array[Dictionary] = []
 var _spawn_rng := RandomNumberGenerator.new()
+var _weather_events: Dictionary = {}
+var extra_weather_spawned: int = 0
+var extra_boss_spawned: int = 0
+var total_lifetime_spawned: int = 0
+var formation_spawned: int = 0
+const GRAVE_SKELETON := preload("res://Scenes/Enemies/skeleton.tscn")
+const GRAVE_ZOMBIE := preload("res://Scenes/Enemies/zombie.tscn")
 
 ## Kept as Node instead of a custom-class annotation so an editor that was
 ## already open before EnemySpawner was registered can still parse this file.
@@ -68,6 +75,10 @@ func _process(delta: float) -> void:
 			_update_preparation(delta)
 		State.SPAWNING:
 			_update_spawning(delta)
+		State.CLEARING:
+			if wave_config.advance_on_wave_clear:
+				_spawn_phase_elapsed += delta
+				_update_graveyard_weather(wave_config.waves[_current_wave_index])
 
 
 ## Starts or restarts from Wave 1 using the assigned Resource.
@@ -94,6 +105,10 @@ func start_wave_system() -> bool:
 	_boss = null
 	_last_special_events.clear()
 	_executed_special_events.clear()
+	extra_weather_spawned = 0
+	extra_boss_spawned = 0
+	total_lifetime_spawned = 0
+	formation_spawned = 0
 	_large_count_warning_emitted = false
 	if spawn_rng_seed == 0:
 		_spawn_rng.randomize()
@@ -113,6 +128,7 @@ func stop_wave_system(reason: StringName = &"stopped") -> void:
 	if _state == State.STOPPED or _state == State.COMPLETED:
 		return
 	_state = State.STOPPED
+	_end_blood_moon()
 	_spawn_queue.clear()
 	_timed_spawn_requests.clear()
 	_enemy_spawner.call("set_spawning_enabled", false)
@@ -159,6 +175,7 @@ func _emit_preparation_time() -> void:
 
 func _begin_wave() -> void:
 	var wave := wave_config.waves[_current_wave_index]
+	_weather_events.clear()
 	if wave.configuration_pending:
 		_state = State.BLOCKED
 		_spawn_queue.clear()
@@ -179,8 +196,11 @@ func _begin_wave() -> void:
 	wave_started.emit(wave.wave_number, wave_config.get_total_waves(), wave.boss_wave)
 	_emit_remaining_count()
 	if _spawn_queue.is_empty() and _timed_spawn_requests.is_empty():
-		_state = State.CLEARING
-		_schedule_clear_check()
+		if wave_config.advance_on_wave_clear:
+			_finish_current_wave_spawning()
+		else:
+			_state = State.CLEARING
+			_schedule_clear_check()
 
 
 func _build_spawn_queue(wave: WaveDefinition) -> bool:
@@ -197,6 +217,7 @@ func _build_spawn_queue(wave: WaveDefinition) -> bool:
 	_timed_spawn_requests = plan.timed_requests.duplicate()
 	_scheduled_spawn_count = plan.total_spawn_count
 	_scheduled_spawned_count = 0
+	formation_spawned = 0
 	_scheduled_spawn_budget = plan.total_spawn_budget
 	_spent_spawn_budget = 0
 	_spawn_sequence = 0
@@ -207,9 +228,10 @@ func _build_spawn_queue(wave: WaveDefinition) -> bool:
 func _update_spawning(delta: float) -> void:
 	var wave := wave_config.waves[_current_wave_index]
 	_spawn_phase_elapsed += delta
+	_update_graveyard_weather(wave)
 	_execute_due_timed_requests(wave)
 	if _spawn_queue.is_empty() and _timed_spawn_requests.is_empty():
-		if not wave.wait_for_spawn_phase_end or _spawn_phase_elapsed >= wave.get_effective_spawn_phase_duration():
+		if wave_config.advance_on_wave_clear or not wave.wait_for_spawn_phase_end or _spawn_phase_elapsed >= wave.get_effective_spawn_phase_duration():
 			_finish_current_wave_spawning()
 		return
 	if _spawn_queue.is_empty():
@@ -229,7 +251,7 @@ func _update_spawning(delta: float) -> void:
 	_spawn_time_left = maxf(wave.spawn_interval, 0.05)
 	_emit_remaining_count()
 	if _spawn_queue.is_empty() and _timed_spawn_requests.is_empty():
-		if not wave.wait_for_spawn_phase_end or _spawn_phase_elapsed >= wave.get_effective_spawn_phase_duration():
+		if wave_config.advance_on_wave_clear or not wave.wait_for_spawn_phase_end or _spawn_phase_elapsed >= wave.get_effective_spawn_phase_duration():
 			_finish_current_wave_spawning()
 
 
@@ -300,8 +322,11 @@ func _execute_spawn_request(request: WaveSpawnRequest, wave: WaveDefinition) -> 
 	if spawned.size() != request.spawn_count:
 		push_error("WaveManager: Spawned %d of %d '%s' requests in wave %d." % [spawned.size(), request.spawn_count, request.entry.enemy_id, wave.wave_number])
 	for enemy in spawned:
+		enemy.set_meta("spawn_origin", &"formation" if request.is_formation() or request.is_cluster() else &"scheduled")
 		if request.entry.is_boss:
 			_track_boss(enemy)
+	if request.is_formation() or request.is_cluster():
+		formation_spawned += spawned.size()
 	return request.spawn_count
 
 
@@ -309,6 +334,11 @@ func _execute_spawn_request(request: WaveSpawnRequest, wave: WaveDefinition) -> 
 ## exhausted. Living enemies from earlier waves remain tracked globally.
 func _finish_current_wave_spawning() -> void:
 	var wave := wave_config.waves[_current_wave_index]
+	if wave_config.advance_on_wave_clear and not wave.has_missing_reserved_boss():
+		_state = State.CLEARING
+		_schedule_clear_check()
+		return
+	_end_blood_moon()
 	if _current_wave_index < wave_config.waves.size() - 1:
 		_current_wave_index += 1
 		_begin_preparation()
@@ -332,6 +362,10 @@ func _on_enemy_entered(node: Node) -> void:
 	if _alive_enemies.has(instance_id):
 		return
 	_alive_enemies[instance_id] = enemy
+	total_lifetime_spawned += 1
+	match StringName(enemy.get_meta("spawn_origin", &"scheduled")):
+		&"extra_weather": extra_weather_spawned += 1
+		&"giant_frank_resurrection": extra_boss_spawned += 1
 	if large_enemy_count_warning > 0 and _alive_enemies.size() >= large_enemy_count_warning and not _large_count_warning_emitted:
 		_large_count_warning_emitted = true
 		push_warning("WaveManager: Large active enemy count reached %d." % _alive_enemies.size())
@@ -354,10 +388,20 @@ func _on_enemy_tree_exiting(enemy: BasicEnemy) -> void:
 
 func _track_boss(enemy: BasicEnemy) -> void:
 	_boss = enemy
+	if enemy is GiantFrank:
+		var lightning_callback := Callable(self, "_on_frank_lightning")
+		if not enemy.lightning_struck.is_connected(lightning_callback):
+			enemy.lightning_struck.connect(lightning_callback)
 	var health_callback := Callable(self, "_on_boss_health_changed")
 	if not enemy.health_changed.is_connected(health_callback):
 		enemy.health_changed.connect(health_callback)
 	boss_health_changed.emit(enemy.get_current_health(), enemy.max_health, true)
+
+## Boss lightning does not invoke weather skeletons, but does awaken zombie graves.
+## Its look is GiantFrank's own resurrection cinematic (FrankResurrectionFx:
+## black screen, one huge bolt), so no weather lightning is played here.
+func _on_frank_lightning(_position: Vector2) -> void:
+	_spawn_grave_zombies(&"giant_frank_resurrection")
 
 
 func _on_boss_health_changed(current_health: float, maximum_health: float) -> void:
@@ -378,6 +422,11 @@ func _evaluate_wave_clear() -> void:
 		return
 	_update_frozen_final_enrage()
 	if _scheduled_spawned_count < _scheduled_spawn_count or not _alive_enemies.is_empty():
+		return
+	if wave_config.advance_on_wave_clear and _current_wave_index < wave_config.waves.size() - 1:
+		_end_blood_moon()
+		_current_wave_index += 1
+		_begin_preparation()
 		return
 	_complete_planet()
 
@@ -404,11 +453,66 @@ func _complete_planet() -> void:
 	if _state == State.COMPLETED:
 		return
 	_state = State.COMPLETED
+	_end_blood_moon()
 	_enemy_spawner.call("set_spawning_enabled", false)
 	set_process(false)
 	remaining_enemy_count_changed.emit(0)
 	boss_health_changed.emit(0.0, 1.0, false)
 	planet_completed.emit(wave_config)
+
+## Lightning is transient; it does not replace the persistent Blood Moon.
+func _update_graveyard_weather(wave: WaveDefinition) -> void:
+	if wave_config.planet_id != &"graveyard_planet":
+		return
+	var fraction := _spawn_phase_elapsed / maxf(wave.get_effective_spawn_phase_duration(), 0.001)
+	var weather := get_node_or_null("../WeatherManager") as WeatherManager
+	if weather == null:
+		return
+	if wave.blood_moon_start_fraction >= 0.0 and fraction >= wave.blood_moon_start_fraction and not _weather_events.has("blood_start"):
+		_weather_events["blood_start"] = true
+		weather.set_blood_moon(true)
+	if wave.lightning_fraction >= 0.0 and fraction >= wave.lightning_fraction and not _weather_events.has("lightning"):
+		_weather_events["lightning"] = true
+		weather.play_graveyard_lightning()
+		var provider := get_node_or_null("../Battlefield")
+		var ship := get_node_or_null("../Ship") as Ship
+		# The skeletons claw out while the screen is black, so they are already
+		# standing there when the light comes back.
+		weather.get_graveyard_weather().connect("blackout_started",
+				_spawn_lightning_skeletons.bind(provider, ship), CONNECT_ONE_SHOT)
+	if wave.blood_moon_end_fraction >= 0.0 and fraction >= wave.blood_moon_end_fraction and not _weather_events.has("blood_end"):
+		_weather_events["blood_end"] = true
+		weather.set_blood_moon(false)
+
+## 1-3 skeletons out of every grave (lightning blackout).
+const LIGHTNING_SKELETONS_PER_GRAVE := Vector2i(1, 3)
+
+func _spawn_lightning_skeletons(provider: Node, ship: Ship) -> void:
+	if _state == State.STOPPED or _state == State.COMPLETED:
+		return
+	var points: Array[Vector2] = []
+	for grave in GraveSummoner.points(provider):
+		for _index in range(randi_range(LIGHTNING_SKELETONS_PER_GRAVE.x, LIGHTNING_SKELETONS_PER_GRAVE.y)):
+			points.append(grave)
+	GraveSummoner.spawn(provider, _enemies_container as Node2D, ship, GRAVE_SKELETON, points, &"extra_weather")
+	_spawn_grave_zombies(&"extra_weather")
+
+## Each intact zombie grave summons one additional zombie per lightning event.
+func _spawn_grave_zombies(origin: StringName) -> void:
+	if wave_config == null or wave_config.planet_id != &"graveyard_planet" or _state == State.STOPPED or _state == State.COMPLETED:
+		return
+	var provider := get_node_or_null("../Battlefield")
+	if provider == null or not provider.has_method("get_zombie_grave_points"):
+		return
+	var ship := get_node_or_null("../Ship") as Ship
+	var points: Array[Vector2] = provider.call("get_zombie_grave_points")
+	GraveSummoner.spawn(provider, _enemies_container as Node2D, ship, GRAVE_ZOMBIE, points, origin)
+
+
+func _end_blood_moon() -> void:
+	var weather := get_node_or_null("../WeatherManager") as WeatherManager
+	if weather != null and weather.blood_moon_active:
+		weather.set_blood_moon(false)
 
 
 func _emit_remaining_count() -> void:
@@ -453,6 +557,20 @@ func get_scheduled_spawn_budget() -> int:
 
 func get_spent_spawn_budget() -> int:
 	return _spent_spawn_budget
+
+## Scheduled figures are for the current wave; extra and lifetime figures are
+## for the current encounter. Formations are included in scheduled figures.
+func get_spawn_accounting() -> Dictionary:
+	return {
+		"scheduled_planned": _scheduled_spawn_count,
+		"scheduled_spawned": _scheduled_spawned_count,
+		"scheduled_remaining": maxi(_scheduled_spawn_count - _scheduled_spawned_count, 0),
+		"formation_spawned": formation_spawned,
+		"extra_weather_spawned": extra_weather_spawned,
+		"extra_boss_spawned": extra_boss_spawned,
+		"active_enemies": _alive_enemies.size(),
+		"total_lifetime_spawned": total_lifetime_spawned,
+	}
 
 
 func get_last_special_events() -> Array[Dictionary]:

@@ -84,7 +84,7 @@ const SUMMON_FADE_TIME: float = 0.6
 
 @export_group("Special QTE")
 @export_range(0.1, 20.0, 0.1) var special_charge_duration: float = 5.0
-@export_range(1, 20, 1) var special_clicks_per_part: int = 3
+@export_range(1, 20, 1) var special_clicks_per_part: int = 2
 @export_range(4.0, 50.0, 1.0) var body_part_hit_radius: float = 22.0
 @export_range(20.0, 200.0, 1.0) var special_reserved_radius: float = 108.0
 
@@ -361,7 +361,9 @@ func _find_valid_nearby_position(desired: Vector2, radius: float, used: Array[Ve
 	return Vector2(clampf(desired.x, bounds.position.x, bounds.end.x), clampf(desired.y, bounds.position.y, bounds.end.y))
 
 
-func _is_valid_world_position(candidate: Vector2, radius: float, used: Array[Vector2] = []) -> bool:
+## `check_overlaps` = false skips the physics overlap test (other enemies,
+## props): used as the teleport fallback so a crowded field cannot block it.
+func _is_valid_world_position(candidate: Vector2, radius: float, used: Array[Vector2] = [], check_overlaps: bool = true) -> bool:
 	var battlefield := _get_battlefield()
 	if battlefield != null:
 		var bounds := battlefield.get_world_bounds().grow(-radius - 4.0)
@@ -373,7 +375,7 @@ func _is_valid_world_position(candidate: Vector2, radius: float, used: Array[Vec
 	for occupied in used:
 		if candidate.distance_to(occupied) < radius * 2.0 + 2.0:
 			return false
-	if not is_inside_tree():
+	if not check_overlaps or not is_inside_tree():
 		return true
 	var shape := CircleShape2D.new()
 	shape.radius = radius
@@ -407,15 +409,29 @@ func _teleport_opposite_ship() -> void:
 		candidates.append(base)
 		candidates.append(base + tangent * float(step) * 12.0)
 		candidates.append(base - tangent * float(step) * 12.0)
-	for candidate in candidates:
-		if _is_valid_world_position(candidate, radius):
-			_teleport_from_world = global_position
-			_teleport_age = 0.0
-			global_position = candidate
-			_facing = global_position.direction_to(ship_center).angle()
-			teleport_count += 1
-			return
-	push_warning("DemonLord: could not find a valid opposite-side teleport destination.")
+	# 1) A spot clear of everything; 2) ignore other (moving) enemies and
+	# props, which used to block every spot once the field got crowded;
+	# 3) never skip the teleport: clamp the mirrored spot into the map.
+	for check_overlaps in [true, false]:
+		for candidate in candidates:
+			if _is_valid_world_position(candidate, radius, [], check_overlaps):
+				_teleport_to(candidate, ship_center)
+				return
+	var fallback := desired
+	var battlefield := _get_battlefield()
+	if battlefield != null:
+		var bounds := battlefield.get_world_bounds().grow(-radius - 4.0)
+		fallback = Vector2(clampf(desired.x, bounds.position.x, bounds.end.x), clampf(desired.y, bounds.position.y, bounds.end.y))
+	push_warning("DemonLord: no clear opposite-side spot; teleporting to the clamped mirror point.")
+	_teleport_to(fallback, ship_center)
+
+
+func _teleport_to(destination: Vector2, ship_center: Vector2) -> void:
+	_teleport_from_world = global_position
+	_teleport_age = 0.0
+	global_position = destination
+	_facing = global_position.direction_to(ship_center).angle()
+	teleport_count += 1
 
 
 ## Called from BattleMain._input before normal world/QTE unhandled input.
@@ -584,6 +600,8 @@ func _get_battlefield() -> Battlefield:
 
 func _perform_death_effect() -> void:
 	_cleanup_qte_state()
+	if not ArtifactManager.owns_artifact(&"demon_prism"):
+		ArtifactManager.grant_artifact(&"demon_prism")
 
 
 func _cleanup_qte_state() -> void:

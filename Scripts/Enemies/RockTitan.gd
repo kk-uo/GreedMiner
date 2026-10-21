@@ -81,12 +81,24 @@ func _draw() -> void:
 			_is_flashing(), _anim_time)
 
 
-## Releases split_count Rock Golems in a ring around the death position.
+const ROCKY_FINALE := preload("res://Scripts/Battle/RockyFinale.gd")
+
+
+## The first defeat plays the Rocky Planet finale (it owns the camera).
+func _finisher_keeps_camera() -> bool:
+	return ROCKY_FINALE.should_play(self)
+
+
+## Releases split_count Rock Golems in a ring around the death position -
+## except the first time, when the Rocky Planet finale takes over instead.
 func _perform_death_effect() -> void:
 	if not first_kill_artifact_id.is_empty():
 		ArtifactManager.grant_artifact(first_kill_artifact_id)
-	_shake_camera(SLAM_SHAKE * 1.4, 0.45)
+	# The boss finisher (BasicEnemy) shakes the camera now.
 	TitanCollapse.spawn(get_parent(), global_position, StoneVisual.TITAN_VISUAL_RADIUS)
+	if ROCKY_FINALE.should_play(self):
+		get_tree().current_scene.call("play_rocky_finale", global_position)
+		return
 	if split_enemy_scene == null:
 		push_warning("Rock Titan: Rock Golem split scene is missing.")
 		return

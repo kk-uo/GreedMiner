@@ -1,18 +1,24 @@
 class_name ResearchLab
 extends Node2D
 
-## Research lab in the top-left of the hold (style A, code-drawn): an open
-## dwarven forge line on an iron slab. A lava smelter on the left pours into a
-## conveyor belt that runs the length of the slab; over the middle of the belt
-## an automatic power hammer on a gantry slams down every PRESS_TIME seconds
-## (impact ring + sparks); the belt leaves through a hatch on the right. An
-## anvil and a hammer sit on the ground in front, and the dwarf scientist
-## (LabScientist) idles next to it. Presentation only: AsteroidHangar owns the
-## hotspot and BaseMain decides what a click does.
+## Research lab (style A, code-drawn): a long curved research bench that
+## follows the hall wall around the top-left corner (user pick). Along it,
+## from the lower end up: a lava smelter pouring onto a curved conveyor belt,
+## a power hammer on a gantry over the belt (slams every PRESS_TIME seconds),
+## an alchemy station with bubbling flasks, a chip-lab console, and a crystal
+## rack at the top end. Copper pipes run along the wall behind it; an anvil
+## and the dwarf scientist (LabScientist) stand on the floor in front.
+## The node sits at AsteroidHangar.LAB_CENTER (scaled by LAB_SCALE *
+## LAYOUT_SCALE); the bench path is built from AsteroidHangar.HALL.
+## Presentation only: AsteroidHangar owns the hotspot (contains_local()) and
+## BaseMain decides what a click does.
 
-## Local design size of the slab; the node is scaled by AsteroidHangar.
-const SIZE := Vector2(208.0, 128.0)
-const CHAMFER: float = 16.0
+## Bench width (local units) and how far its centre line sits inside the
+## hall wall (mock px); the bench runs between BENCH_FROM and BENCH_TO (mock).
+const BENCH_WIDTH: float = 58.0
+const BENCH_INSET: float = 26.0
+const BENCH_FROM := Vector2(176.0, 365.0)
+const BENCH_TO := Vector2(475.0, 104.0)
 ## Seconds per hammer stroke.
 const PRESS_TIME: float = 1.6
 
@@ -29,13 +35,13 @@ const STONE := Color("6E5D4F")
 const BELT := Color("24201C")
 const WOOD := Color("8A5A34")
 
-## Conveyor (local x range and y) and the hammer position on it.
-const BELT_FROM: float = -46.0
-const BELT_TO: float = 104.0
-const BELT_Y: float = -12.0
-const PRESS_AT := Vector2(8.0, -12.0)
-const SMELTER_AT := Vector2(-70.0, -14.0)
-const ANVIL_AT := Vector2(60.0, 92.0)
+const BRASS: Array[Color] = [Color("7A5A2A"), Color("B88A3E"), Color("E8C27A")]
+const COPPER := Color("A8643A")
+## Warm worktop so the bench sits in the hall's brown palette.
+const TOP_DARK := Color("4E3B2E")
+const TOP := Color("6E5642")
+const TOP_LIGHT := Color("8C705A")
+const COPPER_LIGHT := Color("D99A6A")
 
 var hovered: bool = false:
 	set(value):
@@ -44,12 +50,16 @@ var hovered: bool = false:
 
 var _time: float = 0.0
 var _scientist: LabScientist
+## Bench centre line, local space, evenly spaced points.
+var _path := PackedVector2Array()
 
 
 func _ready() -> void:
+	_path = bench_path_local()
 	_scientist = LabScientist.new()
-	_scientist.position = Vector2(-20.0, SIZE.y * 0.5 + 22.0)
-	_scientist.base_facing = deg_to_rad(-70.0)
+	var at := _frame(0.6)
+	_scientist.position = at[0] + at[2] * (BENCH_WIDTH * 0.5 + 26.0)
+	_scientist.base_facing = (-at[2]).angle()
 	add_child(_scientist)
 
 
@@ -58,9 +68,12 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-## Local-space rectangle used for hit testing.
-static func get_hit_rect() -> Rect2:
-	return Rect2(-SIZE * 0.5, SIZE).grow(8.0)
+## Hit test in this node's local space: on (or just in front of) the bench.
+func contains_local(point: Vector2) -> bool:
+	for index in range(_path.size() - 1):
+		if Geometry2D.get_closest_point_to_segment(point, _path[index], _path[index + 1]).distance_to(point) <= BENCH_WIDTH * 0.5 + 14.0:
+			return true
+	return false
 
 
 ## 0..1 position inside the current hammer stroke.
@@ -92,51 +105,38 @@ func _draw() -> void:
 
 
 func _paint() -> void:
-	var w := SIZE.x
-	var h := SIZE.y
-	# Iron slab.
-	_pen.draw_colored_polygon(_octagon(w, h, CHAMFER, Vector2(8.0, 10.0)), Palette.SHADOW_COLOR)
-	_pen.draw_colored_polygon(_octagon(w, h, CHAMFER), ShipHullVisual.FRAME_RIM)
-	_pen.draw_colored_polygon(_octagon(w - 6.0, h - 6.0, CHAMFER - 2.0, Vector2(1.5, 1.5)), ShipHullVisual.FRAME_IRON)
-	# Hazard stripe along the front edge.
-	for k in range(9):
-		var x := -w * 0.5 + 26.0 + float(k) * 18.0
-		_pen.draw_colored_polygon(PackedVector2Array([Vector2(x, h * 0.5 - 9.0), Vector2(x + 8.0, h * 0.5 - 9.0), Vector2(x + 4.0, h * 0.5 - 4.0), Vector2(x - 4.0, h * 0.5 - 4.0)]), Color(Palette.GOLD, 0.55))
+	if _path.size() < 2:
+		return
+	var w := BENCH_WIDTH
+	_glow_on_floor()
+	_draw_pipes()
+	# Bench: shadow, stone base, iron top with a lit front lip and seams.
+	_pen.draw_colored_polygon(_band(-w * 0.5, w * 0.5 + 6.0, Vector2(8.0, 10.0)), Palette.SHADOW_COLOR)
+	_pen.draw_colored_polygon(_band(-w * 0.5, w * 0.5 + 4.0), STONE_DARK)
+	_pen.draw_colored_polygon(_band(-w * 0.5 + 3.0, w * 0.5), TOP_DARK)
+	_pen.draw_colored_polygon(_band(-w * 0.5 + 6.0, w * 0.5 - 4.0), TOP)
+	_pen.draw_polyline(_offset_line(-w * 0.5 + 8.0), TOP_LIGHT, 2.0)
+	_pen.draw_polyline(_offset_line(w * 0.5 - 1.5), BRASS[1], 3.0)
+	_pen.draw_polyline(_offset_line(w * 0.5 - 3.0), BRASS[2], 1.0)
+	var seams := 9
+	for k in range(1, seams):
+		var f := _frame(float(k) / float(seams))
+		_pen.draw_line(f[0] - f[2] * (w * 0.5 - 6.0), f[0] + f[2] * (w * 0.5 - 4.0), IRON, 1.5)
+		_pen.draw_circle(f[0] + f[2] * (w * 0.5 - 1.5), 2.0, BRASS[2])
 
-	_draw_smelter()
-	_draw_console(Vector2(-92.0, 14.0))
-	_draw_belt()
-	_draw_exit_hatch()
-	_draw_press()
-	_draw_anvil(ANVIL_AT)
+	_draw_curved_belt(0.1, 0.46)
+	_draw_bench_smelter(0.06)
+	_draw_bench_press(0.3)
+	_draw_flasks(0.58)
+	_draw_bench_console(0.73)
+	_draw_crystal_rack(0.9)
+	var anvil := _frame(0.36)
+	_draw_anvil(anvil[0] + anvil[2] * (w * 0.5 + 34.0))
 
 	if hovered:
-		var outline := _octagon(w + 22.0, h + 22.0, CHAMFER + 6.0)
+		var outline := _band(-w * 0.5 - 10.0, w * 0.5 + 14.0)
 		outline.append(outline[0])
 		_pen.draw_polyline(outline, Palette.ACCENT, 4.0)
-
-
-func _draw_smelter() -> void:
-	var c := SMELTER_AT
-	var r := 17.0
-	_pen.draw_circle(c + Vector2(3, 4), r + 6.0, Palette.SHADOW_COLOR)
-	_pen.draw_circle(c, r + 6.0, STONE_DARK)
-	_pen.draw_circle(c + Vector2(-1, -1), r + 3.0, STONE)
-	_pen.draw_circle(c, r * 2.0, Color(LAVA_MID, 0.08))
-	_pen.draw_circle(c, r, LAVA)
-	_pen.draw_circle(c, r * (0.62 + 0.16 * (0.5 + 0.5 * sin(_time * 3.5))), LAVA_MID)
-	_pen.draw_circle(c + Vector2(-r * 0.3, -r * 0.25), r * 0.3, Color(LAVA_WHITE, 0.55 + 0.4 * sin(_time * 5.0)))
-	# Spout pouring onto the start of the belt.
-	var from := c + Vector2(r + 2.0, 2.0)
-	var to := Vector2(BELT_FROM + 6.0, BELT_Y)
-	_pen.draw_line(from, to, LAVA_DARK, 7.0)
-	_pen.draw_line(from, to, LAVA_MID, 4.0)
-	var flow := fposmod(_time * 30.0, 8.0)
-	var direction := (to - from).normalized()
-	var d := flow
-	while d < from.distance_to(to):
-		_pen.draw_line(from + direction * d, from + direction * minf(d + 3.0, from.distance_to(to)), LAVA_WHITE, 1.4)
-		d += 8.0
 
 
 func _draw_console(at: Vector2) -> void:
@@ -150,69 +150,7 @@ func _draw_console(at: Vector2) -> void:
 	Palette.draw_rounded_rect(_pen, Rect2(at + Vector2(5.0, 13.0), Vector2(fill, 4.0)), 1.5, Palette.COBALT)
 
 
-func _draw_belt() -> void:
-	var rect := Rect2(BELT_FROM, BELT_Y - 8.0, BELT_TO - BELT_FROM, 16.0)
-	Palette.draw_rounded_rect(_pen, rect, 4.0, IRON)
-	Palette.draw_rounded_rect(_pen, rect.grow(-2.0), 3.0, BELT)
-	# Moving cleats.
-	var shift := fposmod(_time * 24.0, 8.0)
-	var x := rect.position.x + 4.0 + shift
-	while x < rect.end.x - 4.0:
-		_pen.draw_line(Vector2(x, BELT_Y - 5.0), Vector2(x, BELT_Y + 5.0), IRON_MID, 3.0)
-		x += 8.0
-	for end_x in [rect.position.x + 5.0, rect.end.x - 5.0]:
-		_pen.draw_circle(Vector2(end_x, BELT_Y), 7.0, IRON_MID)
-		_pen.draw_circle(Vector2(end_x, BELT_Y), 2.5, IRON)
-	# The belt glows where the hammer just struck.
-	var k := _stroke()
-	if k > 0.6 and k < 0.95:
-		var heat := 1.0 - (k - 0.6) / 0.35
-		_pen.draw_circle(PRESS_AT, 14.0, Color(LAVA_MID, 0.35 * heat))
-		Palette.draw_rounded_rect(_pen, Rect2(PRESS_AT - Vector2(9.0, 5.0), Vector2(18.0, 10.0)), 2.0, Color(LAVA_HOT, 0.8 * heat))
-
-
-func _draw_exit_hatch() -> void:
-	var at := Vector2(BELT_TO - 10.0, BELT_Y)
-	Palette.draw_rounded_rect(_pen, Rect2(at - Vector2(8.0, 16.0), Vector2(16.0, 32.0)), 3.0, ShipHullVisual.FRAME_RIM)
-	Palette.draw_rounded_rect(_pen, Rect2(at - Vector2(5.0, 11.0), Vector2(10.0, 22.0)), 2.0, Color("0E0B09"))
-	var blink := fmod(_time, 1.2) < 0.6
-	_pen.draw_circle(at + Vector2(0.0, -20.0), 2.6, Palette.ACCENT if blink else Palette.MECH_LIGHT)
-
-
-func _draw_press() -> void:
-	var c := PRESS_AT
-	# Gantry: two posts and a crossbeam.
-	for x in [-26.0, 18.0]:
-		Palette.draw_rounded_rect(_pen, Rect2(c + Vector2(x, -34.0), Vector2(10.0, 62.0)), 3.0, ShipHullVisual.POD_BAND)
-	Palette.draw_rounded_rect(_pen, Rect2(c + Vector2(-30.0, -38.0), Vector2(58.0, 12.0)), 3.0, ShipHullVisual.FRAME_IRON)
-	Palette.draw_rounded_rect(_pen, Rect2(c + Vector2(-28.0, -37.0), Vector2(54.0, 5.0)), 2.0, ShipHullVisual.FRAME_RIM)
-	Palette.draw_rounded_rect(_pen, Rect2(c + Vector2(-28.0, 26.0), Vector2(54.0, 5.0)), 2.0, Palette.ACCENT)
-
-	var k := _stroke()
-	var lift := hammer_lift(k)
-	var scale_k := lerpf(0.97, 1.22, lift)
-	var head := Vector2(34.0, 30.0) * scale_k
-	var shadow := lerpf(3.0, 14.0, lift)
-	_pen.draw_rect(Rect2(c - head * 0.5 + Vector2(shadow, shadow * 1.25), head), Color(0, 0, 0, 0.3))
-	var rect := Rect2(c - head * 0.5, head)
-	Palette.draw_rounded_rect(_pen, rect, 5.0, IRON)
-	Palette.draw_rounded_rect(_pen, Rect2(rect.position + Vector2(3.0, 3.0), rect.size - Vector2(6.0, 8.0)), 4.0, IRON_MID)
-	Palette.draw_rounded_rect(_pen, Rect2(rect.position + Vector2(5.0, 5.0), Vector2(head.x * 0.45, head.y * 0.22)), 2.0, Color(IRON_LIGHT, 0.6))
-	Palette.draw_rounded_rect(_pen, Rect2(c - head * 0.18, head * 0.36), 3.0, IRON)
-	_pen.draw_circle(c, minf(head.x, head.y) * 0.1, Palette.ACCENT)
-	_pen.draw_rect(Rect2(rect.position.x + 2.0, rect.end.y - 6.0, rect.size.x - 4.0, 3.0), Color(Palette.GOLD, 0.85))
-
-	# Impact: expanding ring and a burst of sparks.
-	if k >= 0.6 and k < 0.82:
-		var t := (k - 0.6) / 0.22
-		_pen.draw_arc(c, lerpf(16.0, 34.0, t), 0.0, TAU, 32, Color(LAVA_WHITE, 0.9 * (1.0 - t)), 3.0 * (1.0 - t) + 0.5)
-		for index in range(8):
-			var a := TAU * float(index) / 8.0 + 0.3
-			var dir := Vector2(cos(a), sin(a) * 0.8)
-			_pen.draw_line(c + dir * lerpf(16.0, 22.0, t), c + dir * lerpf(22.0, 34.0, t), Color(LAVA_HOT if index % 2 == 0 else LAVA_WHITE, 1.0 - t), 2.0)
-
-
-## Anvil on the ground in front of the slab, with a hammer leaning on it.
+## Anvil on the ground in front of the bench, with a hammer leaning on it.
 func _draw_anvil(at: Vector2) -> void:
 	var shape := [Vector2(-24, -9), Vector2(14, -9), Vector2(30, -3), Vector2(14, 3), Vector2(14, 9), Vector2(-24, 9)]
 	var shadow := PackedVector2Array()
@@ -233,9 +171,267 @@ func _draw_anvil(at: Vector2) -> void:
 	_pen.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-static func _octagon(w: float, h: float, c: float, offset: Vector2 = Vector2.ZERO) -> PackedVector2Array:
-	return Palette.offset_points(PackedVector2Array([
-		Vector2(-w / 2 + c, -h / 2), Vector2(w / 2 - c, -h / 2), Vector2(w / 2, -h / 2 + c),
-		Vector2(w / 2, h / 2 - c), Vector2(w / 2 - c, h / 2), Vector2(-w / 2 + c, h / 2),
-		Vector2(-w / 2, h / 2 - c), Vector2(-w / 2, -h / 2 + c),
-	]), offset)
+# ==========================================
+# Bench geometry
+# ==========================================
+
+## The bench centre line in mock coordinates: the hall outline pushed in by
+## BENCH_INSET (rounded joins), from BENCH_FROM to BENCH_TO, smoothed and
+## resampled every 4 mock px.
+static func bench_path_mock() -> PackedVector2Array:
+	var insets := Geometry2D.offset_polygon(PackedVector2Array(AsteroidHangar.HALL), -BENCH_INSET, Geometry2D.JOIN_ROUND)
+	if insets.is_empty():
+		return PackedVector2Array()
+	var ring: PackedVector2Array = insets[0]
+	var start := _nearest_index(ring, BENCH_FROM)
+	var end := _nearest_index(ring, BENCH_TO)
+	var raw := PackedVector2Array()
+	# Walk the shorter way round from start to end.
+	var forward := (end - start + ring.size()) % ring.size()
+	var step := 1 if forward <= ring.size() / 2 else -1
+	var index := start
+	raw.append(ring[index])
+	while index != end:
+		index = (index + step + ring.size()) % ring.size()
+		raw.append(ring[index])
+	# Chaikin smoothing, then even spacing.
+	for pass_index in range(3):
+		var smooth := PackedVector2Array([raw[0]])
+		for k in range(raw.size() - 1):
+			smooth.append(raw[k].lerp(raw[k + 1], 0.25))
+			smooth.append(raw[k].lerp(raw[k + 1], 0.75))
+		smooth.append(raw[raw.size() - 1])
+		raw = smooth
+	var even := PackedVector2Array([raw[0]])
+	var carry := 0.0
+	for k in range(raw.size() - 1):
+		var a := raw[k]
+		var b := raw[k + 1]
+		var length := a.distance_to(b)
+		var t := 4.0 - carry
+		while t <= length:
+			even.append(a.lerp(b, t / length))
+			t += 4.0
+		carry = length - (t - 4.0)
+	return even
+
+
+static func _nearest_index(points: PackedVector2Array, target: Vector2) -> int:
+	var best := 0
+	for index in range(points.size()):
+		if points[index].distance_to(target) < points[best].distance_to(target):
+			best = index
+	return best
+
+
+## The path in this node's local space (node at LAB_CENTER, scale LAB_SCALE).
+static func bench_path_local() -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for p in bench_path_mock():
+		out.append((p - AsteroidHangar.LAB_CENTER) / AsteroidHangar.LAB_SCALE)
+	return out
+
+
+## Mock point in the middle of the bench (hotspot centre for tutorials).
+static func center_mock_point() -> Vector2:
+	var path := bench_path_mock()
+	return path[path.size() / 2] if path.size() > 0 else AsteroidHangar.LAB_CENTER
+
+
+## Mock point for the "LAB" name tag: in front of the middle of the bench.
+static func tag_mock_point() -> Vector2:
+	var path := bench_path_mock()
+	if path.size() < 2:
+		return AsteroidHangar.LAB_CENTER
+	var index := path.size() / 2
+	var tangent := (path[mini(index + 1, path.size() - 1)] - path[index - 1]).normalized()
+	var normal := tangent.orthogonal()
+	if normal.dot(Vector2(640.0, 360.0) - path[index]) < 0.0:
+		normal = -normal
+	return path[index] + normal * 46.0
+
+
+## Obstacles for the base crew (mock): circles along the bench.
+static func obstacle_circles_mock() -> Array:
+	var result := []
+	var path := bench_path_mock()
+	for index in range(0, path.size(), 8):
+		result.append([path[index], BENCH_WIDTH * AsteroidHangar.LAB_SCALE * 0.5 + 10.0])
+	return result
+
+
+## [point, tangent, floor normal] at fraction f (0..1) along the bench.
+func _frame(f: float) -> Array:
+	var count := _path.size()
+	var i := clampi(int(round(f * float(count - 1))), 0, count - 1)
+	var a := _path[maxi(i - 1, 0)]
+	var b := _path[mini(i + 1, count - 1)]
+	var tangent := (b - a).normalized()
+	var normal := tangent.orthogonal()
+	var hall_center := (Vector2(640.0, 360.0) - AsteroidHangar.LAB_CENTER) / AsteroidHangar.LAB_SCALE
+	if normal.dot(hall_center - _path[i]) < 0.0:
+		normal = -normal
+	return [_path[i], tangent, normal]
+
+
+## Polygon of the strip between offsets `inner` and `outer` (toward the floor).
+func _band(inner: float, outer: float, shift: Vector2 = Vector2.ZERO, from_f: float = 0.0, to_f: float = 1.0) -> PackedVector2Array:
+	var front := PackedVector2Array()
+	var back := PackedVector2Array()
+	var count := _path.size()
+	var first := int(from_f * float(count - 1))
+	var last := int(to_f * float(count - 1))
+	for i in range(first, last + 1):
+		var f := _frame(float(i) / float(count - 1))
+		back.append(f[0] + f[2] * inner + shift)
+		front.append(f[0] + f[2] * outer + shift)
+	front.reverse()
+	back.append_array(front)
+	return back
+
+
+func _offset_line(offset: float, from_f: float = 0.0, to_f: float = 1.0) -> PackedVector2Array:
+	var line := PackedVector2Array()
+	var count := _path.size()
+	for i in range(int(from_f * float(count - 1)), int(to_f * float(count - 1)) + 1):
+		var f := _frame(float(i) / float(count - 1))
+		line.append(f[0] + f[2] * offset)
+	return line
+
+
+# ==========================================
+# Stations
+# ==========================================
+
+func _glow_on_floor() -> void:
+	var f := _frame(0.08)
+	for k in range(4):
+		_pen.draw_circle(f[0] + f[2] * 40.0, 110.0 - 22.0 * float(k), Color(LAVA_MID, 0.045))
+
+
+## Copper pipes along the wall behind the bench, with brackets.
+func _draw_pipes() -> void:
+	var w := BENCH_WIDTH
+	for k in range(2):
+		var line := _offset_line(-w * 0.5 - 5.0 - float(k) * 7.0)
+		_pen.draw_polyline(line, COPPER, 4.0)
+		_pen.draw_polyline(Palette.offset_points(line, Vector2(-0.8, -0.8)), COPPER_LIGHT, 1.2)
+	for k in range(1, 12):
+		var f := _frame(float(k) / 12.0)
+		_pen.draw_line(f[0] - f[2] * (w * 0.5 + 2.0), f[0] - f[2] * (w * 0.5 + 16.0), IRON, 3.0)
+
+
+func _draw_curved_belt(from_f: float, to_f: float) -> void:
+	_pen.draw_colored_polygon(_band(-11.0, 11.0, Vector2.ZERO, from_f, to_f), IRON)
+	_pen.draw_colored_polygon(_band(-8.0, 8.0, Vector2.ZERO, from_f, to_f), BELT)
+	var count := _path.size()
+	var first := int(from_f * float(count - 1))
+	var last := int(to_f * float(count - 1))
+	var shift := int(_time * 6.0) % 2
+	for i in range(first + shift, last, 2):
+		var f := _frame(float(i) / float(count - 1))
+		_pen.draw_line(f[0] - f[2] * 6.0, f[0] + f[2] * 6.0, IRON_MID, 2.0)
+	# Glowing ingots riding toward the hammer, cooled ones after it.
+	for k in range(4):
+		var u := fposmod(_time * 0.06 + float(k) * 0.25, 1.0)
+		var f := _frame(lerpf(from_f, to_f, u))
+		var hot := u < 0.55
+		_pen.draw_set_transform(f[0], f[1].angle(), Vector2.ONE)
+		Palette.draw_rounded_rect(_pen, Rect2(-7, -4, 14, 8), 2.0, LAVA_MID if hot else Palette.GOLD)
+		Palette.draw_rounded_rect(_pen, Rect2(-6, -3.5, 7, 3), 1.0, LAVA_WHITE if hot else Palette.GOLD_LIGHT)
+		_pen.draw_set_transform(Vector2.ZERO)
+
+
+func _draw_bench_smelter(at_f: float) -> void:
+	var f := _frame(at_f)
+	var c: Vector2 = f[0] - f[2] * 4.0
+	var r := 28.0
+	_pen.draw_circle(c + Vector2(4, 6), r + 8.0, Palette.SHADOW_COLOR)
+	_pen.draw_circle(c, r + 8.0, STONE_DARK)
+	_pen.draw_circle(c + Vector2(-1.5, -1.5), r + 4.0, STONE)
+	_pen.draw_circle(c, r, LAVA)
+	_pen.draw_circle(c, r * (0.62 + 0.16 * (0.5 + 0.5 * sin(_time * 3.5))), LAVA_MID)
+	_pen.draw_circle(c + Vector2(-r * 0.3, -r * 0.25), r * 0.3, Color(LAVA_WHITE, 0.55 + 0.4 * sin(_time * 5.0)))
+	# Spout onto the start of the belt.
+	var to: Vector2 = _frame(0.12)[0]
+	_pen.draw_line(c, to, LAVA_DARK, 7.0)
+	_pen.draw_line(c, to, LAVA_MID, 4.0)
+
+
+func _draw_bench_press(at_f: float) -> void:
+	var f := _frame(at_f)
+	var c: Vector2 = f[0]
+	_pen.draw_set_transform(c, f[1].angle() + PI * 0.5, Vector2.ONE)
+	# Gantry posts either side of the belt, crossbeam over it.
+	for x in [-30.0, 22.0]:
+		Palette.draw_rounded_rect(_pen, Rect2(Vector2(x, -26.0), Vector2(9.0, 52.0)), 3.0, ShipHullVisual.POD_BAND)
+	Palette.draw_rounded_rect(_pen, Rect2(Vector2(-32.0, -30.0), Vector2(64.0, 10.0)), 3.0, ShipHullVisual.FRAME_IRON)
+	var k := _stroke()
+	var lift := hammer_lift(k)
+	var head := Vector2(36.0, 30.0) * lerpf(0.97, 1.2, lift)
+	var shadow := lerpf(3.0, 12.0, lift)
+	_pen.draw_rect(Rect2(-head * 0.5 + Vector2(shadow, shadow), head), Color(0, 0, 0, 0.3))
+	Palette.draw_rounded_rect(_pen, Rect2(-head * 0.5, head), 5.0, IRON)
+	Palette.draw_rounded_rect(_pen, Rect2(-head * 0.5 + Vector2(3, 3), head - Vector2(6, 8)), 4.0, IRON_MID)
+	_pen.draw_circle(Vector2.ZERO, 3.0, Palette.ACCENT)
+	if k >= 0.6 and k < 0.82:
+		var t := (k - 0.6) / 0.22
+		_pen.draw_arc(Vector2.ZERO, lerpf(14.0, 30.0, t), 0.0, TAU, 28, Color(LAVA_WHITE, 0.9 * (1.0 - t)), 3.0 * (1.0 - t) + 0.5)
+		for index in range(8):
+			var a := TAU * float(index) / 8.0 + 0.3
+			var dir := Vector2(cos(a), sin(a))
+			_pen.draw_line(dir * lerpf(14.0, 20.0, t), dir * lerpf(20.0, 30.0, t), Color(LAVA_HOT if index % 2 == 0 else LAVA_WHITE, 1.0 - t), 2.0)
+	_pen.draw_set_transform(Vector2.ZERO)
+
+
+## Alchemy: three flasks bubbling in different colours, linked by glass tubes.
+func _draw_flasks(at_f: float) -> void:
+	var colors := [Palette.COBALT, Color("6BE04A"), Color("C4A0FF")]
+	var spots := [-0.035, 0.0, 0.035]
+	var prev := Vector2.ZERO
+	for k in range(3):
+		var f := _frame(at_f + spots[k])
+		var p: Vector2 = f[0] + f[2] * 2.0
+		var r := 10.5 if k == 1 else 8.5
+		if k > 0:
+			_pen.draw_line(prev, p, Color(1, 1, 1, 0.35), 2.0)
+		_pen.draw_circle(p + Vector2(2, 3), r, Palette.SHADOW_COLOR)
+		_pen.draw_circle(p, r, Color(0.85, 0.92, 1.0, 0.55))
+		_pen.draw_circle(p + Vector2(0, r * 0.2), r * 0.72, colors[k])
+		_pen.draw_circle(p + Vector2(-r * 0.35, -r * 0.35), r * 0.22, Color(1, 1, 1, 0.8))
+		var ph := fposmod(_time * 1.2 + float(k) * 0.37, 1.0)
+		_pen.draw_circle(p + Vector2(0, -r * ph * 1.6), 1.6 * (1.0 - ph), Color(colors[k].lightened(0.5), 1.0 - ph))
+		prev = p
+
+
+## Chip-lab console: two screens and a row of blinking keys.
+func _draw_bench_console(at_f: float) -> void:
+	var f := _frame(at_f)
+	_pen.draw_set_transform(f[0], f[1].angle(), Vector2.ONE * 1.3)
+	Palette.draw_rounded_rect(_pen, Rect2(-30, -16, 60, 28), 4.0, ShipHullVisual.FRAME_RIM)
+	for x in [-26.0, 2.0]:
+		Palette.draw_rounded_rect(_pen, Rect2(x, -13, 24, 14), 2.0, Palette.UI_PANEL)
+		var fill := 4.0 + 16.0 * (0.5 + 0.5 * sin(_time * 1.3 + x))
+		Palette.draw_rounded_rect(_pen, Rect2(x + 3, -4, fill, 3), 1.0, Palette.COBALT)
+		_pen.draw_line(Vector2(x + 3, -9), Vector2(x + 14, -9), Color(Palette.COBALT_LIGHT, 0.7), 1.0)
+	var keys := [Palette.ACCENT, Palette.COBALT, Palette.GOLD, Palette.ACCENT, Palette.COBALT]
+	for k in range(keys.size()):
+		var on := fmod(_time * 1.6 - float(k) * 0.2, 1.6) < 1.0
+		Palette.draw_rounded_rect(_pen, Rect2(-24 + float(k) * 10.0, 4, 7, 4), 1.0, keys[k] if on else Palette.MECH_LIGHT)
+	_pen.draw_set_transform(Vector2.ZERO)
+
+
+## Crystal rack at the top end: blue, gold and red samples on a shelf.
+func _draw_crystal_rack(at_f: float) -> void:
+	var f := _frame(at_f)
+	_pen.draw_set_transform(f[0], f[1].angle(), Vector2.ONE * 1.3)
+	Palette.draw_rounded_rect(_pen, Rect2(-34, -12, 68, 22), 3.0, Palette.GOBLIN_WOOD_DARK)
+	Palette.draw_rounded_rect(_pen, Rect2(-32, -10, 64, 18), 2.0, WOOD)
+	var gems := [Palette.COBALT, Palette.GOLD, Color("E04B42"), Palette.COBALT, Palette.GOLD]
+	for k in range(gems.size()):
+		var p := Vector2(-24.0 + float(k) * 12.0, -1.0)
+		var glow := 0.75 + 0.25 * sin(_time * 2.0 + float(k))
+		_pen.draw_circle(p, 7.0, Color(gems[k], 0.15 * glow))
+		_pen.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -7), p + Vector2(4, 0), p + Vector2(0, 5), p + Vector2(-4, 0)]), gems[k])
+		_pen.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -7), p + Vector2(-4, 0), p + Vector2(0, -1)]), Color(1, 1, 1, 0.55))
+	_pen.draw_set_transform(Vector2.ZERO)

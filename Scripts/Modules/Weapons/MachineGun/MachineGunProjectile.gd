@@ -23,6 +23,12 @@ var direction: Vector2 = Vector2.RIGHT
 var damage: float = 5.0
 var source_weapon: WeaponModule
 var _hit: bool = false
+var _ghost: RefCounted
+const GHOST_SHOT_ART := preload("res://Scripts/VFX/GhostShotArt.gd")
+var _ghost_time: float = 0.0
+
+func enable_ghost_piercing(initial_pierces: int) -> void:
+	_ghost = preload("res://Scripts/Modules/Weapons/GhostProjectileState.gd").new(initial_pierces)
 
 
 # ==========================================
@@ -43,6 +49,10 @@ func _ready() -> void:
 # ==========================================
 
 func _draw() -> void:
+	# Ghost Bullet: a translucent spirit-shot instead (presentation).
+	if _ghost != null:
+		GHOST_SHOT_ART.draw(self, direction, _ghost_time, 3.0, float(get_instance_id() % 97))
+		return
 	# Style A: a short warm capsule aligned with its flight direction.
 	draw_set_transform(Vector2.ZERO, direction.angle(), Vector2.ONE)
 	draw_rect(Rect2(-5.0, -2.5, 10.0, 5.0), Palette.SHOT)
@@ -60,6 +70,9 @@ func _process(delta: float) -> void:
 	# normalized() ensures consistent speed.
 	# delta makes movement frame-rate independent.
 	position += direction.normalized() * speed * delta
+	if _ghost != null:
+		_ghost_time += delta
+		queue_redraw()
 
 
 # ==========================================
@@ -67,11 +80,18 @@ func _process(delta: float) -> void:
 # ==========================================
 
 func _on_area_entered(area: Area2D) -> void:
+	# A tree (or other destructible prop) in the way stops the bullet.
+	if not _hit and area.is_in_group(&"destructible_props"):
+		_hit = true
+		area.call("take_damage", damage)
+		queue_free()
+		return
 	# Check whether the collided Area2D
 	# is an instance of BasicEnemy.
 	if not _hit and area is BasicEnemy and not (area as BasicEnemy).is_dying():
 		var enemy := area as BasicEnemy
-		_hit = true
+		if _ghost != null and not _ghost.register_target(enemy):
+			return
 		var before := enemy.get_current_health()
 
 		# Apply projectile damage to the enemy.
@@ -82,5 +102,7 @@ func _on_area_entered(area: Area2D) -> void:
 		# Print a debug message.
 		print("Projectile hit enemy! Damage: %s" % damage)
 
-		# Remove the projectile after impact.
-		queue_free()
+		# A kill replenishes one penetration before this impact consumes it.
+		if _ghost == null or not _ghost.continue_after_hit(not is_instance_valid(enemy) or enemy.is_dying()):
+			_hit = true
+			queue_free()

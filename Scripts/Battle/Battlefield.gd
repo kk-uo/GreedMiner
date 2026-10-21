@@ -51,10 +51,20 @@ var _pen: Variant = self
 @export var crater_spacing: float = 420.0
 @export var deposit_spacing: float = 300.0
 @export var max_deposits: int = 14
+## Keep crystal deposits away from the map edge, including their visual extent.
+@export_range(0.0, 1000.0, 10.0) var crystal_edge_margin: float = 200.0
+## Screen-space padding for playable Rocky crystals at map generation time.
+@export_range(0.0, 300.0, 10.0) var crystal_view_margin: float = 150.0
 ## Only the battle scene enables interactive Rocky Planet crystals.
 @export var interactive_rocky_crystals: bool = false
+## Only the battle scene turns Verdant Planet trees into destructible nodes
+## (VerdantTree): shots that happen to hit them chop them down for ore.
+@export var interactive_verdant_trees: bool = false
+## Only the battle scene turns Volcanic Planet craters into clickable oozing
+## vents (LavaVent) that erupt and burn nearby enemies.
+@export var interactive_lava_vents: bool = false
 ## Chance that an individual Rocky Planet crystal grants the red artifact.
-@export_range(0.0, 1.0, 0.01) var red_crystal_chance: float = 0.05
+@export_range(0.0, 1.0, 0.01) var red_crystal_chance: float = 0.01
 
 @export_group("Special sites")
 ## Spacing between reserved interactive-object sites.
@@ -79,6 +89,17 @@ var _patches: Array[Dictionary] = []
 var _craters: Array[Dictionary] = []
 var _speckles: Array[Dictionary] = []
 var _deposits: Array[Dictionary] = []
+## Battle maps of these planets get mineable ore deposits (OreArt kinds) for
+## the dwarves instead of the old decorative crystal deposits.
+const PLANET_ORES := {
+	&"jungle": [&"amber"],
+	&"frozen": [&"aurora", &"silver"],
+	&"volcanic": [&"obsidian", &"fire"],
+	&"graveyard": [&"biomass", &"soul"],
+}
+@export var ore_sites_per_map: int = 6
+@export var ore_site_spacing: float = 220.0
+var _ore_sites: Array[Dictionary] = []   # {position, kind, size}
 var _rocks: Array[Dictionary] = []
 ## Goblin huts with a campfire (jungle theme only).
 var _camps: Array[Dictionary] = []
@@ -89,6 +110,13 @@ var _special_sites: Array[Dictionary] = []
 var _lava_streams: Array[Dictionary] = []
 var _cracks: Array[Dictionary] = []
 var _lava_layer: Node2D
+## Volcanic Planet: big lightning-shaped lava rifts (LavaFissureArt) that
+## replace the old thin lava streams; demons climb out of them each wave.
+const LAVA_FISSURE_ART := preload("res://Scripts/Battle/LavaFissureArt.gd")
+const LAVA_FISSURE_LAYER := preload("res://Scripts/Battle/LavaFissureLayer.gd")
+@export var lava_fissure_count: int = 2
+var _lava_fissures: Array[Dictionary] = []
+var _fissure_layer: Node2D
 ## Occupied circles [Vector2 center, float radius] in local space.
 var _claims: Array = []
 
@@ -97,6 +125,12 @@ var _claims: Array = []
 var _interactables: Node2D
 const ROCKY_CRYSTAL := preload("res://Scripts/Battle/RockyCrystal.gd")
 var _crystal_container: Node2D
+## Graveyard theme: tombstones and grave clusters (decor "grave").
+const GRAVEYARD_TOMBSTONES := preload("res://Scripts/Battle/Graveyard/GraveyardTombstones.gd")
+var _graveyard_tombs: Node2D
+## Extra map size currently applied from the theme's "map_extra" (the map
+## grows equally on every side, so its center - and the ship - stay put).
+var _applied_map_extra: float = 0.0
 
 
 func _ready() -> void:
@@ -114,22 +148,30 @@ func generate(seed_value: int = 0) -> void:
 	rng.seed = _seed
 	_setup_noise()
 	_claims.clear()
+	_apply_theme_map_size()
 
 	_build_terrain()
 	var center := world_size * 0.5
 	_claims.append([center, clear_radius])
 	_place_special_sites(rng, center)
-	_place_craters(rng, center)
+	# Lava rifts first (volcanic only; a no-op elsewhere) so craters and
+	# vents fit around them and both rifts always find room in the view.
 	_place_lava(rng, center)
+	_place_craters(rng, center)
 	_place_deposits(rng, center)
+	_place_ore_sites(rng, center)
 	_place_camps(rng, center)
+	_place_graveyard(rng)
 	_place_rocks(rng)
 	_place_snowmen(rng, center)
 	_place_speckles(rng)
 
 	_ensure_interactables_root()
 	_rebuild_rocky_crystals()
+	_rebuild_verdant_trees()
+	_rebuild_lava_vents()
 	_update_lava_layer()
+	_update_fissure_layer()
 	_baked_mesh = null
 	queue_redraw()
 	generated.emit(_seed)
@@ -157,6 +199,9 @@ func _rebuild_rocky_crystals() -> void:
 	_crystal_container = Node2D.new()
 	_crystal_container.name = "RockyCrystals"
 	_interactables.add_child(_crystal_container)
+	if has_planet_ores():
+		_add_ore_nodes()
+		return
 	if planet_theme != &"rocky" or not interactive_rocky_crystals:
 		return
 	# A separate RNG preserves the existing terrain layout for a given map seed.
@@ -169,6 +214,132 @@ func _rebuild_rocky_crystals() -> void:
 			crystal.configure(float(crystal_data[1]), float(crystal_data[2]), bool(deposit["gold"]), rng.randf() < red_crystal_chance)
 			crystal.broken.connect(_on_crystal_broken)
 			_crystal_container.add_child(crystal)
+
+
+## Whether this battle map has planet ore deposits for the dwarves.
+func has_planet_ores() -> bool:
+	return interactive_rocky_crystals and PLANET_ORES.has(planet_theme)
+
+
+## Planet ores live in the same "RockyCrystals" container, so dwarf dispatch,
+## clicks and mining progress work exactly like Rocky crystals.
+func _add_ore_nodes() -> void:
+	for site in _ore_sites:
+		var ore := ROCKY_CRYSTAL.new()
+		ore.position = site["position"]
+		ore.configure_ore(site["kind"], float(site["size"]))
+		ore.broken.connect(_on_crystal_broken)
+		_crystal_container.add_child(ore)
+
+
+## Ore deposits inside the opening view (like Rocky crystals), on free ground.
+func _place_ore_sites(rng: RandomNumberGenerator, center: Vector2) -> void:
+	_ore_sites.clear()
+	if not has_planet_ores():
+		return
+	var kinds: Array = PLANET_ORES[planet_theme]
+	var bounds := _inner_bounds(maxf(100.0, crystal_edge_margin))
+	var ship := get_node_or_null("../Ship") as Ship
+	var zoom := maxf(ship.world_visual_scale, 0.1) if ship != null else 1.0
+	var view_size := get_viewport_rect().size / zoom + Vector2.ONE * float(Palette.planet(planet_theme).get("map_extra", 0.0))
+	var usable := view_size - Vector2.ONE * (crystal_view_margin + 40.0) / zoom * 2.0
+	if usable.x > 0.0 and usable.y > 0.0:
+		bounds = bounds.intersection(Rect2(center - usable * 0.5, usable))
+	if not bounds.has_area():
+		return
+	for point in _shuffled(rng, _poisson(rng, ore_site_spacing, bounds)):
+		if _ore_sites.size() >= ore_sites_per_map:
+			break
+		if point.distance_to(center) < clear_radius + 60.0 or not _is_free(point, 44.0):
+			continue
+		_ore_sites.append({"position": point, "kind": kinds[rng.randi() % kinds.size()], "size": rng.randf_range(0.9, 1.1)})
+		_claims.append([point, 44.0])
+	# Every planet has at least one ore deposit to mine (user request).
+	if _ore_sites.is_empty():
+		var spot := _guaranteed_spot(rng, bounds, center, clear_radius + 60.0, 44.0)
+		_ore_sites.append({"position": spot, "kind": kinds[rng.randi() % kinds.size()], "size": 1.0})
+		_claims.append([spot, 44.0])
+
+
+const LAVA_VENT := preload("res://Scripts/Battle/LavaVent.gd")
+var _vent_container: Node2D
+
+
+func _lava_vents_active() -> bool:
+	return interactive_lava_vents and Palette.planet(planet_theme).get("decor", &"rock") == &"lava"
+
+
+## Volcanic battle maps: each crater spot becomes a small oozing LavaVent.
+func _rebuild_lava_vents() -> void:
+	if is_instance_valid(_vent_container):
+		_interactables.remove_child(_vent_container)
+		_vent_container.queue_free()
+	_vent_container = Node2D.new()
+	_vent_container.name = "LavaVents"
+	_interactables.add_child(_vent_container)
+	if not _lava_vents_active():
+		return
+	for crater in _craters:
+		var vent: Node2D = LAVA_VENT.new()
+		vent.position = crater["position"]
+		_vent_container.add_child(vent)
+
+
+## Click on a lava vent (world coordinates); true if one took the click.
+func try_click_vent(world_position: Vector2) -> bool:
+	if not is_instance_valid(_vent_container):
+		return false
+	for vent in _vent_container.get_children():
+		if vent.call("contains_world_point", world_position):
+			return bool(vent.call("register_click"))
+	return false
+
+
+const VERDANT_TREE := preload("res://Scripts/Battle/VerdantTree.gd")
+## Foliage clumps at least this big are large trees.
+const LARGE_CLUMP_RADIUS: float = 30.0
+var _tree_container: Node2D
+
+
+func _verdant_trees_active() -> bool:
+	return interactive_verdant_trees and Palette.planet(planet_theme).get("decor", &"rock") == &"foliage"
+
+
+## Jungle battle maps: every foliage clump (small tree) and landmark tree
+## (large tree) becomes its own destructible VerdantTree node instead of being
+## baked into the static map mesh.
+func _rebuild_verdant_trees() -> void:
+	if is_instance_valid(_tree_container):
+		_interactables.remove_child(_tree_container)
+		_tree_container.queue_free()
+	_tree_container = Node2D.new()
+	_tree_container.name = "VerdantTrees"
+	_interactables.add_child(_tree_container)
+	if not _verdant_trees_active():
+		return
+	var colors := Palette.planet(planet_theme)
+	for rock in _rocks:
+		if not rock.get("foliage", false):
+			continue
+		var tree: Area2D = VERDANT_TREE.new()
+		tree.position = rock["center"]
+		tree.call("configure_small", rock["blobs"], float(rock["size"]), colors)
+		# The big canopies count as large trees (more HP, more ore).
+		if float(rock["size"]) >= LARGE_CLUMP_RADIUS:
+			tree.call("mark_large")
+		_tree_container.add_child(tree)
+	for deposit in _deposits:
+		var crystals: Array = deposit["crystals"]
+		var turn: float = (crystals[0][2] as float) * 3.0
+		var lobes: Array = []
+		for index in range(7):
+			var angle: float = turn + TAU * float(index) / 7.0
+			var reach: float = 26.0 + 6.0 * float((index * 5) % 3)
+			lobes.append([Vector2.RIGHT.rotated(angle) * reach, 22.0 + 4.0 * float(index % 2)])
+		var tree: Area2D = VERDANT_TREE.new()
+		tree.position = deposit["position"]
+		tree.call("configure_large", lobes, turn, colors)
+		_tree_container.add_child(tree)
 
 
 func _on_crystal_broken(world_position: Vector2, is_red: bool) -> void:
@@ -222,6 +393,33 @@ func get_terrain_band(global_point: Vector2) -> int:
 ## Whether a circle is free of rocks, craters, deposits, sites and the ship clearing.
 func is_area_free(global_point: Vector2, radius: float) -> bool:
 	return _is_free(to_local(global_point), radius)
+
+
+## Like is_area_free, but ignores the clearing around the ship (for things
+## that must sit close to the ship, e.g. graveyard tombstones).
+func is_area_free_near_ship(global_point: Vector2, radius: float) -> bool:
+	var point := to_local(global_point)
+	var center := world_size * 0.5
+	for claim in _claims:
+		var claim_center: Vector2 = claim[0]
+		if claim_center.is_equal_approx(center) and is_equal_approx(float(claim[1]), clear_radius):
+			continue
+		if point.distance_to(claim_center) < radius + float(claim[1]):
+			return false
+	return true
+
+
+## Distance from a world point to the ship's hull edge (0 on or inside it).
+## Uses the battle's Ship when it is placed; otherwise the unrotated hull
+## square at the map center.
+func get_ship_hull_distance(global_point: Vector2, object_radius: float = 0.0) -> float:
+	var ship := get_parent().get_node_or_null("Ship") as Ship if get_parent() != null else null
+	if ship != null and ship.is_inside_tree() and ship.is_node_ready():
+		return ship.get_distance_to_hull(global_point, object_radius)
+	var local := to_local(global_point) - world_size * 0.5
+	var half := Ship.SHIP_SIZE * 0.5
+	var outside := Vector2(maxf(absf(local.x) - half.x, 0.0), maxf(absf(local.y) - half.y, 0.0))
+	return maxf(outside.length() - maxf(object_radius, 0.0), 0.0)
 
 
 ## Marks a circle as occupied (call when placing objects at runtime).
@@ -563,25 +761,73 @@ func _place_craters(rng: RandomNumberGenerator, center: Vector2) -> void:
 
 func _place_deposits(rng: RandomNumberGenerator, center: Vector2) -> void:
 	_deposits.clear()
-	for point in _shuffled(rng, _poisson(rng, deposit_spacing, _inner_bounds(100.0))):
+	var foliage: bool = Palette.planet(planet_theme).get("decor", &"rock") == &"foliage"
+	# The 40 px allowance covers a crystal's random offset and drawn size.
+	# Verdant deposits become trees, so retain their existing placement.
+	var margin := 100.0 if foliage else maxf(100.0, crystal_edge_margin + 40.0)
+	var bounds := _inner_bounds(margin)
+	if has_planet_ores() and not foliage:
+		# The old decorative crystal deposits are replaced by planet ores.
+		return
+	if planet_theme == &"rocky" and interactive_rocky_crystals:
+		# Battlefield initializes before the ship camera, so read its configured
+		# zoom and center the visible rectangle on the stationary ship's map center.
+		var ship := get_node_or_null("../Ship") as Ship
+		var zoom := maxf(ship.world_visual_scale, 0.1) if ship != null else 1.0
+		var view_size := get_viewport_rect().size / zoom
+		var padding := (crystal_view_margin + 40.0) / zoom
+		var usable_size := view_size - Vector2.ONE * padding * 2.0
+		if usable_size.x > 0.0 and usable_size.y > 0.0:
+			bounds = bounds.intersection(Rect2(center - usable_size * 0.5, usable_size))
+	if not bounds.has_area():
+		return
+	for point in _shuffled(rng, _poisson(rng, deposit_spacing, bounds)):
 		if _deposits.size() >= max_deposits:
 			break
 		# Veins: deposits sit near the zero-crossings of the vein noise.
 		var vein: float = 1.0 - absf(_vein_noise.get_noise_2d(point.x, point.y))
 		if rng.randf() > clampf((vein - 0.55) * 2.5, 0.15, 0.95):
 			continue
-		var keep_free: float = 60.0 if Palette.planet(planet_theme).get("decor", &"rock") == &"foliage" else 46.0
+		var keep_free: float = 60.0 if foliage else 46.0
 		if point.distance_to(center) < clear_radius + 40.0 or not _is_free(point, keep_free):
 			continue
-		var crystals: Array = []
-		for index in range(rng.randi_range(2, 4)):
-			crystals.append([
-				Vector2(rng.randf_range(-18.0, 18.0), rng.randf_range(-12.0, 14.0)),
-				rng.randf_range(0.55, 1.15),
-				rng.randf_range(-0.4, 0.4),
-			])
-		_deposits.append({"position": point, "gold": rng.randf() < 0.75, "crystals": crystals})
+		_deposits.append(_make_deposit(rng, point))
 		_claims.append([point, keep_free])
+	# The Rocky Planet always has at least one crystal deposit (user request).
+	if _deposits.is_empty() and planet_theme == &"rocky" and interactive_rocky_crystals:
+		var spot := _guaranteed_spot(rng, bounds, center, clear_radius + 40.0, 46.0)
+		_deposits.append(_make_deposit(rng, spot))
+		_claims.append([spot, 46.0])
+
+
+func _make_deposit(rng: RandomNumberGenerator, point: Vector2) -> Dictionary:
+	var crystals: Array = []
+	for index in range(rng.randi_range(2, 4)):
+		crystals.append([
+			Vector2(rng.randf_range(-18.0, 18.0), rng.randf_range(-12.0, 14.0)),
+			rng.randf_range(0.55, 1.15),
+			rng.randf_range(-0.4, 0.4),
+		])
+	return {"position": point, "gold": rng.randf() < 0.75, "crystals": crystals}
+
+
+## A spot for a guaranteed deposit inside `bounds`, away from the ship: the
+## freest of many random tries (free ground first, else just in bounds).
+func _guaranteed_spot(rng: RandomNumberGenerator, bounds: Rect2, center: Vector2, min_distance: float, keep_free: float) -> Vector2:
+	var fallback := Vector2.INF
+	for attempt in range(200):
+		var point := Vector2(rng.randf_range(bounds.position.x, bounds.end.x), rng.randf_range(bounds.position.y, bounds.end.y))
+		if point.distance_to(center) < min_distance:
+			continue
+		if _is_free(point, keep_free):
+			return point
+		if fallback == Vector2.INF:
+			fallback = point
+	if fallback != Vector2.INF:
+		return fallback
+	# Tiny view: straight out from the ship toward the nearest roomy side.
+	var dir := Vector2.RIGHT if bounds.end.x - center.x >= center.x - bounds.position.x else Vector2.LEFT
+	return center + dir * min_distance
 
 
 func _place_rocks(rng: RandomNumberGenerator) -> void:
@@ -589,7 +835,7 @@ func _place_rocks(rng: RandomNumberGenerator) -> void:
 	var colors := Palette.planet(planet_theme)
 	# Jungle worlds are overgrown: tighter spacing and a much higher fill rate.
 	var foliage: bool = colors.get("decor", &"rock") == &"foliage"
-	var spacing: float = rock_spacing * (0.8 if foliage else 1.0)
+	var spacing: float = rock_spacing * (0.8 if foliage else (2.0 if colors.get("decor", &"rock") == &"grave" else 1.0))
 	for point in _poisson(rng, spacing, _inner_bounds(30.0)):
 		var rocky: float = _rock_noise.get_noise_2d(point.x, point.y)
 		var chance: float = clampf(smoothstep(-0.25, 0.55, rocky) * 0.85 + (0.4 if foliage else 0.06), 0.0, 1.0)
@@ -644,6 +890,80 @@ func _place_speckles(rng: RandomNumberGenerator) -> void:
 		_speckles.append({"position": dot, "radius": rng.randf_range(1.5, 3.5), "color": dot_color})
 
 
+## Grows (or shrinks back) the map by the theme's "map_extra" pixels on
+## each axis, keeping its center where it was.
+func _apply_theme_map_size() -> void:
+	var extra := float(Palette.planet(planet_theme).get("map_extra", 0.0))
+	if is_equal_approx(extra, _applied_map_extra):
+		return
+	var delta := extra - _applied_map_extra
+	position -= Vector2(delta, delta) * 0.5
+	world_size += Vector2(delta, delta)
+	_applied_map_extra = extra
+
+
+## Graveyard maps: random tombstones and grave clusters, placed before rocks
+## so they claim their ground first.
+func _place_graveyard(rng: RandomNumberGenerator) -> void:
+	_ensure_interactables_root()
+	if is_instance_valid(_graveyard_tombs):
+		_interactables.remove_child(_graveyard_tombs)
+		_graveyard_tombs.queue_free()
+		_graveyard_tombs = null
+	if Palette.planet(planet_theme).get("decor", &"rock") != &"grave":
+		return
+	_graveyard_tombs = GRAVEYARD_TOMBSTONES.new()
+	_graveyard_tombs.name = "GraveyardTombstones"
+	_interactables.add_child(_graveyard_tombs)
+	_graveyard_tombs.call("generate", self, rng.randi())
+
+
+## Points zombies could claw out of on a graveyard map (empty elsewhere).
+func get_grave_emerge_points() -> Array[Vector2]:
+	if is_instance_valid(_graveyard_tombs):
+		return _graveyard_tombs.call("get_emerge_points")
+	return []
+
+
+## Zombie graves are separate from map graves used by skeletons and the boss.
+const ZOMBIE_GRAVE := preload("res://Scripts/Battle/Graveyard/ZombieGrave.gd")
+var _zombie_graves: Array[Node2D] = []
+
+func add_zombie_grave(world_position: Vector2) -> void:
+	if planet_theme != &"graveyard":
+		return
+	var grave := ZOMBIE_GRAVE.new() as Node2D
+	get_interactables_root().add_child(grave)
+	grave.global_position = world_position
+	_zombie_graves.append(grave)
+
+## Zombie graves can no longer be clicked away (user rule) - only a mining
+## dwarf digs them up (GraveDigSite). Kept so BattleMain's click routing
+## stays valid; never takes the click.
+func try_click_zombie_grave(_world_position: Vector2) -> bool:
+	return false
+
+
+## Intact, unclaimed zombie graves within radius of a world position.
+func get_zombie_graves_in(world_position: Vector2, radius: float) -> Array[Node2D]:
+	var result: Array[Node2D] = []
+	for grave in _zombie_graves:
+		if not is_instance_valid(grave) or grave.is_queued_for_deletion():
+			continue
+		if is_instance_valid(grave.get("dig_site")):
+			continue
+		if grave.global_position.distance_to(world_position) <= radius:
+			result.append(grave)
+	return result
+
+func get_zombie_grave_points() -> Array[Vector2]:
+	var result: Array[Vector2] = []
+	for grave in _zombie_graves:
+		if is_instance_valid(grave) and not grave.is_queued_for_deletion():
+			result.append(grave.global_position)
+	return result
+
+
 func _ensure_interactables_root() -> void:
 	if is_instance_valid(_interactables):
 		return
@@ -675,31 +995,111 @@ const LAVA_GLOW := Color(1.0, 0.42, 0.14, 0.16)
 const CRACK_EMBER := Color("7A2A12")
 
 
+## Two big rifts, one on each side of the ship, entirely inside the opening
+## view (user: never off screen) and out of the ship clearing; they claim the
+## ground along their trunk and side cracks.
+func _place_lava_fissures(rng: RandomNumberGenerator, center: Vector2) -> void:
+	_lava_fissures.clear()
+	var ship := get_node_or_null("../Ship") as Ship
+	var zoom := maxf(ship.world_visual_scale, 0.1) if ship != null else 1.0
+	var view_size := get_viewport_rect().size / zoom
+	var view := Rect2(center - view_size * 0.5, view_size).grow(-24.0).intersection(_inner_bounds(40.0))
+	var keep_out := clear_radius + 70.0
+	var sides := [-1.0, 1.0] if rng.randf() < 0.5 else [1.0, -1.0]
+	for side in sides:
+		if _lava_fissures.size() >= lava_fissure_count:
+			break
+		for attempt in range(400):
+			# Start near the top or bottom of the view on this side and run
+			# roughly vertically through the free band beside the ship.
+			var from_top := rng.randf() < 0.5
+			var origin := Vector2(
+				center.x + side * rng.randf_range(view_size.x * 0.24, view_size.x * 0.42),
+				(view.position.y + rng.randf_range(10.0, 60.0)) if from_top else (view.end.y - rng.randf_range(10.0, 60.0))
+			)
+			var heading := (PI * 0.5 if from_top else -PI * 0.5) + rng.randf_range(-0.4, 0.4)
+			# Later attempts try shorter rifts so both sides always get one.
+			var size := lerpf(0.8, 0.42, float(attempt) / 400.0) * rng.randf_range(0.9, 1.0)
+			var fissure: Dictionary = LAVA_FISSURE_ART.generate_rift(rng, origin, heading, size)
+			if _fissure_fits(fissure, view, center, keep_out, _hud_rects(center, view_size)):
+				_lava_fissures.append(fissure)
+				for branch in fissure["branches"]:
+					var points: PackedVector2Array = branch["points"]
+					var widths: PackedFloat32Array = branch["widths"]
+					for index in range(0, points.size(), 2):
+						_claims.append([points[index], widths[index] * 0.5 + 18.0])
+				break
+
+
+## Opening-view areas under the battle HUD (wave panel top left, ore counter
+## top right, evacuate button bottom right), so rifts never hide under them.
+func _hud_rects(center: Vector2, view_size: Vector2) -> Array[Rect2]:
+	var origin := center - view_size * 0.5
+	var k := view_size.x / 1600.0
+	return [
+		Rect2(origin, Vector2(320.0, 230.0) * k),
+		Rect2(origin + Vector2(view_size.x - 260.0 * k, 0.0), Vector2(260.0, 110.0) * k),
+		Rect2(origin + view_size - Vector2(250.0, 250.0) * k, Vector2(250.0, 250.0) * k),
+	]
+
+
+func _fissure_fits(fissure: Dictionary, view: Rect2, center: Vector2, keep_out: float, avoid: Array[Rect2] = []) -> bool:
+	if fissure["emerge"].size() < 3:
+		return false
+	for branch in fissure["branches"]:
+		var points: PackedVector2Array = branch["points"]
+		var widths: PackedFloat32Array = branch["widths"]
+		for index in range(points.size()):
+			var p := points[index]
+			var half := widths[index] * 0.5 + 10.0
+			if not view.grow(-half).has_point(p) or p.distance_to(center) < keep_out + half:
+				return false
+			for rect in avoid:
+				if rect.grow(half).has_point(p):
+					return false
+			if index % 2 == 0 and not _is_free(p, half):
+				return false
+	return true
+
+
+func _update_fissure_layer() -> void:
+	if _lava_fissures.is_empty():
+		if is_instance_valid(_fissure_layer):
+			_fissure_layer.queue_free()
+		_fissure_layer = null
+		return
+	if not is_instance_valid(_fissure_layer):
+		_fissure_layer = LAVA_FISSURE_LAYER.new()
+		_fissure_layer.name = "LavaFissures"
+		add_child(_fissure_layer)
+	_fissure_layer.set_fissures(_lava_fissures)
+
+
+## Global points along the rifts where enemies can climb out (widest spots).
+func get_lava_emerge_points() -> Array[Vector2]:
+	var result: Array[Vector2] = []
+	for fissure in _lava_fissures:
+		for point in fissure["emerge"]:
+			result.append(to_global(point))
+	return result
+
+
+## Lava rifts (local space), for tests and map objects.
+func get_lava_fissures() -> Array[Dictionary]:
+	return _lava_fissures
+
+
 func _place_lava(rng: RandomNumberGenerator, center: Vector2) -> void:
 	_lava_streams.clear()
+	_lava_fissures.clear()
 	_cracks.clear()
 	if Palette.planet(planet_theme).get("decor", &"rock") != &"lava":
 		return
 	var bounds := _inner_bounds(90.0)
-	var wanted: int = rng.randi_range(3, 4)
-	for attempt in range(60):
-		if _lava_streams.size() >= wanted:
-			break
-		var start := Vector2(rng.randf_range(bounds.position.x, bounds.end.x), rng.randf_range(bounds.position.y, bounds.end.y))
-		if start.distance_to(center) < clear_radius + 260.0 or not _is_free(start, 40.0):
-			continue
-		var stream := _grow_path(rng, start, rng.randf() * TAU, rng.randi_range(36, 64), 11.0, 0.12, center, clear_radius + 90.0, 18.0)
-		if stream.size() < 24:
-			continue
-		var widths := PackedFloat32Array()
-		for index in range(stream.size()):
-			var t: float = float(index) / float(stream.size() - 1)
-			widths.append(2.2 + 3.4 * sqrt(sin(PI * minf(t * 1.6, 1.0))) * (1.0 - 0.55 * t))
-		_lava_streams.append({"points": stream, "widths": widths})
-		for index in range(0, stream.size(), 2):
-			_claims.append([stream[index], 20.0])
-
-	var crack_count: int = rng.randi_range(10, 14)
+	_place_lava_fissures(rng, center)
+	# The old thin curved cracks are gone with the streams (user: the rifts
+	# replace the twisty look); keep the code path for other lava decor.
+	var crack_count: int = 0
 	for attempt in range(80):
 		if _cracks.size() >= crack_count:
 			break
@@ -721,6 +1121,39 @@ func _place_lava(rng: RandomNumberGenerator, center: Vector2) -> void:
 				_cracks.append({"points": branch, "width": width * 0.7, "ember": ember})
 		for point in crack:
 			_claims.append([point, 9.0])
+
+
+## Lava stream as a hard-edged zigzag: straight runs alternating with diagonal
+## kinks to the left and right (now and then a sharper elbow), sampled every
+## 11 px so the flow highlights can travel along it. Stops at the map edge,
+## near the ship clearing or at anything already placed.
+func _grow_zigzag(rng: RandomNumberGenerator, start: Vector2, heading: float, segments: int,
+		center: Vector2, keep_out: float, keep_free: float) -> PackedVector2Array:
+	var bounds := _inner_bounds(40.0)
+	var points := PackedVector2Array([start])
+	var side: float = 1.0 if rng.randf() < 0.5 else -1.0
+	var position_now := start
+	for segment in range(segments):
+		var angle := heading
+		var length := rng.randf_range(45.0, 95.0)
+		if segment % 2 == 1:
+			var kink := PI * 0.25 if rng.randf() < 0.7 else PI * 0.38
+			angle = heading + side * kink
+			side = -side
+			length = rng.randf_range(25.0, 55.0)
+		else:
+			# Straight runs drift a touch so the whole stream wanders.
+			heading += rng.randf_range(-0.25, 0.25)
+			angle = heading
+		var direction := Vector2.RIGHT.rotated(angle)
+		var steps := maxi(int(length / 11.0), 2)
+		for step in range(1, steps + 1):
+			var p := position_now + direction * 11.0 * float(step)
+			if not bounds.has_point(p) or p.distance_to(center) < keep_out or not _is_free(p, keep_free):
+				return points
+			points.append(p)
+		position_now = points[points.size() - 1]
+	return points
 
 
 ## Wanders from start in steps of step_length, turning a little each step.
@@ -785,10 +1218,11 @@ func _paint_lava_beds() -> void:
 				var b2: Vector2 = points[index + 1]
 				match pass_index:
 					0:
-						_pen.draw_line(a, b2, LAVA_GLOW, w + 14.0)
+						_pen.draw_line(a, b2, LAVA_GLOW, w + 9.0)
+						_pen.draw_circle(b2, (w + 9.0) * 0.5, LAVA_GLOW)
 					1:
-						_pen.draw_line(a, b2, LAVA_CRUST, w + 5.0)
-						_pen.draw_circle(b2, (w + 5.0) * 0.5, LAVA_CRUST)
+						_pen.draw_line(a, b2, LAVA_CRUST, w + 3.5)
+						_pen.draw_circle(b2, (w + 3.5) * 0.5, LAVA_CRUST)
 					2:
 						# The tail end cools down toward the crust colour.
 						var color: Color = LAVA.lerp(LAVA_DARK, smoothstep(0.55, 1.0, t))
@@ -1056,7 +1490,8 @@ func _paint() -> void:
 	# Volcanic worlds show extinct volcano cones instead.
 	for crater in _craters:
 		if lava:
-			_draw_extinct_volcano({"position": crater["position"], "radius": crater["radius"] * 1.25}, colors)
+			if not _lava_vents_active():
+				_draw_extinct_volcano({"position": crater["position"], "radius": crater["radius"] * 1.25}, colors)
 			continue
 		var crater_center: Vector2 = crater["position"]
 		var crater_radius: float = crater["radius"]
@@ -1070,7 +1505,7 @@ func _paint() -> void:
 		_pen.draw_circle(speckle["position"], speckle["radius"], speckle["color"])
 
 	# Ore deposits: the most saturated thing on the map ("greed" draws the eye).
-	if planet_theme != &"rocky" or not interactive_rocky_crystals:
+	if (planet_theme != &"rocky" or not interactive_rocky_crystals) and not _verdant_trees_active():
 		for deposit in _deposits:
 			_draw_deposit(deposit)
 
@@ -1081,7 +1516,8 @@ func _paint() -> void:
 	# on jungle worlds).
 	for rock in _rocks:
 		if rock.get("foliage", false):
-			_draw_foliage(rock, colors)
+			if not _verdant_trees_active():
+				_draw_foliage(rock, colors)
 			continue
 		if rock.get("ice", false):
 			_draw_ice(rock, colors)

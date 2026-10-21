@@ -25,12 +25,12 @@ static func get_color(chip_id: StringName) -> Color:
 
 
 static func get_effect_text(chip_id: StringName) -> String:
-	return String(STYLES.get(chip_id, {}).get("effect", ""))
+	return TranslationServer.translate(String(STYLES.get(chip_id, {}).get("effect", "")))
 
 
 static func get_display_name(chip_id: StringName) -> String:
 	var definition := ChipManager.configuration.get_chip(chip_id)
-	return definition.chip_name.to_upper() if definition != null else String(chip_id).to_upper()
+	return TranslationServer.translate(definition.chip_name.to_upper()) if definition != null else String(chip_id).to_upper()
 
 
 ## "R2·C3" label for a ship cell (1-based, as shown in the Hangar).

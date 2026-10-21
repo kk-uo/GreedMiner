@@ -55,8 +55,10 @@ func _run() -> void:
 	_check(ResearchManager.purchase_research(&"ship_magic_slot_1"), "magic branch purchased independently")
 	_check(ArtifactManager.is_ship_slot_unlocked(0) and not ArtifactManager.is_ship_slot_unlocked(1), "only first magic slot unlocks")
 	_check(ResearchManager.purchase_research(&"ship_auto_regeneration_1"), "regeneration branch purchased")
+	_check(ResourceManager.try_spend_stored_ore(101), "prepare insufficient ore test")
 	_check(not ResearchManager.purchase_research(&"mining_install_slot_unlock"), "insufficient ore blocks expansion")
-	_check(ResourceManager.stored_ore == 300, "failed purchase leaves ore unchanged")
+	_check(ResourceManager.stored_ore == 199, "failed purchase leaves ore unchanged")
+	ResourceManager.add_stored_ore(101)
 	_check(ResearchManager.get_tree_node_state(&"energy_core_1") == &"LOCKED", "Energy Core waits for the extra battery")
 	_check(ResearchManager.get_tree_node_state(&"energy_range_1") == &"LOCKED", "Long-Range Cells wait for the extra battery")
 	_check(ResearchManager.purchase_research(&"energy_install_slot_unlock"), "energy root purchased")
@@ -71,9 +73,9 @@ func _run() -> void:
 	_check(ResearchManager.get_planet_access_research(&"frozen_planet") == &"ship_air_conditioning_1", "Air Conditioning is the missing Frozen research")
 	_check(not ResearchManager.is_planet_in_range(&"volcanic_planet"), "Volcanic needs Air Conditioning")
 	_check(ResearchManager.is_planet_in_range(&"rocky_planet"), "Rocky never needs range research")
-	ResourceManager.add_stored_ore(500)
+	ResourceManager.add_stored_ore(200)
 	_check(ResearchManager.purchase_research(&"mining_install_slot_unlock"), "mining root purchased")
-	_check(ResourceManager.stored_ore == 0, "mining expansion costs exactly 500")
+	_check(ResourceManager.stored_ore == 0, "mining expansion costs exactly 200")
 	# Ship branches: Air Conditioning after regeneration; power cell and
 	# ship style after the magic slot.
 	_check(ResearchManager.get_tree_node_state(&"ship_air_conditioning_1") == &"AVAILABLE", "Air Conditioning follows regeneration")
@@ -83,7 +85,13 @@ func _run() -> void:
 	var capacity_before := ship.total_power_capacity
 	ResourceManager.add_stored_ore(950)
 	_check(ResearchManager.purchase_research(&"ship_air_conditioning_1"), "Air Conditioning purchased")
-	_check(ResearchManager.is_planet_in_range(&"frozen_planet") and ResearchManager.is_planet_in_range(&"volcanic_planet"), "Frozen and Volcanic come into range")
+	_check(ResearchManager.is_planet_in_range(&"frozen_planet"), "Frozen comes into range")
+	_check(not ResearchManager.is_planet_in_range(&"volcanic_planet"), "Volcanic also needs Long-Long-Range Cells")
+	_check(not ResearchManager.is_planet_in_range(&"graveyard_planet"), "Graveyard needs Long-Long-Range Cells")
+	_check(ResearchManager.get_tree_node_state(&"energy_range_2") == &"AVAILABLE", "Long-Long-Range Cells follow Long-Range Cells")
+	ResourceManager.add_stored_ore(500)
+	_check(ResearchManager.purchase_research(&"energy_range_2"), "Long-Long-Range Cells purchased for 500")
+	_check(ResearchManager.is_planet_in_range(&"volcanic_planet") and ResearchManager.is_planet_in_range(&"graveyard_planet"), "Volcanic and Graveyard come into range")
 	_check(ResearchManager.purchase_research(&"ship_power_1"), "power cell purchased")
 	_check(ship.total_power_capacity == capacity_before + 1, "power cell adds one ship power")
 	_check(ResearchManager.purchase_research(&"ship_style_unlock"), "ship style purchased")
@@ -92,6 +100,30 @@ func _run() -> void:
 	_check(ResearchManager.get_module_installation_limit(&"energy_module") == 2, "energy limit becomes two")
 	_check(ResearchManager.get_module_installation_limit(&"mining_module") == 2, "mining limit becomes two")
 	_check(not ResearchManager.purchase_research(&"mining_install_slot_unlock"), "completed expansion cannot be repurchased")
+	# Energy branches under Energy Core: Expandable Cells (interface only)
+	# and Shielded Cells (+5 Max HP per installed battery).
+	_check(ResearchManager.get_tree_node_state(&"energy_slot_support_1") == &"LOCKED", "Expandable Cells wait for Energy Core")
+	_check(ResearchManager.get_tree_node_state(&"energy_shielded_cells_1") == &"LOCKED", "Shielded Cells wait for Energy Core")
+	ResourceManager.add_stored_ore(500)
+	_check(ResearchManager.purchase_research(&"energy_core_1"), "Energy Core purchased")
+	var batteries := 0
+	for module in ship._get_installed_ship_modules():
+		if module is EnergyModule:
+			batteries += 1
+	_check(batteries > 0, "test ship carries a battery")
+	var expansion_before := ship.total_expansion_capacity
+	var slots_before := ShipLoadout.installed_modules.size()
+	_check(not ResearchManager.is_energy_slot_expansion_supported(), "slot expansion starts unsupported")
+	ResourceManager.add_stored_ore(1000)
+	_check(ResearchManager.purchase_research(&"energy_slot_support_1"), "Expandable Cells cost 1000")
+	_check(ResearchManager.is_energy_slot_expansion_supported(), "batteries now support slot expansion")
+	_check(ship.total_expansion_capacity == expansion_before + batteries, "each battery supplies one expansion capacity")
+	_check(ShipLoadout.installed_modules.size() == slots_before, "Expandable Cells add no slot by themselves")
+	var hp_before := ship.max_hp
+	ResourceManager.add_stored_ore(500)
+	_check(ResearchManager.purchase_research(&"energy_shielded_cells_1"), "Shielded Cells cost 500")
+	_check(is_equal_approx(ship.max_hp, hp_before + 5.0 * float(batteries)), "every battery adds 5 Max HP")
+	_check(ResourceManager.stored_ore == 0, "energy branches cost 500 + 1000 + 500")
 	ship.assembly_mode = false
 	ship.take_damage(20.0)
 	var damaged := ship.current_hp
@@ -116,7 +148,7 @@ func _run() -> void:
 	_check(ResearchManager.get_tree_node_state(&"energy_install_slot_unlock") == &"COMPLETED", "saved energy expansion displays completed")
 	_check(ResearchManager.get_tree_node_state(&"mining_install_slot_unlock") == &"COMPLETED", "saved mining expansion displays completed")
 	ship._recalculate_health_stats()
-	_check(ship.max_hp == original_max + 150, "reload does not duplicate HP bonus")
+	_check(is_equal_approx(ship.max_hp, original_max + 150 + 5.0 * float(batteries)), "reload does not duplicate HP bonus")
 	_check(ship.remove_module(0, 1), "Regeneration module can be removed")
 	ship.set_all_modules_active(true)
 	ship.take_damage(10)

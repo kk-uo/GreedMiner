@@ -221,6 +221,46 @@ milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_Chainsaw_
 unlocked_by_default = false
 implemented = true
 
+[sub_resource type="Resource" id="Cost_Flamethrower"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 200
+linear_cost_coefficient = 200
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_Flamethrower"]
+script = ExtResource("3_damage_effect")
+
+[sub_resource type="Resource" id="Milestone_Flamethrower_Level10"]
+script = ExtResource("6_milestone")
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks 1 Weapon Chip Slot"
+
+[sub_resource type="Resource" id="Milestone_Flamethrower_Level20"]
+script = ExtResource("6_milestone")
+target_level = 20
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Chip Slot 2"
+
+[sub_resource type="Resource" id="Milestone_Flamethrower_Level30"]
+script = ExtResource("6_milestone")
+target_level = 30
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Chip Slot 3"
+
+[sub_resource type="Resource" id="Definition_Flamethrower"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.flamethrower"
+category_id = &"weapon"
+display_name = "Flamethrower Damage"
+description = "Each level adds 20% of the original Flamethrower base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_Flamethrower")
+target_id = &"flamethrower"
+effect = SubResource("Effect_Flamethrower")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_Flamethrower_Level10"), SubResource("Milestone_Flamethrower_Level20"), SubResource("Milestone_Flamethrower_Level30")])
+unlocked_by_default = false
+implemented = true
+
 [sub_resource type="Resource" id="Cost_KnockbackResearch"]
 script = ExtResource("2_cost")
 base_upgrade_cost = 200
@@ -329,7 +369,7 @@ implemented = true
 
 [sub_resource type="Resource" id="Cost_MiningInstallSlot"]
 script = ExtResource("2_cost")
-base_upgrade_cost = 500
+base_upgrade_cost = 200
 linear_cost_coefficient = 0
 quadratic_cost_coefficient = 0
 
@@ -414,6 +454,69 @@ description = "Your batteries now reach farther planets: Verdant Planet and Froz
 starting_level = 0
 cost_configuration = SubResource("Cost_EnergyRange")
 effect = SubResource("Effect_EnergyRange")
+implemented = true
+
+[sub_resource type="Resource" id="Cost_EnergySlotSupport"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 1000
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_EnergySlotSupport"]
+script = ExtResource("9_ship_effect")
+expansion_capacity_bonus = 1
+
+[sub_resource type="Resource" id="Definition_EnergySlotSupport"]
+script = ExtResource("4_definition")
+research_id = &"energy_slot_support_1"
+category_id = &"energy"
+display_name = "Expandable Cells"
+description = "Batteries can now support extra ship slots. Hull research will use this to expand the ship."
+starting_level = 0
+cost_configuration = SubResource("Cost_EnergySlotSupport")
+effect = SubResource("Effect_EnergySlotSupport")
+implemented = true
+
+[sub_resource type="Resource" id="Cost_EnergyShielded"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_EnergyShielded"]
+script = ExtResource("9_ship_effect")
+energy_module_hp_bonus = 5.0
+
+[sub_resource type="Resource" id="Definition_EnergyShielded"]
+script = ExtResource("4_definition")
+research_id = &"energy_shielded_cells_1"
+category_id = &"energy"
+display_name = "Shielded Cells"
+description = "Every installed Energy Module gives the ship +5 Max HP."
+starting_level = 0
+cost_configuration = SubResource("Cost_EnergyShielded")
+effect = SubResource("Effect_EnergyShielded")
+implemented = true
+
+[sub_resource type="Resource" id="Cost_EnergyRange2"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_EnergyRange2"]
+script = ExtResource("9_ship_effect")
+unlocked_planet_ids = Array[StringName]([&"volcanic_planet", &"graveyard_planet"])
+
+[sub_resource type="Resource" id="Definition_EnergyRange2"]
+script = ExtResource("4_definition")
+research_id = &"energy_range_2"
+category_id = &"energy"
+display_name = "Long-Long-Range Cells"
+description = "Your batteries now reach even farther planets: Volcanic Planet and Graveyard Planet."
+starting_level = 0
+cost_configuration = SubResource("Cost_EnergyRange2")
+effect = SubResource("Effect_EnergyRange2")
 implemented = true
 
 [sub_resource type="Resource" id="ShipHp"]
@@ -506,5 +609,5 @@ implemented = true
 [resource]
 script = ExtResource("5_configuration")
 categories = Array[ExtResource("1_category")]([SubResource("Category_Weapon"), SubResource("Category_Mining"), SubResource("Category_Shield"), SubResource("Category_Energy"), SubResource("Category_Ship"), SubResource("Category_WeaponSkills"), SubResource("Category_Chips")])
-definitions = Array[ExtResource("4_definition")]([SubResource("Definition_MachineGun"), SubResource("Definition_DwarfCannon"), SubResource("Definition_Laser"), SubResource("Definition_Chainsaw"), SubResource("Definition_KnockbackResearch"), SubResource("Definition_RegenerationResearch"), SubResource("Definition_EnergyCore"), SubResource("Definition_EnergyRange"), SubResource("Definition_EnergyInstallSlot"), SubResource("Definition_MiningInstallSlot"), SubResource("ShipHp"), SubResource("ShipRegen"), SubResource("ShipMagic"), SubResource("ShipAir"), SubResource("ShipPower"), SubResource("ShipStyle")])
+definitions = Array[ExtResource("4_definition")]([SubResource("Definition_MachineGun"), SubResource("Definition_DwarfCannon"), SubResource("Definition_Laser"), SubResource("Definition_Chainsaw"), SubResource("Definition_Flamethrower"), SubResource("Definition_KnockbackResearch"), SubResource("Definition_RegenerationResearch"), SubResource("Definition_EnergyCore"), SubResource("Definition_EnergyRange"), SubResource("Definition_EnergyInstallSlot"), SubResource("Definition_EnergySlotSupport"), SubResource("Definition_EnergyShielded"), SubResource("Definition_EnergyRange2"), SubResource("Definition_MiningInstallSlot"), SubResource("ShipHp"), SubResource("ShipRegen"), SubResource("ShipMagic"), SubResource("ShipAir"), SubResource("ShipPower"), SubResource("ShipStyle")])
 trees = Array[ExtResource("10_tree_script")]([ExtResource("11_energy_tree"), ExtResource("12_mining_tree"), ExtResource("13_ship_tree")])

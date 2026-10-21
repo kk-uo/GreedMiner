@@ -38,7 +38,7 @@ const STYLES := {
 	},
 	&"bubblegum": {
 		"name": "Bubblegum", "tile": Color("FBE2ED"), "tile_shadow": Color("E2BFD0"),
-		"rim": Color("E06C9F"), "iron": Color("9F3C6B"), "band": Color("B8507F"), "accent": Color("5FD8E0"),
+		"rim": Color("E06C9F"), "iron": Color("9F3C6B"), "band": Color("B8507F"), "accent": Color("FFF2F7"),
 	},
 	&"deep_space": {
 		"name": "Deep Space", "tile": Color("000000"), "tile_shadow": Color("1A2635"),
@@ -61,7 +61,7 @@ const DEFAULT_HULL: StringName = &"classic"
 const HULLS := {
 	&"classic": {"name": "Classic", "corner": &"chamfer", "corner_size": 15.0, "feature": &"", "pattern": &"diamond", "trim": 24.0},
 	&"citadel": {"name": "Citadel", "corner": &"step", "corner_size": 44.0, "feature": &"buttress", "pattern": &"rune", "trim": 46.0},
-	&"segmented": {"name": "Segmented Armor", "corner": &"chamfer", "corner_size": 15.0, "feature": &"plates", "pattern": &"hazard", "trim": 24.0},
+	&"segmented": {"name": "Blade Armor", "corner": &"chamfer", "corner_size": 15.0, "feature": &"", "pattern": &"", "trim": 24.0, "armor": &"blade"},
 	&"flight_deck": {"name": "Flight Deck", "corner": &"chamfer", "corner_size": 15.0, "feature": &"deck", "pattern": &"runway", "trim": 24.0},
 	&"octagon": {"name": "Octagon", "corner": &"chamfer", "corner_size": 42.0, "feature": &"", "pattern": &"runway", "trim": 44.0},
 }
@@ -196,6 +196,8 @@ static func draw_hull(canvas: CanvasItem, geometry: Dictionary, cells: Array[Vec
 		canvas.draw_colored_polygon(outline, style["rim"])
 	for outline in geometry["inner"]:
 		canvas.draw_colored_polygon(Palette.offset_points(outline, INNER_SHIFT), style["iron"])
+	if design.get("armor", &"") != &"":
+		_draw_armor(canvas, geometry, design, style, cell_size)
 	if plates:
 		for feature in geometry.get("features", []):
 			canvas.draw_colored_polygon(feature, style["iron"])
@@ -218,6 +220,74 @@ static func draw_hull(canvas: CanvasItem, geometry: Dictionary, cells: Array[Vec
 			if style.get("glow", false):
 				_draw_pattern(canvas, geometry, design, style, cell_size, true)
 			_draw_pattern(canvas, geometry, design, style, cell_size, false)
+
+
+const STEEL_DARK := Color("2C3035")
+const STEEL := Color("6A727A")
+const STEEL_FACE := Color("858D95")
+const STEEL_LIT := Color("B4BCC3")
+
+
+## Bevelled metal plate: dark lower-right edge, lit upper-left edge, flat face.
+static func _bevel(canvas: CanvasItem, poly: PackedVector2Array, face: Color, lit: Color, dark: Color, bevel: float = 2.0) -> void:
+	canvas.draw_colored_polygon(Palette.offset_points(poly, Vector2(1.5, 2.0)), Color(0, 0, 0, 0.35))
+	canvas.draw_colored_polygon(poly, dark)
+	var top := _inset(poly, 0.6)
+	if top.size() >= 3:
+		canvas.draw_colored_polygon(Palette.offset_points(top, Vector2(-0.8, -0.8)), lit)
+	var inner := _inset(poly, bevel)
+	if inner.size() >= 3:
+		canvas.draw_colored_polygon(inner, face)
+
+
+static func _glow_line(canvas: CanvasItem, from: Vector2, to: Vector2, accent: Color) -> void:
+	canvas.draw_line(from, to, Color(accent, 0.22), 5.0)
+	canvas.draw_line(from, to, Color(accent, 0.95), 1.8)
+
+
+static func _bolt(canvas: CanvasItem, at: Vector2, radius: float = 2.4) -> void:
+	canvas.draw_circle(at + Vector2(0.6, 0.8), radius, STEEL_DARK)
+	canvas.draw_circle(at, radius, STEEL_LIT)
+	canvas.draw_circle(at + Vector2(0.4, 0.4), radius * 0.7, STEEL)
+	canvas.draw_circle(at - Vector2(0.6, 0.6), radius * 0.3, Color(1, 1, 1, 0.8))
+
+
+## Blade armour on the frame: slanted painted plates with a steel lip and a
+## glowing accent seam. Local run frame: x along the run, d = distance
+## outward from the cell edge (the frame spans d 0..FRAME_GROW).
+static func _draw_armor(canvas: CanvasItem, geometry: Dictionary, design: Dictionary, style: Dictionary, cell_size: float) -> void:
+	var kind: StringName = design["armor"]
+	var trim: float = design["trim"]
+	for run in geometry["runs"]:
+		var start: Vector2 = run["start"]
+		var along: Vector2 = run["dir"]
+		var out: Vector2 = run["normal"]
+		var length: float = run["length"]
+		var p := func(x: float, d: float) -> Vector2: return start + along * x + out * d
+		var cells: int = roundi(length / cell_size)
+		var t0: float = trim if run["convex_start"] else 0.0
+		var t1: float = trim if run["convex_end"] else 0.0
+		match kind:
+			&"blade":
+				# Slanted painted blades with a steel lip and a glowing seam.
+				var pf: Color = style["rim"]
+				var pl: Color = Color(style["rim"]).lightened(0.3)
+				var pd: Color = Color(style["iron"]).darkened(0.35)
+				for index in range(cells):
+					var a: float = cell_size * float(index) + 2.0
+					var b: float = cell_size * float(index + 1) + 4.0
+					if index == 0:
+						a = maxf(a, t0 * 0.75)
+					if index == cells - 1:
+						b = minf(b, length - t1 * 0.75)
+					var poly := PackedVector2Array([p.call(a, -1.0), p.call(a + 9.0, 17.0), p.call(b, 17.0), p.call(b - 9.0, -1.0)])
+					_bevel(canvas, poly, pf, pl, pd, 2.2)
+					# Steel lip on the outer edge.
+					var lip := PackedVector2Array([p.call(a + 7.5, 14.0), p.call(a + 9.0, 17.0), p.call(b, 17.0), p.call(b - 1.5, 14.0)])
+					canvas.draw_colored_polygon(lip, STEEL_FACE)
+					canvas.draw_line(p.call(a + 8.0, 14.3), p.call(b - 1.3, 14.3), STEEL_LIT, 1.0)
+					_glow_line(canvas, p.call(a + 6.0, 6.0), p.call(b - 9.0, 6.0), style["accent"])
+					_bolt(canvas, p.call(a + 4.0, 2.5), 1.8)
 
 
 ## Accent pattern along the exposed edge runs. Local run frame: x along the

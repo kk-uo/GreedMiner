@@ -51,7 +51,7 @@ func _profile(energy_modules: int, consumption: int = 0) -> Dictionary:
 
 
 ## Verdant needs Long-Range Cells (Energy); Frozen also needs Air Conditioning
-## (Ship), which alone gates Volcanic.
+## (Ship); Volcanic needs Air Conditioning and Long-Long-Range Cells (Energy).
 func _test_range_research() -> void:
 	var verdant: Dictionary = PlanetSelect.PLANETS[1]
 	var status := PlanetSelect.evaluate_launch_requirements(verdant, _profile(1), 99999.0)
@@ -61,7 +61,8 @@ func _test_range_research() -> void:
 	_expect_true(PlanetSelect.evaluate_launch_requirements(PlanetSelect.PLANETS[0], _profile(1), 0.0).in_range, "Rocky is always in range")
 	var volcanic_status := PlanetSelect.evaluate_launch_requirements(PlanetSelect.PLANETS[3], _profile(1), 0.0)
 	_expect_false(volcanic_status.in_range, "Volcanic starts out of range")
-	_expect_equal(volcanic_status.range_research, &"ship_air_conditioning_1", "Air Conditioning gates Volcanic")
+	var volcanic_gates := ResearchManager.get_planet_access_researches(&"volcanic_planet")
+	_expect_true(volcanic_gates.has(&"ship_air_conditioning_1") and volcanic_gates.has(&"energy_range_2"), "Air Conditioning and Long-Long-Range Cells gate Volcanic")
 	var frozen: Dictionary = PlanetSelect.PLANETS[2]
 	_expect_false(PlanetSelect.evaluate_launch_requirements(frozen, _profile(1), 500.0).can_locate, "Frozen requires both research upgrades")
 	ResearchManager.progress.levels["energy_range_1"] = 1
@@ -72,6 +73,7 @@ func _test_range_research() -> void:
 	# The rest of this test runs with the research done.
 	ResearchManager.progress.levels["energy_range_1"] = 1
 	ResearchManager.progress.levels["ship_air_conditioning_1"] = 1
+	ResearchManager.progress.levels["energy_range_2"] = 1
 	_expect_true(PlanetSelect.evaluate_launch_requirements(verdant, _profile(1), 0.0).in_range, "Long-Range Cells bring Verdant into range")
 
 

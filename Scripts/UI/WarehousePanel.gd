@@ -182,7 +182,7 @@ func refresh() -> void:
 	var kept: Array = ScrollKeeper.capture(self) if int(current_tab) == _last_built_tab else []
 	_last_built_tab = int(current_tab)
 	var chip_count := ChipManager.get_owned_instances().size()
-	var names := ["ALL", "RESOURCES", "CHIPS  %d" % chip_count]
+	var names := ["ALL", "RESOURCES", tr("CHIPS  %d") % chip_count]
 	for index in range(_tab_buttons.size()):
 		var button := _tab_buttons[index]
 		button.text = names[index]
@@ -290,8 +290,8 @@ func _build_chip_detail(instance_id: StringName) -> void:
 	var where := "Idle  ·  not installed"
 	if installed:
 		var weapon := ModuleCatalog.get_entry(ChipManager.get_turret_weapon_type(location))
-		where = "Installed on %s\n%s  ·  socket %d" % [
-			String(weapon.get("name", "turret")).to_upper(),
+		where = tr("Installed on %s\n%s  ·  socket %d") % [
+			tr(String(weapon.get("name", "turret")).to_upper()),
 			ChipVisual.cell_label(location),
 			ChipManager.get_instance_slot_index(instance_id) + 1,
 		]
@@ -312,7 +312,7 @@ func _build_chip_detail(instance_id: StringName) -> void:
 		scrap_button.disabled = true
 		_style_scrap(Color("352D27"), Palette.UI_MUTED)
 	else:
-		scrap_button.text = ("CONFIRM?  + ◆ %s" if _scrap_armed else "SCRAP  ·  + ◆ %s") % _thousands(refund)
+		scrap_button.text = tr("CONFIRM?  + ◆ %s" if _scrap_armed else "SCRAP  ·  + ◆ %s") % _thousands(refund)
 		scrap_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		_style_scrap(Color("8A2E22") if _scrap_armed else Color("5A2A22"), Color("FFB3A6"))
 		scrap_button.pressed.connect(_on_scrap_pressed.bind(instance_id))
@@ -466,7 +466,7 @@ class ItemGrid:
 			var box := Rect2(0.0, y, float(cols) * CELL.x, float(rows) * CELL.y)
 			Palette.draw_rounded_rect(self, box, 8.0, Color("1A1512"))
 			if items.is_empty():
-				draw_string(font, Vector2(14.0, y + CELL.y * 0.5 + 4.0), "Nothing here yet  ·  craft chips in the Laboratory", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Palette.UI_MUTED)
+				draw_string(font, Vector2(14.0, y + CELL.y * 0.5 + 4.0), tr("Nothing here yet  ·  craft chips in the Laboratory"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Palette.UI_MUTED)
 			for index in range(items.size()):
 				var entry: Dictionary = _hit[hit_index]
 				var rect: Rect2 = entry["rect"]

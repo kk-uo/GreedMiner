@@ -163,6 +163,20 @@ const PLANETS := {
 		## "decor" lava: thin lava streams, cracks and extinct volcano cones.
 		"decor": &"lava",
 	},
+	&"graveyard": {
+		"ground": Color("3C4436"),
+		"ground_dark": Color("343B2F"),
+		"ground_light": Color("47503F"),
+		"rock": Color("2A3026"),
+		"rock_light": Color("5E6A55"),
+		"crater": Color("353D30"),
+		"crater_inner": Color("3D4637"),
+		## "decor" grave: tombstones, fenced plots, crypts and open graves with
+		## glowing biomass (GraveyardTombstones).
+		"decor": &"grave",
+		## Graveyard maps are 200 px bigger on each axis.
+		"map_extra": 200.0,
+	},
 }
 
 

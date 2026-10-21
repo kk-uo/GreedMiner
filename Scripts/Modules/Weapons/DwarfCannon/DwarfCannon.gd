@@ -110,4 +110,6 @@ func fire() -> void:
 	projectile.speed = projectile_speed
 	projectile.damage = get_modified_explosion_damage(get_damage())
 	projectile.source_weapon = self
+	if artifact_projectile_pierces.is_valid():
+		projectile.enable_ghost_piercing(int(artifact_projectile_pierces.call()))
 	projectile.explosion_radius = aoe_radius

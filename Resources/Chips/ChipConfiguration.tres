@@ -135,7 +135,14 @@ display_name = "Chainsaw Chip Slot"
 scope_id = "weapon_type"
 target_id = &"chainsaw"
 
+[sub_resource type="Resource" id="Slot_Flamethrower"]
+script = ExtResource("3_slot")
+slot_id = &"weapon.flamethrower"
+display_name = "Flamethrower Chip Slot"
+scope_id = "weapon_type"
+target_id = &"flamethrower"
+
 [resource]
 script = ExtResource("1_configuration")
 chips = Array[ExtResource("2_chip")]([SubResource("Chip_Attack"), SubResource("Chip_AttackSpeed"), SubResource("Chip_Damage"), SubResource("Chip_Range"), SubResource("Chip_Skill")])
-slots = Array[ExtResource("3_slot")]([SubResource("Slot_MachineGun"), SubResource("Slot_DwarfCannon"), SubResource("Slot_Laser"), SubResource("Slot_Chainsaw")])
+slots = Array[ExtResource("3_slot")]([SubResource("Slot_MachineGun"), SubResource("Slot_DwarfCannon"), SubResource("Slot_Laser"), SubResource("Slot_Chainsaw"), SubResource("Slot_Flamethrower")])

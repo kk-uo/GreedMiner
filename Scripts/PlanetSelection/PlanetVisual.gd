@@ -115,11 +115,15 @@ func _draw() -> void:
 			_draw_frozen_planet(center, radius)
 		&"volcanic":
 			_draw_volcanic_planet(center, radius)
+		&"graveyard":
+			_draw_graveyard_planet(center, radius)
 		_:
 			_draw_rocky_planet(center, radius)
 
 	# Style A: one hard, flat shadow crescent (light from the top-left).
 	_draw_shadow_crescent(center, radius)
+	if visual_theme == &"graveyard":
+		_draw_graveyard_wisps(center, radius)
 
 	if not unlocked:
 		_draw_lock(center, radius)
@@ -261,6 +265,136 @@ func _draw_volcanic_planet(center: Vector2, radius: float) -> void:
 	]), hot_color, 4.0)
 	draw_circle(center + Vector2(43.0, -39.0), 17.0, Color("211D20"))
 	draw_arc(center + Vector2(43.0, -39.0), 12.0, 0.0, TAU, 24, Color("7C4B36"), 3.0)
+
+
+## Graveyard world: ashen moss-grey ground packed with rows of tombstones,
+## a crypt and dead trees, split by a chasm of glowing green biomass (the
+## planet's riches), with violet grave-mist drifting over the surface.
+func _draw_graveyard_planet(center: Vector2, radius: float) -> void:
+	var t := _animation_time
+	draw_circle(center, radius, Color("3B403A"))
+	draw_circle(center - Vector2(20.0, 24.0), radius * 0.7, Color("4D5449"))
+	# Darker burial plots.
+	for plot in [[Vector2(-40.0, 38.0), 30.0], [Vector2(46.0, -18.0), 26.0], [Vector2(-18.0, -58.0), 20.0]]:
+		draw_colored_polygon(Palette.offset_points(Palette.regular_polygon(7, plot[1], 0.4), center + (plot[0] as Vector2)), Color("343A33"))
+	# Glowing biomass: irregular pools seeping up between the graves.
+	var glow := 0.5 + 0.5 * sin(t * 1.6)
+	for pool in [[Vector2(-26.0, 20.0), 19.0, 0.3], [Vector2(36.0, 38.0), 14.0, 1.1], [Vector2(-56.0, -26.0), 9.0, 2.0], [Vector2(6.0, 40.0), 7.0, 0.7]]:
+		var at: Vector2 = center + (pool[0] as Vector2)
+		var r: float = pool[1]
+		var blob := PackedVector2Array()
+		for k in range(11):
+			var a := TAU * float(k) / 11.0 + float(pool[2])
+			blob.append(at + Vector2(cos(a) * r * (1.0 + 0.22 * sin(a * 3.0 + float(pool[2]))), sin(a) * r * 0.78))
+		draw_circle(at, r + 6.0 + 2.0 * glow, Color("7CFF5A", 0.1 + 0.08 * glow))
+		draw_colored_polygon(Palette.offset_points(blob, Vector2(0.0, 2.0)), Color("1E2A1C"))
+		draw_colored_polygon(blob, Color("4FC23C"))
+		var core := PackedVector2Array()
+		for point in blob:
+			core.append(at + (point - at) * 0.55 + Vector2(-r * 0.18, -r * 0.16))
+		draw_colored_polygon(core, Color("9BEF6A"))
+		draw_circle(at + Vector2(-r * 0.35, -r * 0.3), r * 0.16, Color("E6FFC8"))
+		var ph := fposmod(t * 0.7 + r * 0.13, 1.0)
+		draw_circle(at + Vector2(r * 0.35, r * 0.05 - ph * 6.0), 2.2 * (1.0 - ph), Color("E6FFC8", 1.0 - ph))
+	# Dead trees.
+	for tree in [[Vector2(70.0, 34.0), 1.3], [Vector2(-74.0, 10.0), 1.1]]:
+		_draw_dead_tree(center + (tree[0] as Vector2), tree[1])
+	# A small crypt.
+	draw_set_transform(center + Vector2(6.0, -30.0), 0.0, Vector2.ONE * 1.4)
+	_draw_crypt(Vector2.ZERO)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# Rows of tombstones following the curve of the world.
+	var rows := [
+		[Vector2(-60.0, -50.0), Vector2(21.0, -5.0), 3],
+		[Vector2(-58.0, 56.0), Vector2(21.0, 6.0), 3],
+		[Vector2(34.0, -62.0), Vector2(20.0, 8.0), 2],
+		[Vector2(62.0, 4.0), Vector2(6.0, 20.0), 2],
+		[Vector2(14.0, 70.0), Vector2(20.0, -6.0), 2],
+	]
+	var index := 0
+	for row in rows:
+		for k in range(int(row[2])):
+			var at: Vector2 = center + (row[0] as Vector2) + (row[1] as Vector2) * float(k)
+			_draw_tombstone(at, index % 3, 1.45 + 0.15 * float((index * 7) % 3), float((index * 5) % 7 - 3) * 0.06)
+			index += 1
+
+
+## One tombstone: rounded slab, cross or obelisk (kind 0/1/2), lit from the top-left.
+func _draw_tombstone(at: Vector2, kind: int, scale_by: float, tilt: float) -> void:
+	var s := scale_by
+	var dark := Color("6E7268")
+	var stone := Color("A3A79A")
+	var lit := Color("CDD0C2")
+	draw_set_transform(at, tilt, Vector2.ONE * s)
+	draw_colored_polygon(PackedVector2Array([Vector2(-5.0, 1.0), Vector2(6.0, 1.0), Vector2(8.0, 3.5), Vector2(-3.0, 3.5)]), Color(0.0, 0.0, 0.0, 0.3))
+	match kind:
+		1:
+			draw_rect(Rect2(Vector2(-1.6, -12.0), Vector2(3.2, 13.0)), dark)
+			draw_rect(Rect2(Vector2(-5.0, -9.0), Vector2(10.0, 3.0)), dark)
+			draw_rect(Rect2(Vector2(-1.6, -12.0), Vector2(2.0, 12.0)), stone)
+			draw_rect(Rect2(Vector2(-5.0, -9.0), Vector2(9.0, 2.0)), lit)
+		2:
+			draw_colored_polygon(PackedVector2Array([Vector2(-3.5, 1.0), Vector2(-2.2, -11.0), Vector2(0.0, -14.0), Vector2(2.2, -11.0), Vector2(3.5, 1.0)]), dark)
+			draw_colored_polygon(PackedVector2Array([Vector2(-3.0, 0.5), Vector2(-1.8, -10.5), Vector2(0.0, -13.2), Vector2(0.4, 0.5)]), stone)
+		_:
+			var slab := PackedVector2Array([Vector2(-4.5, 1.0), Vector2(-4.5, -6.0)])
+			for k in range(7):
+				slab.append(Vector2(-4.5 * cos(PI * float(k) / 6.0), -6.0 - 4.5 * sin(PI * float(k) / 6.0)))
+			slab.append(Vector2(4.5, 1.0))
+			draw_colored_polygon(slab, dark)
+			var face := PackedVector2Array()
+			for point in slab:
+				face.append(point * Vector2(0.78, 0.9) + Vector2(-0.8, -0.2))
+			draw_colored_polygon(face, stone)
+			draw_line(Vector2(-2.6, -6.0), Vector2(1.0, -6.0), dark, 0.9)
+			draw_line(Vector2(-2.6, -3.6), Vector2(0.4, -3.6), dark, 0.9)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+func _draw_dead_tree(at: Vector2, s: float) -> void:
+	var bark := Color("2A2622")
+	draw_line(at, at + Vector2(1.0, -22.0) * s, bark, 3.0 * s)
+	draw_line(at + Vector2(0.6, -12.0) * s, at + Vector2(-9.0, -20.0) * s, bark, 2.0 * s)
+	draw_line(at + Vector2(-9.0, -20.0) * s, at + Vector2(-11.0, -26.0) * s, bark, 1.4 * s)
+	draw_line(at + Vector2(0.8, -16.0) * s, at + Vector2(8.0, -25.0) * s, bark, 1.8 * s)
+	draw_line(at + Vector2(1.0, -22.0) * s, at + Vector2(-2.0, -29.0) * s, bark, 1.4 * s)
+	draw_colored_polygon(PackedVector2Array([at + Vector2(-5.0, 1.0) * s, at + Vector2(6.0, 1.0) * s, at + Vector2(2.0, -2.0) * s]), bark)
+
+
+## A squat stone mausoleum with a peaked roof and a faint green glow inside.
+func _draw_crypt(at: Vector2) -> void:
+	draw_colored_polygon(PackedVector2Array([at + Vector2(-12.0, 4.0), at + Vector2(14.0, 4.0), at + Vector2(17.0, 8.0), at + Vector2(-9.0, 8.0)]), Color(0.0, 0.0, 0.0, 0.3))
+	draw_rect(Rect2(at + Vector2(-12.0, -10.0), Vector2(24.0, 14.0)), Color("6E7268"))
+	draw_rect(Rect2(at + Vector2(-12.0, -10.0), Vector2(18.0, 13.0)), Color("A3A79A"))
+	draw_colored_polygon(PackedVector2Array([at + Vector2(-15.0, -10.0), at + Vector2(0.0, -20.0), at + Vector2(15.0, -10.0)]), Color("595D54"))
+	draw_colored_polygon(PackedVector2Array([at + Vector2(-15.0, -10.0), at + Vector2(0.0, -20.0), at + Vector2(1.0, -13.0)]), Color("CDD0C2"))
+	draw_rect(Rect2(at + Vector2(-3.5, -5.0), Vector2(7.0, 9.0)), Color("1E2A1C"))
+	draw_rect(Rect2(at + Vector2(-2.5, -3.5), Vector2(5.0, 7.5)), Color("5FD94A", 0.45 + 0.25 * sin(_animation_time * 2.0)))
+	draw_line(at + Vector2(0.0, -24.0), at + Vector2(0.0, -19.0), Color("A3A79A"), 1.4)
+	draw_line(at + Vector2(-2.0, -22.5), at + Vector2(2.0, -22.5), Color("A3A79A"), 1.4)
+
+
+## Violet grave-mist drifting across the face and a few ghost wisps
+## circling just above the surface (drawn after the shadow so they glow).
+func _draw_graveyard_wisps(center: Vector2, radius: float) -> void:
+	var t := _animation_time
+	for band in range(2):
+		var y := -10.0 + 46.0 * float(band) + sin(t * 0.5 + float(band)) * 4.0
+		var drift := fposmod(t * (6.0 + 3.0 * float(band)), 40.0) - 20.0
+		var points := PackedVector2Array()
+		var half_width := sqrt(maxf(radius * radius - y * y, 0.0)) - 6.0
+		for k in range(13):
+			var x := lerpf(-half_width, half_width, float(k) / 12.0)
+			points.append(center + Vector2(x, y + sin(x * 0.06 + t + drift * 0.05) * 5.0))
+		draw_polyline(points, Color("B49CFF", 0.07), 14.0)
+		draw_polyline(points, Color("D9CCFF", 0.06), 5.0)
+	for k in range(3):
+		var a := t * (0.35 + 0.08 * float(k)) + TAU * float(k) / 3.0
+		var at := center + Vector2(cos(a), sin(a) * 0.85) * (radius + 10.0)
+		var trail := at - Vector2(-sin(a), cos(a) * 0.85) * 10.0
+		draw_line(trail, at, Color("C8FFB0", 0.18), 6.0)
+		draw_circle(at, 4.5, Color("C8FFB0", 0.35))
+		draw_circle(at, 2.2, Color("F2FFE6", 0.9))
 
 
 func _draw_lock(center: Vector2, radius: float) -> void:

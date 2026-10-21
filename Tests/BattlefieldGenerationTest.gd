@@ -42,6 +42,13 @@ func _run() -> void:
 			_expect_true(rock_center.distance_to(position) >= site["radius"], "no rock inside a site")
 	_expect_true(a.get_interactables_root() != null, "interactables root exists")
 	_expect_true(a.get_terrain_band(center) in [-1, 0, 1], "terrain band query works")
+	for seed_value in [1, 42, 12345, 98765]:
+		a.generate(seed_value)
+		var safe_bounds := a.get_world_bounds().grow(-a.crystal_edge_margin)
+		for deposit in a._deposits:
+			for crystal in deposit["crystals"]:
+				var position: Vector2 = a.to_global(deposit["position"] + crystal[0])
+				_expect_true(safe_bounds.has_point(position), "crystals stay inside the edge margin")
 
 	var probe := center + Vector2(900.0, 500.0)
 	if a.is_area_free(probe, 20.0):

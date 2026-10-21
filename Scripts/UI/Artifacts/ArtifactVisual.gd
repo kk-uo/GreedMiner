@@ -63,6 +63,12 @@ static func draw_icon(canvas: CanvasItem, center: Vector2, size: float, artifact
 			_goblin_flag(canvas, silhouette)
 		&"goblin_horn":
 			_goblin_horn(canvas, silhouette)
+		&"demon_prism":
+			_demon_prism(canvas, silhouette)
+		&"ghost_bullet":
+			_ghost_bullet(canvas, silhouette)
+		&"red_crystal":
+			_red_crystal(canvas, silhouette)
 		_:
 			_gem(canvas, rarity_color(rarity), silhouette)
 	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -170,6 +176,135 @@ static func _goblin_horn(canvas: CanvasItem, silhouette: bool) -> void:
 	for k in range(3):
 		var r := 6.0 + 5.0 * float(k)
 		canvas.draw_arc(Vector2(14, -4), r, -0.7, 0.7, 10, Color(Palette.GOBLIN_SKIN_LIGHT, 0.9 - 0.25 * float(k)), 2.0)
+
+
+## Demon Prism: a tall black-crimson triangular prism with two small horns,
+## a slit demon eye in its molten core and a beam fanning out into a wide
+## crimson spread (the range it grants).
+static func _demon_prism(canvas: CanvasItem, silhouette: bool) -> void:
+	var body := PackedVector2Array([Vector2(-4, -24), Vector2(15, 18), Vector2(-17, 18)])
+	var horn_l := PackedVector2Array([Vector2(-11, -4), Vector2(-17, -14), Vector2(-21, -26), Vector2(-12, -18), Vector2(-5, -14)])
+	var horn_r := PackedVector2Array([Vector2(0, -14), Vector2(8, -19), Vector2(15, -28), Vector2(12, -15), Vector2(6, -4)])
+	if silhouette:
+		canvas.draw_colored_polygon(horn_l, SILHOUETTE)
+		canvas.draw_colored_polygon(horn_r, SILHOUETTE)
+		canvas.draw_colored_polygon(body, SILHOUETTE)
+		return
+	# Refracted beam: a thin ray in from the left, a wide fan out to the right.
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(4, -2), Vector2(30, -16), Vector2(31, 14), Vector2(4, 6)]), Color("FF3B2F", 0.22))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(4, 0), Vector2(30, -8), Vector2(30, 7), Vector2(4, 4)]), Color("FF7A1A", 0.35))
+	canvas.draw_line(Vector2(-30, 6), Vector2(-8, 2), Color("FFC061", 0.9), 2.0)
+	canvas.draw_colored_polygon(Palette.offset_points(body, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+	canvas.draw_colored_polygon(horn_l, Color("5A1A26"))
+	canvas.draw_colored_polygon(horn_r, Color("4A1520"))
+	canvas.draw_polyline(PackedVector2Array([Vector2(-19, -23), Vector2(-15, -14), Vector2(-9, -9)]), Color("A8404E"), 1.6)
+	canvas.draw_polyline(PackedVector2Array([Vector2(13, -25), Vector2(8, -16), Vector2(3, -12)]), Color("A8404E"), 1.6)
+	canvas.draw_colored_polygon(body, Color("3A0A12"))
+	# Lit left facet and darker right facet.
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-4, -24), Vector2(-3, 18), Vector2(-17, 18)]), Color("8E1626"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-4, -24), Vector2(-7, 4), Vector2(-14, 15)]), Color("D2334A"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-4, -24), Vector2(15, 18), Vector2(-3, 18)]), Color("5C0E1C"))
+	# Molten core with a slit eye.
+	canvas.draw_circle(Vector2(-3, 7), 8.5, Color("FF3B2F", 0.3))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-10, 7), Vector2(-3, 2), Vector2(4, 7), Vector2(-3, 12)]), Color("FF7A1A"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-7, 7), Vector2(-3, 4), Vector2(1, 7), Vector2(-3, 10)]), Color("FFC061"))
+	canvas.draw_line(Vector2(-3, 3.5), Vector2(-3, 10.5), Color("2A0F14"), 1.8)
+	# Edge glints.
+	canvas.draw_line(Vector2(-4, -24), Vector2(-16, 17), Color("FF8C9A", 0.8), 1.2)
+	canvas.draw_circle(Vector2(-6, -15), 1.4, Color("FFE0E4"))
+
+
+## Ghost Bullet: a pale see-through bullet flying up-right, its tail
+## unravelling into a wavy ghost wisp.
+static func _ghost_bullet(canvas: CanvasItem, silhouette: bool) -> void:
+	var dir := Vector2(1, -0.62).normalized()
+	var side := dir.orthogonal()
+	# Wisp: a tapering wavy ribbon from the bullet's base back down-left.
+	var top := PackedVector2Array()
+	var bottom := PackedVector2Array()
+	for k in range(13):
+		var t := float(k) / 12.0
+		var spine := -dir * (2.0 + 24.0 * t) + side * sin(t * 7.0) * 4.0 * t
+		var half := lerpf(7.5, 1.0, t)
+		top.append(spine + side * half)
+		bottom.insert(0, spine - side * half)
+	var wisp := top.duplicate()
+	wisp.append_array(bottom)
+	var tip := dir * 20.0
+	var bullet := PackedVector2Array([tip, dir * 12.0 + side * 6.5, -dir * 4.0 + side * 7.0, -dir * 4.0 - side * 7.0, dir * 12.0 - side * 6.5])
+	if silhouette:
+		canvas.draw_colored_polygon(wisp, SILHOUETTE)
+		canvas.draw_colored_polygon(bullet, SILHOUETTE)
+		return
+	canvas.draw_circle(dir * 6.0, 19.0, Color("8FE3FF", 0.10))
+	canvas.draw_colored_polygon(wisp, Color("8FE3FF", 0.42))
+	# Inner brighter strand of the wisp.
+	var strand := PackedVector2Array()
+	for k in range(10):
+		var t := float(k) / 9.0
+		strand.append(-dir * (2.0 + 20.0 * t) + side * sin(t * 7.0) * 4.0 * t)
+	canvas.draw_polyline(strand, Color("DDF8FF", 0.6), 2.0)
+	# Translucent bullet body with a lit flank and a glowing tip.
+	canvas.draw_colored_polygon(bullet, Color("9EDCF0", 0.7))
+	canvas.draw_colored_polygon(PackedVector2Array([tip, dir * 12.0 + side * 6.5, -dir * 4.0 + side * 7.0, -dir * 4.0 + side * 1.0, dir * 12.0]), Color("E6FBFF", 0.8))
+	canvas.draw_circle(tip - dir * 3.0, 3.6, Color(1, 1, 1, 0.95))
+	canvas.draw_circle(tip - dir * 3.0, 6.5, Color(1, 1, 1, 0.18))
+	# Drifting motes.
+	canvas.draw_circle(-dir * 20.0 + side * 10.0, 1.5, Color("DDF8FF", 0.7))
+	canvas.draw_circle(-dir * 12.0 - side * 11.0, 1.2, Color("DDF8FF", 0.55))
+
+
+## Red Crystal: a cluster of three faceted blood-red crystals on a dark rock,
+## glowing, with red sparks rising off it.
+static func _red_crystal(canvas: CanvasItem, silhouette: bool) -> void:
+	var rock := PackedVector2Array([Vector2(-20, 14), Vector2(-12, 8), Vector2(10, 8), Vector2(21, 15), Vector2(14, 21), Vector2(-14, 21)])
+	var shards := [
+		[Vector2(-1, 12), 26.0, 7.5, -0.12],
+		[Vector2(-10, 13), 17.0, 5.5, -0.55],
+		[Vector2(10, 13), 15.0, 5.0, 0.5],
+	]
+	if silhouette:
+		canvas.draw_colored_polygon(rock, SILHOUETTE)
+		for shard in shards:
+			canvas.draw_colored_polygon(_shard_points(shard), SILHOUETTE)
+		return
+	canvas.draw_circle(Vector2(0, -2), 21.0, Color("FF3348", 0.12))
+	canvas.draw_colored_polygon(Palette.offset_points(rock, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+	canvas.draw_colored_polygon(rock, Color("3A302B"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-18, 14), Vector2(-12, 10), Vector2(9, 10), Vector2(-2, 15)]), Color("5A4C43"))
+	# Back shards first, the tall one in front.
+	for index in [1, 2, 0]:
+		var shard: Array = shards[index]
+		var pts := _shard_points(shard)
+		canvas.draw_colored_polygon(pts, Color("7A0F1E"))
+		# Lit left facet and a bright edge.
+		var foot := (pts[2] + pts[3]) * 0.5
+		canvas.draw_colored_polygon(PackedVector2Array([pts[0], pts[1], pts[2], foot]), Color("D7263D"))
+		canvas.draw_colored_polygon(PackedVector2Array([pts[0], pts[1], (pts[1] + foot) * 0.5]), Color("FF6B7D"))
+	canvas.draw_line(Vector2(-3, -12), Vector2(-4, -3), Color(1, 1, 1, 0.75), 1.6)
+	# Rising red sparks.
+	for spark in [[Vector2(-15, -10), 1.8], [Vector2(15, -6), 1.5], [Vector2(8, -20), 1.3], [Vector2(-8, -21), 1.1]]:
+		canvas.draw_circle(spark[0], float(spark[1]) * 1.9, Color("FF3348", 0.25))
+		canvas.draw_circle(spark[0], spark[1], Color("FFB3BC"))
+
+
+## [base, height, half width, lean] -> a five-point crystal:
+## tip, shoulder A, base A, base B, shoulder B.
+static func _shard_points(shard: Array) -> PackedVector2Array:
+	var base: Vector2 = shard[0]
+	var height: float = shard[1]
+	var half: float = shard[2]
+	var lean: float = shard[3]
+	var up := Vector2.UP.rotated(lean)
+	var across := up.orthogonal()
+	var tip := base + up * height
+	return PackedVector2Array([
+		tip,
+		base + up * height * 0.72 + across * half,
+		base + across * half * 0.85,
+		base - across * half * 0.85,
+		base + up * height * 0.72 - across * half,
+	])
 
 
 static func _heart(radius: float, offset: Vector2) -> PackedVector2Array:

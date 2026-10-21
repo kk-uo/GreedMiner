@@ -21,6 +21,7 @@ func _run() -> void:
 	var battle := BATTLE.instantiate()
 	battle.get_node("WaveManager").auto_start = false
 	var field := battle.get_node("Battlefield") as Battlefield
+	check(is_equal_approx(field.red_crystal_chance, 0.01), "red crystal chance defaults to one percent")
 	field.map_seed = 12345
 	field.red_crystal_chance = 1.0
 	add_child(battle)
@@ -31,33 +32,15 @@ func _run() -> void:
 		var crystal := crystals.get_child(crystals.get_child_count() - 1) as Node2D
 		var position := crystal.global_position
 		check(crystal.get("is_red"), "forced red spawn")
+		check(crystal.call("can_be_mined"), "red crystal can be mined by dwarves")
 		check(field.try_click_crystal(position), "crystal can be clicked")
-		check(crystal.get("_clicks") == 1, "first click recorded")
 		check(crystal.get("_shake") != null, "click starts shake")
-		for i in range(8):
+		for i in range(20):
 			crystal.call("register_click")
-		check(ResourceManager.mission_ore == 0.0, "no early ore")
-		check(not ArtifactManager.owns_artifact(&"red_crystal"), "no early artifact")
-		crystal.call("register_click")
-		check(ResourceManager.mission_ore == 30.0, "10 clicks grant 30 mission ore")
-		check(ArtifactManager.owns_artifact(&"red_crystal"), "red crystal artifact granted")
-		check(not ArtifactManager.grant_artifact(&"red_crystal"), "artifact cannot duplicate")
-		var enemies := battle.get_node("Enemies")
-		check(enemies.get_child_count() == 1, "exactly one golem spawned")
-		if enemies.get_child_count() == 1:
-			var golem := enemies.get_child(0) as BasicEnemy
-			check(golem is RockGolem and golem.global_position.is_equal_approx(position), "golem spawns at crystal")
-			check(golem.target_ship == battle.get_node("Ship"), "golem targets ship")
-		crystal.call("register_click")
-		check(ResourceManager.mission_ore == 30.0, "broken crystal cannot reward twice")
-		ArtifactManager.reload_progress()
-		check(ArtifactManager.owns_artifact(&"red_crystal"), "artifact ownership persists")
-		if crystals.get_child_count() > 1:
-			var duplicate := crystals.get_child(0)
-			for i in range(10):
-				duplicate.call("register_click")
-			check(ResourceManager.mission_ore == 130.0, "repeat red crystal grants exactly 100 ore")
-			check(enemies.get_child_count() == 2, "repeat red crystal spawns golem")
+		check(not crystal.is_queued_for_deletion(), "repeated clicks do not break red crystal")
+		check(ResourceManager.mission_ore == 0.0, "clicking does not award ore")
+		check(not ArtifactManager.owns_artifact(&"red_crystal"), "clicking does not grant artifact")
+		check(battle.get_node("Enemies").get_child_count() == 0, "clicking does not spawn a golem")
 	field.red_crystal_chance = 0.0
 	field.generate(12345)
 	crystals = field.get_interactables_root().get_node("RockyCrystals")
@@ -66,17 +49,23 @@ func _run() -> void:
 		check(not ordinary.get("is_red"), "ordinary crystal generated")
 		for i in range(10):
 			ordinary.call("register_click")
-		check(ResourceManager.mission_ore == 160.0, "ordinary crystal grants 30 ore")
-		check(battle.get_node("Enemies").get_child_count() == 3, "ordinary crystal also spawns golem")
+		check(not ordinary.is_queued_for_deletion(), "repeated clicks do not break ordinary crystal")
+		check(ResourceManager.mission_ore == 0.0, "ordinary clicks do not grant ore")
+		check(battle.get_node("Enemies").get_child_count() == 0, "ordinary clicks do not spawn a golem")
 	await get_tree().process_frame
 	var popup_amounts: Array[float] = []
 	for node in battle.get_children():
 		if node is RewardPopup:
 			popup_amounts.append((node as RewardPopup).amount)
-	check(popup_amounts == [30.0, 100.0, 30.0], "reward popups show actual crystal ore amounts")
+	check(popup_amounts.is_empty(), "clicking does not display an ore reward")
 	field.planet_theme = &"frozen"
 	field.generate(12345)
-	check(field.get_interactables_root().get_node("RockyCrystals").get_child_count() == 0, "other planets unaffected")
+	# Other planets get their own ore deposits (Battlefield.PLANET_ORES), never Rocky crystals.
+	var non_rocky_crystals := 0
+	for node in field.get_interactables_root().get_node("RockyCrystals").get_children():
+		if node.get("ore_kind") == &"":
+			non_rocky_crystals += 1
+	check(non_rocky_crystals == 0, "other planets unaffected")
 	var definition := ArtifactManager.get_definition(&"red_crystal")
 	check(definition != null and definition.rarity == "Epic", "epic definition registered")
 	check(definition.is_compatible_with_module(&"dwarf_cannon"), "cannon compatible")
@@ -107,6 +96,7 @@ func _run() -> void:
 	effect.cleanup()
 	check(is_equal_approx(cannon.get_modified_explosion_damage(20.0), 20.0), "effect cleanup restores damage")
 	ArtifactManager.set_equipment_changes_enabled(true)
+	check(ArtifactManager.grant_artifact(&"red_crystal"), "grant artifact directly to test existing effects")
 	WeaponUnlockManager.unlock_all_configured_weapons()
 	ShipLoadout.install_module(0, 0, "res://Scenes/Modules/Shield/knockback_module.tscn")
 	check(ArtifactManager.equip_module_artifact(Vector2i(0, 0), &"red_crystal"), "equip red crystal on knockback")

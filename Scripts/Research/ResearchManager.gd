@@ -178,6 +178,41 @@ func is_research_completed(research_id: StringName) -> bool:
 	return definition != null and get_level(research_id) >= definition.max_level
 
 
+## Gameplay-facing mining research values; all progress remains in the research save.
+func get_crystal_value_multiplier() -> float:
+	return 1.0 + 0.05 * int(is_research_completed(&"mining_value_1")) + 0.05 * int(is_research_completed(&"mining_value_2"))
+
+
+func get_crystal_respawn_seconds() -> float:
+	if is_research_completed(&"mining_respawn_2"):
+		return 140.0
+	return 150.0 if is_research_completed(&"mining_respawn_1") else 0.0
+
+
+func get_dwarf_max_hp() -> float:
+	return 50.0 + 10.0 * int(is_research_completed(&"mining_hp_1")) + 10.0 * int(is_research_completed(&"mining_hp_2")) + 10.0 * int(is_research_completed(&"mining_hp_3"))
+
+
+func get_dwarf_movement_speed_bonus() -> float:
+	return 5.0 if is_research_completed(&"mining_move_speed") else 0.0
+
+
+func get_dwarf_detection_range(base_range: float) -> float:
+	return minf(base_range, 175.0) if is_research_completed(&"mining_detection") else base_range
+
+
+func get_crystal_mining_seconds() -> float:
+	return 10.0 - 0.5 * int(is_research_completed(&"mining_time_1")) - 0.5 * int(is_research_completed(&"mining_time_2"))
+
+
+func get_mining_qte_ore_multiplier() -> float:
+	return 1.25 if is_research_completed(&"mining_qte") else 1.0
+
+
+func get_mining_output_bonus() -> float:
+	return 0.5 if is_research_completed(&"mining_passive") else 0.0
+
+
 func get_tree_node_state(research_id: StringName) -> StringName:
 	var node := configuration.get_tree_node(research_id)
 	if node == null or not node.enabled or not configuration.get_validation_errors().is_empty():
@@ -241,6 +276,29 @@ func is_ship_style_unlocked() -> bool:
 		if effect.unlocks_ship_style:
 			return true
 	return false
+
+
+## Extra grid-expansion capacity each Energy Module supplies from research.
+## Interface only: nothing turns this capacity into slots yet.
+func get_energy_module_expansion_bonus() -> int:
+	var bonus := 0
+	for effect in get_ship_research_effects():
+		bonus += maxi(effect.expansion_capacity_bonus, 0)
+	return bonus
+
+
+## True once batteries support slot expansion (the hull research that will
+## actually add slots should check this).
+func is_energy_slot_expansion_supported() -> bool:
+	return get_energy_module_expansion_bonus() > 0
+
+
+## Extra max hull HP each installed Energy Module gives from research.
+func get_energy_module_hp_bonus() -> float:
+	var bonus := 0.0
+	for effect in get_ship_research_effects():
+		bonus += maxf(effect.energy_module_hp_bonus, 0.0)
+	return bonus
 
 
 ## Extra power each Energy Module supplies from completed research.

@@ -73,9 +73,9 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -232.0
+offset_left = -292.0
 offset_top = 16.0
-offset_right = -16.0
+offset_right = -76.0
 offset_bottom = 46.0
 grow_horizontal = 0
 script = ExtResource("12_ore_panel")
@@ -89,6 +89,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("11_settings")
+align_right = true
 
 [node name="DeveloperPanel" parent="BaseUI/UIRoot" instance=ExtResource("13_developer")]
 layout_mode = 1

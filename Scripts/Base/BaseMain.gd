@@ -70,6 +70,7 @@ func _ready() -> void:
 	_connect_once(ship.energy_changed, _on_ship_energy_changed)
 	_connect_once(ship.module_operation_failed, _on_module_operation_failed)
 	_connect_once(loadout_panel.install_requested, _on_install_requested)
+	_connect_once(loadout_panel.module_card_pressed, _on_module_card_pressed)
 	_connect_once(loadout_panel.remove_requested, _on_remove_requested)
 	_connect_once(loadout_panel.drag_started, _on_drag_started)
 	_connect_once(back_button.pressed, _exit_assembly)
@@ -110,6 +111,8 @@ func _ready() -> void:
 			ship.visual_altitude = 1.0
 			ship.modulate.a = 0.0
 			launcher.play_landing.call_deferred()
+	# Presentation: the crew hauls the ore in, or repairs a wrecked ship.
+	preload("res://Scripts/Base/BaseHomecoming.gd").consume(self)
 
 
 ## The settings gear is only offered in the overview (assembly has BACK there).
@@ -155,8 +158,10 @@ func _get_installed_id(row: int, column: int) -> StringName:
 func _on_install_requested(module_id: StringName) -> void:
 	if not ShipLoadout.is_valid_cell(_selected_row, _selected_column):
 		return
-	if not ModuleCatalog.is_module_unlocked(module_id):
-		loadout_panel.show_message(ModuleCatalog.get_unlock_requirement(module_id))
+	var notice := get_module_notice(module_id)
+	if not notice.is_empty():
+		loadout_panel.show_message(notice)
+		_show_toast(notice, NOTICE_TIME)
 		return
 	var scene := ModuleCatalog.get_scene(module_id)
 	if scene == null:
@@ -164,6 +169,37 @@ func _on_install_requested(module_id: StringName) -> void:
 	if ship.replace_module(scene, ModuleCatalog.get_module_type(module_id), _selected_row, _selected_column):
 		loadout_panel.set_slot(_selected_row, _selected_column, module_id)
 		ShipLoadout.save()
+
+
+## Clicking a module card explains right away why it cannot be installed.
+func _on_module_card_pressed(module_id: StringName) -> void:
+	var notice := get_module_notice(module_id)
+	if not notice.is_empty():
+		_show_toast(notice, NOTICE_TIME)
+
+
+## Why module_id cannot be installed right now ("" when it can): a locked
+## weapon names the planet that unlocks it; a battery over the installation
+## limit points at the Laboratory research that raises the limit.
+func get_module_notice(module_id: StringName) -> String:
+	if not ModuleCatalog.is_module_unlocked(module_id):
+		return tr("LOCKED  ·  %s") % tr(ModuleCatalog.get_unlock_requirement(module_id))
+	if String(ModuleCatalog.get_stats(module_id).get("category", "")) != String(ShipModule.CATEGORY_ENERGY):
+		return ""
+	var limit := ResearchManager.get_module_installation_limit(Ship.ENERGY_MODULE_TYPE_ID)
+	var count := ship.get_installed_module_count(Ship.ENERGY_MODULE_TYPE_ID)
+	var added := count
+	if ShipLoadout.is_valid_cell(_selected_row, _selected_column):
+		var current := ship.get_module_at(_selected_row, _selected_column)
+		if current == null or current.get_module_category() != ShipModule.CATEGORY_ENERGY:
+			added += 1
+	else:
+		added += 1
+	if added <= limit:
+		return ""
+	if ResearchManager.get_level(BATTERY_LIMIT_RESEARCH) < 1:
+		return tr("BATTERY LIMIT REACHED (%d/%d)  ·  Research ENERGY MODULE EXPANSION I in the Laboratory for one more") % [count, limit]
+	return tr("BATTERY LIMIT REACHED (%d/%d)") % [count, limit]
 
 
 func _on_remove_requested() -> void:
@@ -660,6 +696,7 @@ func _build_artifact_tutorial_hint() -> void:
 		return
 	artifact_tutorial_hint = ArtifactTutorialHintScript.new()
 	artifact_tutorial_hint.name = "ArtifactTutorialHint"
+	artifact_tutorial_hint.base = self
 	ui_root.add_child(artifact_tutorial_hint)
 	artifact_tutorial_hint.open_requested.connect(open_magic_stall)
 	artifact_tutorial_hint.skip_requested.connect(ArtifactManager.complete_tutorial)
@@ -676,8 +713,8 @@ func _on_artifact_tutorial_state_changed(pending: bool, completed: bool) -> void
 	_build_artifact_tutorial_hint()
 
 
-func _on_artifact_granted_at_base(definition: MagicArtifactDefinition, _first: bool) -> void:
-	_show_toast("ARTIFACT ACQUIRED  ·  %s" % definition.display_name.to_upper())
+func _on_artifact_granted_at_base(definition: MagicArtifactDefinition, first: bool) -> void:
+	preload("res://Scripts/UI/Artifacts/ArtifactAcquiredCard.gd").show_for(self, definition, first)
 	_build_artifact_tutorial_hint()
 
 
@@ -773,11 +810,15 @@ func _open_star_map() -> void:
 
 
 var _toast: PanelContainer
+## How long click notices (locked weapon / battery limit) stay on screen.
+const NOTICE_TIME: float = 3.2
+## Laboratory research that raises the Energy Module (battery) limit.
+const BATTERY_LIMIT_RESEARCH: StringName = &"energy_install_slot_unlock"
 var _toast_tween: Tween
 
 
 ## Small transient message at the top of the screen.
-func _show_toast(text: String) -> void:
+func _show_toast(text: String, hold: float = 1.4) -> void:
 	if _toast == null:
 		_toast = PanelContainer.new()
 		_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -796,7 +837,7 @@ func _show_toast(text: String) -> void:
 		_toast_tween.kill()
 	_toast_tween = create_tween()
 	_toast_tween.tween_property(_toast, "modulate:a", 1.0, 0.15)
-	_toast_tween.tween_interval(1.4)
+	_toast_tween.tween_interval(hold)
 	_toast_tween.tween_property(_toast, "modulate:a", 0.0, 0.3)
 
 

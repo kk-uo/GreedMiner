@@ -94,7 +94,7 @@ func _on_resolved(result: StringName) -> void:
 		OUTCOME_SUCCESS, OUTCOME_PERFECT, OUTCOME_FAILED:
 			# The arc shows the result line ("PERFECT! +120") above itself.
 			if is_instance_valid(skill_check):
-				skill_check.result_text = "%s +%s" % [result_label(result), OreBurstEvent._format(paid_total)]
+				skill_check.result_text = "%s +%s" % [tr(result_label(result)), OreBurstEvent._format(paid_total)]
 			if result != OUTCOME_FAILED and is_module_valid():
 				module.play_qte_burst()
 			_set_phase(Phase.DONE)

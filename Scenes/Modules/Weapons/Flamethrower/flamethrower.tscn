@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Modules/Weapons/Flamethrower/Flamethrower.gd" id="1"]
+[ext_resource type="PackedScene" path="res://Scenes/Modules/Weapons/Flamethrower/flamethrower_projectile.tscn" id="2"]
+[ext_resource type="Script" path="res://Scripts/Modules/Weapons/Flamethrower/FlamethrowerVisual.gd" id="3"]
+
+[node name="Flamethrower" type="Node2D"]
+script = ExtResource("1")
+power_consumption = 2
+weapon_type_id = &"flamethrower"
+projectile_scene = ExtResource("2")
+
+[node name="Turret" type="Node2D" parent="."]
+script = ExtResource("3")
+
+[node name="Muzzle" type="Marker2D" parent="Turret"]
+position = Vector2(30, 0)

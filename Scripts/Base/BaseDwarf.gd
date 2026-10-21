@@ -27,6 +27,8 @@ var pause_time: float = 1.6
 var mode: StringName = &"route"
 var tool: StringName = &""
 var carrying: bool = false
+## What `carrying` holds: &"crate" (ammo crate) or &"ore" (a glowing ore chunk).
+var cargo: StringName = &"crate"
 ## job mode: [{to: Vector2, wait: float, face: Vector2 (optional), carry: bool (optional), work: bool (optional)}]
 var steps: Array = []
 ## wander mode: returns a random free floor point (parent space).
@@ -256,6 +258,9 @@ func _paint() -> void:
 
 ## Ammo crate held out in front with both hands.
 func _draw_crate() -> void:
+	if cargo == &"ore":
+		_draw_ore_chunk()
+		return
 	var box := Rect2(Vector2(5.0, -5.5), Vector2(9.0, 11.0))
 	_pen.draw_rect(box, Palette.GOBLIN_WOOD_DARK)
 	_pen.draw_rect(box.grow(-1.2), Palette.GOBLIN_WOOD)
@@ -263,6 +268,17 @@ func _draw_crate() -> void:
 	# Three brass shell tips on top.
 	for y in [-2.8, 0.0, 2.8]:
 		_pen.draw_circle(Vector2(9.5, y), 1.0, Palette.GOLD)
+	for side in [-1.0, 1.0]:
+		_pen.draw_circle(Vector2(5.5, 5.8 * side), 1.7, Color("C98B52"))
+
+
+## A big gold ore chunk held out in front, glinting.
+func _draw_ore_chunk() -> void:
+	var glow := 0.7 + 0.3 * sin(_time * 4.0)
+	_pen.draw_circle(Vector2(10.0, 0.0), 8.0, Color(Palette.GOLD, 0.18 * glow))
+	_pen.draw_colored_polygon(PackedVector2Array([Vector2(5, -4), Vector2(10, -6.5), Vector2(15, -3), Vector2(14.5, 3.5), Vector2(9.5, 6), Vector2(5, 3)]), Color("B8862B"))
+	_pen.draw_colored_polygon(PackedVector2Array([Vector2(5, -4), Vector2(10, -6.5), Vector2(15, -3), Vector2(10, -0.5)]), Palette.GOLD)
+	_pen.draw_colored_polygon(PackedVector2Array([Vector2(10, -6.5), Vector2(12.5, -4.8), Vector2(10.5, -3.2)]), Color("FFF2C2"))
 	for side in [-1.0, 1.0]:
 		_pen.draw_circle(Vector2(5.5, 5.8 * side), 1.7, Color("C98B52"))
 

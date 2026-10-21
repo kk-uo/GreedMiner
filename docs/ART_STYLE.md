@@ -115,6 +115,9 @@ rectangles/chamfers, enemies = faceted grey stone chunks with purple eyes, miner
 3. 星球变体、精英怪不额外出图，用 `modulate` 或调色板替换 shader 实现。
 4. 特效用 `FlatBurst`、`CPUParticles2D`（不加贴图）和 `Line2D` 实现。
 5. 字体只用一套（`Theme/ChakraPetch-SemiBold.ttf`，约 78KB）。如果加中文，必须做字体子集。
+   中文后备字体是子集 `Assets/Fonts/NotoSerifSC-Subset.otf`（约 318KB）；新增中文文本后运行
+   `python3 tools/fonts/subset_cjk_font.py` 重新生成（完整字体在 `tools/fonts/source/`，不会被导出），
+   `Tests/FontCoverageTest` 会检查翻译里的字是否都在子集里。
 6. 音频统一用 OGG 格式。
 7. Web 导出不要放在项目根目录，导出到 `build/web/`（这个目录已经被 git 忽略）。
 

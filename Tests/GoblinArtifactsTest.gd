@@ -23,7 +23,11 @@ func _run() -> void:
 	ArtifactManager.set_equipment_changes_enabled(true)
 	var rocky_pool := ArtifactManager.get_unowned_mining_chest_artifacts(&"rocky_planet")
 	var verdant_pool := ArtifactManager.get_unowned_mining_chest_artifacts(&"goblin_planet")
-	check(rocky_pool.any(func(d): return d.artifact_id == &"angry_stone"), "Angry Stone stays in the general pool")
+	check(rocky_pool.any(func(d): return d.artifact_id == &"angry_stone"), "Angry Stone available on Rocky")
+	check(not verdant_pool.any(func(d): return d.artifact_id == &"angry_stone"), "Angry Stone absent on Verdant")
+	for planet in [&"frozen_planet", &"volcanic_planet", &"graveyard_planet"]:
+		check(not ArtifactManager.get_unowned_mining_chest_artifacts(planet).any(func(d): return d.artifact_id == &"angry_stone"), "Angry Stone absent on %s" % planet)
+	check(ArtifactManager.get_definition(&"angry_stone").source_planet_id == &"rocky_planet", "Angry Stone listed under Rocky")
 	check(not rocky_pool.any(func(d): return d.artifact_id == &"goblin_flag"), "flag absent outside Verdant")
 	check(verdant_pool.any(func(d): return d.artifact_id == &"goblin_flag"), "flag available on Verdant")
 	check(ArtifactManager.grant_artifact(&"goblin_flag"), "grant flag")
