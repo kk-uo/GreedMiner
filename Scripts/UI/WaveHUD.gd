@@ -3,9 +3,9 @@ extends VBoxContainer
 
 ## Minimal signal-driven wave status display.
 
-@onready var wave_label: Label = $WaveLabel
+@onready var wave_label: Label = $WaveRow/WaveLabel
 @onready var status_label: Label = $StatusLabel
-@onready var remaining_label: Label = $RemainingLabel
+@onready var remaining_label: Label = $EnemyRow/RemainingLabel
 
 var _wave_number := 0
 var _total_waves := 0
@@ -35,7 +35,7 @@ func show_preparation(wave_number: int, total_waves: int, duration: float) -> vo
 	_wave_number = wave_number
 	_total_waves = total_waves
 	_preparation_seconds = ceili(duration)
-	wave_label.text = tr("WAVE  %d / %d") % [wave_number, total_waves]
+	wave_label.text = "%d / %d" % [wave_number, total_waves]
 	status_label.text = tr("PREP  %d") % ceili(duration)
 	_set_status_visible(true)
 
@@ -49,15 +49,15 @@ func show_wave(wave_number: int, total_waves: int, boss_wave: bool) -> void:
 	_mode = &"wave"
 	_wave_number = wave_number
 	_total_waves = total_waves
-	wave_label.text = tr("WAVE  %d / %d") % [wave_number, total_waves]
+	wave_label.text = "%d / %d" % [wave_number, total_waves]
 	# Normal waves show no status line; only the boss wave is called out.
-	status_label.text = "BOSS WAVE"
+	status_label.text = tr("BOSS WAVE")
 	_set_status_visible(boss_wave)
 
 
 func update_remaining(remaining_count: int) -> void:
 	_remaining = remaining_count
-	remaining_label.text = tr("ENEMIES  %d") % remaining_count
+	remaining_label.text = str(remaining_count)
 
 
 ## Development-only state for a deliberately reserved, unconfigured boss wave.
@@ -65,7 +65,7 @@ func show_configuration_blocked(wave_number: int, message: String) -> void:
 	_mode = &"blocked"
 	_wave_number = wave_number
 	_blocked_message = message
-	wave_label.text = tr("WAVE  %d  //  DEVELOPMENT") % wave_number
+	wave_label.text = "%d" % wave_number
 	status_label.text = message.to_upper()
 	_set_status_visible(true)
 

@@ -10,7 +10,7 @@ func configure_weapon(target_weapon: WeaponModule) -> void:
 
 func _ready() -> void:
 	if is_instance_valid(weapon):
-		weapon.artifact_projectile_pierces = _get_pierces
+		weapon.add_artifact_projectile_pierces(Callable(self, "_get_pierces"))
 		# Presentation: particles under the equipped module.
 		_aura = WEAPON_ARTIFACT_AURA.new()
 		_aura.set("kind", definition.artifact_id)
@@ -21,8 +21,8 @@ func _get_pierces() -> int:
 	return maxi(int(definition.effect_parameters.get("initial_pierces", 1)), 0)
 
 func cleanup() -> void:
-	if is_instance_valid(weapon) and weapon.artifact_projectile_pierces == Callable(self, "_get_pierces"):
-		weapon.artifact_projectile_pierces = Callable()
+	if is_instance_valid(weapon):
+		weapon.remove_artifact_projectile_pierces(Callable(self, "_get_pierces"))
 	if is_instance_valid(_aura):
 		_aura.queue_free()
 	queue_free()

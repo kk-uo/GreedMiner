@@ -61,7 +61,8 @@ func _process(delta: float) -> void:
 	current_target = keep_or_find_target(
 		current_target,
 		global_position,
-		get_modified_attack_range(attack_range)
+		get_modified_attack_range(attack_range),
+		delta
 	)
 
 	if not is_instance_valid(current_target):
@@ -110,6 +111,7 @@ func fire() -> void:
 	projectile.speed = projectile_speed
 	projectile.damage = get_modified_explosion_damage(get_damage())
 	projectile.source_weapon = self
-	if artifact_projectile_pierces.is_valid():
-		projectile.enable_ghost_piercing(int(artifact_projectile_pierces.call()))
+	var artifact_pierces := get_artifact_projectile_pierces()
+	if artifact_pierces > 0:
+		projectile.enable_ghost_piercing(artifact_pierces)
 	projectile.explosion_radius = aoe_radius

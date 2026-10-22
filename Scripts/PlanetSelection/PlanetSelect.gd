@@ -58,6 +58,15 @@ const PLANETS: Array[Dictionary] = [
 		"enemies": ["Skeleton", "Zombie", "Werewolf", "Vampire", "Giant Frank"],
 		"theme": &"graveyard",
 	},
+	{
+		"id": &"tree_planet",
+		"name": "TREE PLANET",
+		"description": "A rain-soaked forest where cutting trees prevents their defenders from returning in storms.",
+		"unlocked": true,
+		"playable": true,
+		"enemies": ["Fairy", "Treant", "Big Treant", "Chainsaw Spaceship Treant"],
+		"theme": &"forest",
+	},
 ]
 
 const PLANET_VISUAL_SIZE: Vector2 = Vector2(320.0, 320.0)
@@ -258,8 +267,8 @@ func _update_planet_information() -> void:
 	var launch_status := evaluate_launch_requirements(planet, profile, ResourceManager.stored_ore)
 	var is_unlocked := bool(launch_status.unlocked)
 	var is_located := bool(launch_status.located)
-	planet_name_label.text = String(planet["name"])
-	description_label.text = String(planet["description"])
+	planet_name_label.text = tr(String(planet["name"]))
+	description_label.text = tr(String(planet["description"]))
 	var in_range := bool(launch_status.get("in_range", true))
 	status_label.text = ("LOCATED" if is_located else "UNCHARTED") if is_unlocked else "LOCKED"
 	if is_unlocked and not in_range:

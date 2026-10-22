@@ -92,7 +92,11 @@ static func draw(canvas: CanvasItem, time: float, wake: float, hovered: bool, gu
 		var width: float = 2.0 + (1.0 + sin(time * 4.0) if guide else 0.0)
 		var outline := _ellipse_points(Vector2.ZERO, 104.0, 88.0)
 		outline.append(outline[0])
-		canvas.draw_polyline(outline, Palette.ACCENT if awake else Palette.UI_MUTED, width)
+		# Hover: soft cream outline; the first-artifact guide alone pulses orange.
+		if hovered and not guide:
+			Palette.draw_hover_outline(canvas, outline, 2.4)
+		else:
+			canvas.draw_polyline(outline, Palette.ACCENT if awake else Palette.UI_MUTED, width)
 
 
 static func _rune_color(lit: float, phase: float, boost: float) -> Color:

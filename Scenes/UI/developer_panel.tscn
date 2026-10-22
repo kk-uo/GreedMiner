@@ -97,6 +97,12 @@ text = "Grant Resources"
 [node name="Separator" type="HSeparator" parent="Center/Panel/Content"]
 layout_mode = 2
 
+[node name="SpeedButton" type="Button" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Battle speed: 1×"
+
 [node name="UnlockWeaponsButton" type="Button" parent="Center/Panel/Content"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -130,6 +136,6 @@ text = "Close"
 [node name="ResetConfirmation" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
 title = "Reset All Progress?"
-dialog_text = "This permanently resets currencies, research, unlocks, chips, and the ship loadout to new-game defaults."
+dialog_text = "This permanently resets currencies, research, unlocks, magic artifacts, and the ship loadout to new-game defaults."
 ok_button_text = "Reset Progress"
 cancel_button_text = "Cancel"

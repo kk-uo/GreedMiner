@@ -1,43 +1,64 @@
 extends RefCounted
 
-## The tutorials' pointer arrow (base TutorialGuide, battle MiningTutorial):
-## a notched arrowhead on a rounded shaft in the accent orange, lit on one
-## side, with a soft glow and no outline. Also the "scroll down" pill.
+## The tutorials' pointer (user pick D "lock-on"): four cream corner
+## brackets with a dark ink outline close in on the target and breathe, and
+## a small orange triangle with an ink outline points at it. Flat, no glow.
+## Callers (base TutorialGuide, battle MiningTutorial, ArtifactTutorialHint)
+## draw draw_lock / draw_lock_circle round the target and draw() beside it.
+## Also the "scroll down" pill.
 ## Load with preload(); no class_name on purpose.
 
+const INK := Color("2B1F17")
+const CREAM := Color("F2E3C6")
 const LIGHT := Color("FFC27A")
+const TRI_LENGTH := 15.0
+const TRI_HALF := 10.0
+const BRACKET := 14.0
 
 
-## Draws the arrow with its tip at `tip`, pointing along `direction`.
-## `pulse` (0..1) breathes the glow.
-static func draw(ci: CanvasItem, tip: Vector2, direction: Vector2, pulse: float = 0.5) -> void:
+static func _outlined(ci: CanvasItem, points: PackedVector2Array, fill: Color, ink: float) -> void:
+	for poly in Geometry2D.offset_polygon(points, ink, Geometry2D.JOIN_ROUND):
+		ci.draw_colored_polygon(poly, INK)
+	ci.draw_colored_polygon(points, fill)
+
+
+## Small orange triangle with its tip at `tip`, pointing along `direction`.
+## `pulse` (0..1) is accepted for older callers and ignored (no glow).
+static func draw(ci: CanvasItem, tip: Vector2, direction: Vector2, _pulse: float = 0.5) -> void:
 	var d := direction.normalized()
 	var s := d.orthogonal()
-	const HEAD := 26.0
-	const HALF := 16.0
-	const NOTCH := 9.0
-	const SHAFT := 24.0
-	const SHAFT_HALF := 5.5
-	var neck := tip - d * (HEAD - NOTCH)
-	var tail := tip - d * (HEAD + SHAFT)
-	# Soft glow.
-	var glow_at := tip - d * HEAD * 0.7
-	for k in range(3):
-		ci.draw_circle(glow_at, 22.0 + 9.0 * float(k), Color(Palette.ACCENT, (0.09 - 0.025 * float(k)) * (0.6 + 0.8 * pulse)))
-	# Faint drop shadow (no outline).
-	var off := Vector2(2.0, 4.0)
-	var head := PackedVector2Array([tip, tip - d * HEAD + s * HALF, neck, tip - d * HEAD - s * HALF])
-	var shaft := PackedVector2Array([neck + s * SHAFT_HALF, tail + s * SHAFT_HALF, tail - s * SHAFT_HALF, neck - s * SHAFT_HALF])
-	ci.draw_colored_polygon(Palette.offset_points(shaft, off), Color(0, 0, 0, 0.16))
-	ci.draw_circle(tail + off, SHAFT_HALF, Color(0, 0, 0, 0.16))
-	ci.draw_colored_polygon(Palette.offset_points(head, off), Color(0, 0, 0, 0.16))
-	# Shaft with a round tail, then the head; the +side half is lit.
-	ci.draw_colored_polygon(shaft, Palette.ACCENT)
-	ci.draw_circle(tail, SHAFT_HALF, Palette.ACCENT)
-	ci.draw_colored_polygon(PackedVector2Array([neck + s * SHAFT_HALF, tail + s * SHAFT_HALF, tail, neck]), LIGHT)
-	ci.draw_colored_polygon(head, Palette.ACCENT)
-	ci.draw_colored_polygon(PackedVector2Array([tip, tip - d * HEAD + s * HALF, neck]), LIGHT)
-	ci.draw_circle(tip - d * 6.0 + s * 2.0, 1.8, Color(1, 1, 1, 0.75))
+	var tri := PackedVector2Array([tip, tip - d * TRI_LENGTH + s * TRI_HALF, tip - d * TRI_LENGTH - s * TRI_HALF])
+	ci.draw_colored_polygon(Palette.offset_points(tri, Vector2(1.5, 3.0)), Color(0, 0, 0, 0.3))
+	_outlined(ci, tri, Palette.ACCENT, 2.5)
+
+
+## Four corner brackets round `rect` that close in and breathe with `time`.
+static func draw_lock(ci: CanvasItem, rect: Rect2, time: float) -> void:
+	var pull := 5.0 * (0.5 + 0.5 * cos(time * TAU * 1.2))
+	var r := rect.grow(4.0 + pull)
+	var arm := minf(BRACKET, minf(r.size.x, r.size.y) * 0.4)
+	var corners := [
+		[r.position, Vector2.RIGHT, Vector2.DOWN],
+		[Vector2(r.end.x, r.position.y), Vector2.LEFT, Vector2.DOWN],
+		[r.end, Vector2.LEFT, Vector2.UP],
+		[Vector2(r.position.x, r.end.y), Vector2.RIGHT, Vector2.UP],
+	]
+	for corner in corners:
+		var at: Vector2 = corner[0]
+		var bracket := PackedVector2Array([at + corner[1] * arm, at, at + corner[2] * arm])
+		ci.draw_polyline(Palette.offset_points(bracket, Vector2(0.0, 2.0)), Color(0, 0, 0, 0.3), 5.0)
+		ci.draw_polyline(bracket, INK, 6.0)
+		ci.draw_polyline(bracket, CREAM, 3.0)
+		for end in [bracket[0], bracket[2]]:
+			ci.draw_circle(end, 3.0, INK)
+			ci.draw_circle(end, 1.5, CREAM)
+		ci.draw_circle(at, 3.0, INK)
+		ci.draw_circle(at, 1.5, CREAM)
+
+
+## The same lock-on round a circular target (its bounding square).
+static func draw_lock_circle(ci: CanvasItem, center: Vector2, radius: float, time: float) -> void:
+	draw_lock(ci, Rect2(center - Vector2.ONE * radius, Vector2.ONE * radius * 2.0), time)
 
 
 ## "Scroll down" hint: a pill with the text and a stack of bouncing chevrons,

@@ -3,25 +3,23 @@ extends Control
 ## Warehouse (design A): a centred modal opened from the dwarven vault door
 ## in the asteroid's bottom-right wall (AsteroidHangar.HOTSPOT_WAREHOUSE).
 ##
-## Tabs ALL / RESOURCES / CHIPS. Items sit in a compact grid separated by thin
-## divider lines; chips carry an orange tag with the turret they are installed
-## on (R·C) or IDLE. The right-hand card shows the selected item; idle chips can
-## be scrapped for a partial Ore refund (ChipManager.scrap_chip).
-## Presentation only: every number comes from ResourceManager / ChipManager.
+## Tabs ALL / RESOURCES / ARTIFACTS. The Warehouse now mirrors the permanent
+## artifact collection; equipping still belongs to the Hangar and Magic Stall.
+## Presentation only: every number comes from ResourceManager / ArtifactManager.
 ## Load with preload(); no class_name on purpose.
 
 signal close_requested
 
-const ChipVisual := preload("res://Scripts/UI/Chips/ChipVisual.gd")
+const ArtifactVisual := preload("res://Scripts/UI/Artifacts/ArtifactVisual.gd")
 const ScrollKeeper := preload("res://Scripts/UI/ScrollKeeper.gd")
 
 const PANEL_SIZE := Vector2(780.0, 480.0)
 const DETAIL_WIDTH: float = 220.0
 
-enum Tab { ALL, RESOURCES, CHIPS }
+enum Tab { ALL, RESOURCES, ARTIFACTS }
 
 var current_tab: Tab = Tab.ALL
-## Selected item: {"kind": &"resource"|&"chip", "id": StringName}.
+## Selected item: {"kind": &"resource"|&"artifact", "id": StringName}.
 var selected: Dictionary = {}
 var scrap_button: Button
 var grid: ItemGrid
@@ -39,9 +37,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_build()
-	ChipManager.chip_inventory_changed.connect(_on_data_changed.unbind(2))
-	ChipManager.chip_equipment_changed.connect(_on_data_changed.unbind(2))
-	ChipManager.chip_instance_changed.connect(_on_data_changed.unbind(1))
+	ArtifactManager.collection_changed.connect(_on_data_changed.unbind(2))
+	ArtifactManager.equipment_changed.connect(_on_data_changed.unbind(2))
 	ResourceManager.stored_ore_changed.connect(_on_data_changed.unbind(1))
 	hide()
 
@@ -137,7 +134,7 @@ func _build() -> void:
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 6)
 	column.add_child(tabs)
-	for tab in [Tab.ALL, Tab.RESOURCES, Tab.CHIPS]:
+	for tab in [Tab.ALL, Tab.RESOURCES, Tab.ARTIFACTS]:
 		var button := Button.new()
 		button.focus_mode = Control.FOCUS_NONE
 		button.custom_minimum_size = Vector2(0.0, 30.0)
@@ -163,7 +160,7 @@ func _build() -> void:
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.item_pressed.connect(select_item)
 	scroll.add_child(grid)
-	var note := _label("Orange tag = installed on that turret (R·C). Install / remove chips in the Hangar; idle chips can be scrapped.", 10, Palette.UI_MUTED)
+	var note := _label("Artifacts are permanent and globally unique. Equip or move them in the Hangar; inspect the full collection at the Magic Stall.", 10, Palette.UI_MUTED)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(note)
 
@@ -181,8 +178,8 @@ func refresh() -> void:
 		return
 	var kept: Array = ScrollKeeper.capture(self) if int(current_tab) == _last_built_tab else []
 	_last_built_tab = int(current_tab)
-	var chip_count := ChipManager.get_owned_instances().size()
-	var names := ["ALL", "RESOURCES", tr("CHIPS  %d") % chip_count]
+	var artifact_count := ArtifactManager.get_owned_artifact_ids().size()
+	var names := ["ALL", "RESOURCES", tr("ARTIFACTS  %d") % artifact_count]
 	for index in range(_tab_buttons.size()):
 		var button := _tab_buttons[index]
 		button.text = names[index]
@@ -197,15 +194,15 @@ func refresh() -> void:
 			button.add_theme_color_override(color_name, Palette.UI_PANEL if active else Palette.UI_MUTED)
 
 	var sections: Array[Dictionary] = []
-	if current_tab != Tab.CHIPS:
+	if current_tab != Tab.ARTIFACTS:
 		sections.append({"title": "RESOURCES", "items": [
 			{"kind": &"resource", "id": &"ore"},
 		]})
 	if current_tab != Tab.RESOURCES:
 		var items: Array = []
-		for instance_id in _sorted_chip_instances():
-			items.append({"kind": &"chip", "id": instance_id})
-		sections.append({"title": "CHIPS", "items": items})
+		for artifact_id in ArtifactManager.get_owned_artifact_ids():
+			items.append({"kind": &"artifact", "id": artifact_id})
+		sections.append({"title": "ARTIFACTS", "items": items})
 	grid.set_sections(sections)
 
 	if not _item_exists(selected):
@@ -220,22 +217,12 @@ func refresh() -> void:
 	ScrollKeeper.restore(self, kept)
 
 
-func _sorted_chip_instances() -> Array[StringName]:
-	var result: Array[StringName] = []
-	for definition in ChipManager.configuration.chips:
-		if definition == null:
-			continue
-		for instance_id in ChipManager.get_owned_instances(definition.chip_id):
-			result.append(instance_id)
-	return result
-
-
 func _item_exists(item: Dictionary) -> bool:
 	if item.is_empty():
 		return false
-	if item["kind"] == &"chip":
-		return current_tab != Tab.RESOURCES and not ChipManager.get_chip_instance(item["id"]).is_empty()
-	return current_tab != Tab.CHIPS
+	if item["kind"] == &"artifact":
+		return current_tab != Tab.RESOURCES and ArtifactManager.owns_artifact(item["id"])
+	return current_tab != Tab.ARTIFACTS
 
 
 # ==========================================
@@ -248,7 +235,7 @@ func _build_detail() -> void:
 		child.queue_free()
 	scrap_button = null
 	if selected.is_empty():
-		var empty := _label("No chips yet.\nCraft them in the Laboratory (Chip Lab).", 12, Palette.UI_MUTED)
+		var empty := _label("No artifacts collected yet.\nExplore planets and defeat bosses to discover them.", 12, Palette.UI_MUTED)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -258,7 +245,7 @@ func _build_detail() -> void:
 	if selected["kind"] == &"resource":
 		_build_resource_detail(selected["id"])
 	else:
-		_build_chip_detail(selected["id"])
+		_build_artifact_detail(selected["id"])
 
 
 func _build_resource_detail(id: StringName) -> void:
@@ -268,82 +255,35 @@ func _build_resource_detail(id: StringName) -> void:
 	_detail.add_child(icon)
 	_detail.add_child(_centered(_label("ORE", 16, Palette.UI_TEXT)))
 	_detail.add_child(_centered(_label(_thousands(floori(ResourceManager.stored_ore)), 26, Palette.GOLD)))
-	var text := "Banked from expeditions. Spent on research, chip crafting and locating new planets."
+	var text := "Banked from expeditions. Spent on research and locating new planets."
 	var description := _centered(_label(text, 11, Palette.UI_MUTED))
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(description)
 
 
-func _build_chip_detail(instance_id: StringName) -> void:
-	var chip_id := ChipManager.get_instance_chip_type(instance_id)
-	var icon := ChipVisual.ChipIcon.new(chip_id, 76.0, true)
+func _build_artifact_detail(artifact_id: StringName) -> void:
+	var definition := ArtifactManager.get_definition(artifact_id)
+	if definition == null:
+		return
+	var rarity := ArtifactVisual.rarity_index(definition)
+	var icon := ArtifactVisual.IconView.new(76.0)
+	icon.artifact_id = artifact_id
+	icon.rarity = rarity
 	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_detail.add_child(icon)
-	_detail.add_child(_centered(_label(ChipVisual.get_display_name(chip_id), 14, Palette.UI_TEXT)))
-	var quality := ChipManager.get_instance_quality(instance_id)
-	_detail.add_child(_centered(_label("%s  ·  %s" % [
-		ChipVisual.get_effect_text(chip_id),
-		(quality.display_name if quality != null else "Basic").to_upper(),
-	], 11, ChipVisual.get_color(chip_id))))
-	var location := ChipManager.get_instance_location(instance_id)
-	var installed := location.x >= 0
-	var where := "Idle  ·  not installed"
-	if installed:
-		var weapon := ModuleCatalog.get_entry(ChipManager.get_turret_weapon_type(location))
-		where = tr("Installed on %s\n%s  ·  socket %d") % [
-			tr(String(weapon.get("name", "turret")).to_upper()),
-			ChipVisual.cell_label(location),
-			ChipManager.get_instance_slot_index(instance_id) + 1,
-		]
+	_detail.add_child(_centered(_label(tr(definition.display_name), 14, Palette.UI_TEXT)))
+	_detail.add_child(_centered(_label(ArtifactVisual.rarity_name(rarity).to_upper(), 11, ArtifactVisual.rarity_color(rarity))))
+	var description := _centered(_label(tr(definition.description), 11, Palette.UI_MUTED))
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail.add_child(description)
+	var where := ArtifactManager.get_equipped_location(artifact_id)
+	var installed := ArtifactManager.is_artifact_equipped(artifact_id)
 	var where_label := _centered(_label(where, 11, Palette.ACCENT if installed else Palette.UI_MUTED))
 	where_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(where_label)
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_detail.add_child(spacer)
-
-	scrap_button = Button.new()
-	scrap_button.custom_minimum_size = Vector2(0.0, 38.0)
-	scrap_button.focus_mode = Control.FOCUS_NONE
-	scrap_button.add_theme_font_size_override("font_size", 12)
-	var refund := ChipManager.get_scrap_refund(instance_id)
-	if installed:
-		scrap_button.text = "INSTALLED  ·  CAN'T SCRAP"
-		scrap_button.disabled = true
-		_style_scrap(Color("352D27"), Palette.UI_MUTED)
-	else:
-		scrap_button.text = tr("CONFIRM?  + ◆ %s" if _scrap_armed else "SCRAP  ·  + ◆ %s") % _thousands(refund)
-		scrap_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		_style_scrap(Color("8A2E22") if _scrap_armed else Color("5A2A22"), Color("FFB3A6"))
-		scrap_button.pressed.connect(_on_scrap_pressed.bind(instance_id))
-	_detail.add_child(scrap_button)
-	var hint := _centered(_label(
-		"Remove it in the Hangar first." if installed else "Refunds 50% of the ore spent on it.",
-		9, Palette.UI_MUTED
-	))
+	var hint := _centered(_label("Equip and remove artifacts in the Hangar.", 9, Palette.UI_MUTED))
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(hint)
-
-
-func _style_scrap(color: Color, text_color: Color) -> void:
-	for state in ["normal", "hover", "pressed", "disabled"]:
-		scrap_button.add_theme_stylebox_override(state, Palette.make_panel_style(color.lightened(0.08) if state == "hover" else color, 8, 10.0, 4.0))
-	scrap_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_disabled_color"]:
-		scrap_button.add_theme_color_override(color_name, text_color)
-
-
-## Two-step scrap: the first click arms the button, the second confirms.
-func _on_scrap_pressed(instance_id: StringName) -> void:
-	if not _scrap_armed:
-		_scrap_armed = true
-		_build_detail()
-		return
-	_scrap_armed = false
-	if ChipManager.scrap_chip(instance_id) >= 0:
-		selected = {}
-		refresh()
-
 
 func _on_data_changed() -> void:
 	if visible:
@@ -381,7 +321,7 @@ static func _thousands(value: int) -> String:
 class ItemGrid:
 	extends Control
 
-	const ChipVisual := preload("res://Scripts/UI/Chips/ChipVisual.gd")
+	const ArtifactVisual := preload("res://Scripts/UI/Artifacts/ArtifactVisual.gd")
 	const CELL := Vector2(70.0, 76.0)
 	const TITLE_HEIGHT: float = 22.0
 	const SECTION_GAP: float = 12.0
@@ -466,7 +406,7 @@ class ItemGrid:
 			var box := Rect2(0.0, y, float(cols) * CELL.x, float(rows) * CELL.y)
 			Palette.draw_rounded_rect(self, box, 8.0, Color("1A1512"))
 			if items.is_empty():
-				draw_string(font, Vector2(14.0, y + CELL.y * 0.5 + 4.0), tr("Nothing here yet  ·  craft chips in the Laboratory"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Palette.UI_MUTED)
+				draw_string(font, Vector2(14.0, y + CELL.y * 0.5 + 4.0), tr("Nothing here yet  ·  explore planets to discover artifacts"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Palette.UI_MUTED)
 			for index in range(items.size()):
 				var entry: Dictionary = _hit[hit_index]
 				var rect: Rect2 = entry["rect"]
@@ -497,19 +437,27 @@ class ItemGrid:
 	func _draw_item(item: Dictionary, rect: Rect2, font: Font) -> void:
 		var icon_center := rect.position + Vector2(rect.size.x * 0.5, 28.0)
 		var tag_rect := Rect2(rect.position + Vector2(7.0, rect.size.y - 22.0), Vector2(rect.size.x - 14.0, 14.0))
-		if item["kind"] == &"chip":
-			var instance_id: StringName = item["id"]
-			ChipVisual.draw_chip(self, ChipManager.get_instance_chip_type(instance_id), icon_center, 30.0)
-			var location := ChipManager.get_instance_location(instance_id)
-			if location.x >= 0:
-				Palette.draw_rounded_rect(self, tag_rect, 4.0, Color("3B2A1A"))
-				draw_string(font, tag_rect.position + Vector2(0.0, 11.0), ChipVisual.cell_label(location), HORIZONTAL_ALIGNMENT_CENTER, tag_rect.size.x, 9, Palette.ACCENT)
-			else:
-				draw_string(font, tag_rect.position + Vector2(0.0, 11.0), "IDLE", HORIZONTAL_ALIGNMENT_CENTER, tag_rect.size.x, 9, Palette.UI_MUTED)
+		if item["kind"] == &"artifact":
+			var artifact_id: StringName = item["id"]
+			var definition := ArtifactManager.get_definition(artifact_id)
+			if definition != null:
+				var rarity := ArtifactVisual.rarity_index(definition)
+				ArtifactVisual.draw_icon(self, icon_center, 34.0, artifact_id, rarity)
+				draw_string(font, tag_rect.position + Vector2(0.0, 11.0), "EQUIPPED" if ArtifactManager.is_artifact_equipped(artifact_id) else ArtifactVisual.rarity_name(rarity).to_upper(), HORIZONTAL_ALIGNMENT_CENTER, tag_rect.size.x, 9, Palette.ACCENT if ArtifactManager.is_artifact_equipped(artifact_id) else Palette.UI_MUTED)
 		else:
-			ChipVisual.draw_ore(self, icon_center, 28.0)
+			_draw_ore(self, icon_center, 28.0)
 			var amount := WarehouseText.short_number(floori(ResourceManager.stored_ore))
 			draw_string(font, tag_rect.position + Vector2(0.0, 11.0), amount, HORIZONTAL_ALIGNMENT_CENTER, tag_rect.size.x, 11, Palette.GOLD)
+
+	func _draw_ore(canvas: CanvasItem, center: Vector2, size_value: float) -> void:
+		var points := PackedVector2Array([
+			center + Vector2(0.0, -size_value * 0.5),
+			center + Vector2(size_value * 0.4, 0.0),
+			center + Vector2(0.0, size_value * 0.5),
+			center + Vector2(-size_value * 0.4, 0.0),
+		])
+		canvas.draw_colored_polygon(points, Palette.GOLD)
+		canvas.draw_polyline(PackedVector2Array([points[0], points[1], points[2], points[3], points[0]]), Palette.GOLD_LIGHT, 1.5)
 
 
 class WarehouseText:

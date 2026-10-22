@@ -622,3 +622,218 @@ first time the Rock Titan is defeated.
   (BENCH_FROM 176,365 / BENCH_TO 475,104), BENCH_INSET 26, and the two big
   round stone end caps removed. LAB hotspot / crew obstacles follow
   automatically (LabBenchTest passes).
+
+## 35. Rocky finale: skip only 2 s after the title (user request)
+
+- `RockyFinale.SKIP_DELAY = 2.0`: clicks / keys are ignored until
+  `TITLE_AT + SKIP_DELAY` (11 s). `RockyFinaleTest` checks an early click
+  does not leave.
+
+## 36. Base name tags only on hover + white hover outline (user request)
+
+- `AsteroidHangar`: facility name tags are now drawn on the live layer and
+  fade in (0.18 s, small rise) only while that facility is hovered or listed
+  in the new `pinned_tags` (Magic Stall also while `artifact_guide_active`);
+  `show_tags` still hides all of them outside the overview.
+  `get_tag_alpha(hotspot)` for tests.
+- Hover outlines are white (`Palette.HOVER_OUTLINE`) for hangar, star map,
+  lab, warehouse and magic stall (the first-artifact guide ring stays orange).
+- `TutorialGuide._pin_tags()` pins the tag of whatever its arrow points at
+  (hangar / star map / lab) and clears pins on exit.
+- 36b: hover outline softened: warm cream `HOVER_OUTLINE` (F2E3C6, 55%)
+  over a faint wide `HOVER_GLOW`, via `Palette.draw_hover_outline()`.
+
+## 37. ModuleSlotUnlockTest: Mining unlock costs 200 (user confirmed)
+
+- The configured 200 Ore for `mining_install_slot_unlock` is intended;
+  `Tests/ModuleSlotUnlockTest` now expects 200 (was 500). All tests pass.
+
+## 38. Module artifact socket moved to a vertical dock (user request)
+
+- `LoadoutPanel`: in the detail view the "ARTIFACT · THIS MODULE" socket no
+  longer sits in the scrolling body; it is shown in `_artifact_dock`, a slim
+  vertical tab (92 px, rune-teal edge) hanging off the panel's top-left, left
+  of the LOADOUT title: "ARTIFACTS" written vertically, the socket, and the
+  equipped artifact's name written vertically. Same rules for when it shows
+  (stall unlocked + a compatible owned/equipped artifact) and same picker.
+- 38b: dock text is horizontal now (user): label + wrapped name, dock 104 px wide.
+
+## 39. Laboratory restyle: soft "Thronefall-like" cards (user pick)
+
+- `LaboratoryPanel` (presentation only, same nodes / API / button texts):
+  no dark panel - warm veil (`VEIL`), cream header text, round ESC;
+  `category_buttons` is now an **HBoxContainer** (type `BoxContainer`) of
+  round cream icons on top (name under the selected/hovered one);
+  `ResearchCard` = cream rounded card: level badge, big module art
+  (`ModuleIcon.show_backdrop = false`), name, now -> next, stat; level track /
+  chip slots / milestone fade in on hover; price button styled soft
+  (`style_button`); clicking the card body presses its button. Grid 4 wide,
+  centred. Research tree / chip lab views unchanged inside.
+- `ModuleIcon.show_backdrop` (default true).
+- `TutorialGuide`: ENERGY tab arrow now points down (tabs are on top).
+- 39b (user): clicking the card body no longer upgrades - only the button.
+  UI motion added: cards pop in staggered on a tab change (`appear()`),
+  lift slightly on hover, buttons grow on hover / squash when pressed,
+  category icons lift on hover and the selection ring sweeps in; a purchase
+  flies gold from the ore counter into the card, punches the ore number and
+  bumps the card and its new value (plus the existing "+1 LV" sparks).
+
+## 40. Selectable thruster styles (Claude)
+
+- Hangar > SHIP STYLE has a new THRUSTERS section (between HULL and ROTATION):
+  Round Pods (default), Diamond, Ring, Stilts, Fans. Cards show the unfolded
+  thruster on the current hull; hovering a card fires it.
+- ShipLoadout: `thruster_id` (default &"pod"), `set_thruster()`,
+  `signal thruster_changed`; saved as "thruster" in the loadout data.
+- ShipHullVisual: `THRUSTERS`, `THRUSTER_ORDER`, `draw_pods(canvas, geometry,
+  thrust, thruster_id := &"", deploy := 0.0)` (&"" = saved style),
+  `nozzle_points()` (exhaust FX positions per style; stilts = hull centre),
+  `thruster_needs_redraw()`.
+- Ship: new `thruster_deploy` (0 ground .. 1 flight). get_thruster_* now use
+  the style's nozzle points.
+- ShipLaunchController: takeoff unfolds thrusters (0.45 s) before igniting;
+  landing starts unfolded and folds them away (0.5 s) after the engine cut.
+  So takeoff/landing are each ~0.5 s longer.
+- LoadoutPersistenceTest extended (default, every style has nozzles,
+  persistence, unknown id ignored). zh_CN.po + font subset updated.
+
+## 41. Flat lava rifts + werewolf blood burst (Claude)
+
+- LavaFissureArt: rifts are flat now (charred rim, dark lava, lava, one
+  lighter middle band). No glow halo, no hot-streak/core gradient; the middle
+  band pulses evenly (LavaFissureLayer alpha 0.8..1.0, phase 1 mesh is empty).
+  Midpoint displacement uses 4 levels instead of 5 (cleaner low-poly kinks).
+- UndeadDeath werewolf: no more moonlight rings / soul sparkles. The body
+  swells, flushes red and twitches for BURST_AT (0.22 s), then bursts: red
+  flash + mist, blood drops arc out and land as splats, fur-and-meat chunks
+  spin out and bounce, a pool spreads; all fade at the end of LIFE.
+- Note: BloodMoonCombatTest currently fails ("blood moon and existing armor
+  multiply", Frank 9975) on the synced copy; not touched by this change.
+
+## 42. Red screen edge on ship damage (Claude)
+
+- Ship: new `signal damaged(amount)`, emitted in take_damage after the
+  interceptors (fully blocked hits do not emit).
+- New Scripts/UI/DamageVignette.gd (CanvasLayer, layer 1, moved just before
+  BattleUI so the HUD stays clean): soft red gradient round the screen edge,
+  strength 0.45..1 by hit size (10 % max HP = full), fades over 0.55 s.
+  BattleMain adds it as "DamageVignette" and calls watch(ship).
+- New Tests/DamageVignetteTest.
+- Suite on the synced copy: BloodMoonCombatTest (3 checks) and
+  VolcanicWaveSystemTest (wave interval/duration, index 9 out of bounds) fail;
+  both come from current wave/blood-moon data, not from this change.
+
+## 43. Tutorial pointer restyle: "lock-on" (Claude, user pick D)
+
+- GuideArrow: the glossy orange arrow is gone. draw() is now a small flat
+  orange triangle with an ink outline (same signature; pulse ignored).
+  New draw_lock(rect, time) / draw_lock_circle(center, radius, time): four
+  cream corner brackets with ink outline that close in and breathe.
+- TutorialGuide / MiningTutorial / ArtifactTutorialHint use brackets instead
+  of the orange outline / ring, and a smaller bob (4 px at 1.2 Hz).
+- TutorialGuide: ENERGY tab is locked as a circle round the icon
+  (new _point_at_circle) with the marker below pointing UP (above it was
+  hidden by the caption); the RESEARCH button marker now comes from above
+  (DOWN) so it no longer covers the cost to its left.
+
+## 44. Battle end beat before the result panels (Claude)
+
+- New Scripts/VFX/BattleEndBeat.gd: `await BattleEndBeat.play(parent, ship,
+  &"victory"|&"defeat")`. Real-time (ignores time scale), restores
+  Engine.time_scale and the camera offset on finish / exit.
+  - victory: slow motion 0.35 for 0.55 s, eases back, cream rings sweep out
+    from the ship; panel after 1.6 s.
+  - defeat: slow motion, 7 blasts round the hull with smoke, camera shake,
+    ship darkens; panel after 2.2 s.
+- BattleMain: _handle_ship_destroyed and _on_planet_completed await the beat
+  before showing GameOverPanel / CompletionPanel (bookkeeping such as
+  record_planet_completion still happens immediately).
+- DeveloperBattleSpeed: `_cinematic_owns_time()` also yields to an active
+  BattleEndBeat (static `_active`, same pattern as BossFinisher).
+- BattleGameOverTest updated: the panel is hidden during the beat, time is
+  slowed, then restored and the panel shows after ~2.6 s.
+- Font subset regenerated (FontCoverageTest was missing 免).
+- Result panel redesign: 3 options sent to the user (cream card / stamp +
+  bottom ledger / expedition receipt); waiting for a pick.
+
+## 45. Tree Planet art pass 1: dense forest, planet A, rain 1 (Claude)
+
+User picks: planet look A ("ancient grove", denser), rain style 1, map "all
+trees, almost no gaps, one big clearing in the middle". Gameplay untouched.
+- New Scripts/Battle/Forest/ForestArt.gd: static tree drawing (oak canopy,
+  giant oak with roots, willow, bushes, stump, log) for any pen
+  (CanvasItem or MeshBatch2D).
+- New Scripts/Battle/Forest/ForestCanopyLayer.gd: purely visual dense forest,
+  baked into one mesh. ForestTerrain.generate() now ends with _build_canopy():
+  a "Canopy" child at index 0 (gameplay ForestTree nodes draw on top), filling
+  the map outside a wobbly clearing of empty_radius + sparse_ring_width * 0.8,
+  with a dark forest floor under the crowns and bushes/stumps/logs on the rim.
+  No filler crown sits on a gameplay tree. `ForestTerrain.canopy_layer`.
+- ForestTree._draw: oak canopy (canopy_radius * 1.55) via ForestArt; chopped
+  = mossy stump; dig_progress arc kept.
+- Palette &"forest": olive A palette for the clearing ground.
+- ForestStormController.RainView._draw: rain style 1 (slanted streaks,
+  splash rings, cool tint); heavy (storm) = denser/faster/darker. Logic
+  unchanged.
+- PlanetVisual._draw_forest_planet: dense crowns, river, small clearing, rain.
+- Font subset regenerated (FontCoverageTest missing 木雨森砍阻止暴仙缠绕).
+- Pre-existing on the synced copy (not from this): ForestPlanetTest fails
+  "mining module available for forest" / "dwarf dispatch to tree" + a null
+  `set`; BloodMoonCombatTest and VolcanicWaveSystemTest as before.
+- Next (waiting for the user): treant ("long tree spirit") art, three options
+  on the design canvas, and the rise-from-the-ground animation.
+
+## 46. Treant / fairy art + emergence, calmer storm rain (Claude)
+
+- User pick: treant style A ("Kingdom Rush ent") recoloured green + brown.
+  New Scripts/Enemies/ForestVisual.gd (class_name ForestVisual, MeshBatch
+  pen like UndeadVisual): draw_treant(canvas, facing, step, flash, big, rise)
+  - bulky bark body, leafy crown on back/shoulders, thick arms + fists, root
+  feet, carved face with moss beard and amber eyes; big = 30/17 scale.
+  draw_fairy(canvas, facing, flash, time) - glowing leaf sprite with wings.
+- ForestEnemy (presentation only): _draw uses ForestVisual (ForestBoss keeps
+  its own _draw). _process now also advances _anim_time and redraws ~12 times
+  a second for the walk cycle/facing (every frame only during hit flash /
+  emergence) - still far below per-frame redraws for big storm packs.
+  Treant emergence (emerge_duration) draws it growing out of the ground and
+  spawns new Scripts/VFX/ForestEmergeFx.gd (deferred, since spawners set the
+  position after add_child): the ground splits, clods + leaves fly, a hole
+  stays ~4.5 s; added as first child of the enemy's parent (under enemies).
+- RainView: the storm streaks looked like a regular lattice; every drop now
+  lives a short random cycle at a hashed position with its own length,
+  angle and brightness (fewer, fainter). Splash positions hashed too.
+- Suite: same pre-existing failures (BloodMoonCombat, ForestPlanetTest,
+  VolcanicWaveSystem).
+
+## 47. Tree Planet: every tree is a treant spawn, spots, storm regrowth (Claude)
+
+User design (2026-10-22): "remove the willow kind; every tree is an object
+that can become a monster; enemies tear out of the ground where they stand,
+leaving a spot; every rainstorm regrows a tree on the spot and the next wave
+can come out of it again; dwarves can dig a place out so it never comes
+back." Gameplay changes - please review:
+- ForestPlanetSettings defaults: maximum_trees 6000, tree_spacing 46,
+  sparse_ring_density 0.06 (about 3,600 trees, one big clearing).
+- ForestTree: new `uprooted` (empty spot), `kind` (&"oak"/&"giant"),
+  `is_standing()`, `uproot()`, `regrow(delay)`, `finish_regrow()`,
+  `get_crown_radius()`, signal `state_changed`. chop() works on a standing
+  tree or a spot and closes it for good.
+- ForestTerrain.take_spawn_tree(): uproots a standing tree, preferring ones
+  within `spawn_view_radius` (950) of the map centre; cached pools rebuilt
+  only after regrow/chop. used_active_trees() = spots (uprooted, not chopped).
+  Clearing edge wobbles outward only (never inside empty_radius).
+- ForestStormController.start_storm(): regrows every spot (staggered over
+  respawn_spread_duration), returns that count, emits storm_started(count) and
+  respawns_finished at once. It NO LONGER spawns enemies or reserves external
+  spawns (get_pending_respawn_count() = 0, total_storm_respawns stays 0,
+  new total_storm_regrown).
+- Rendering: new ForestTreeChunks.gd draws all trees in 300 px chunks (ground /
+  shadow / crown passes) from cached per-tree triangles; a state change
+  re-bakes one chunk (10 spawns ~15 ms on this machine). ForestCanopyLayer is
+  now only floor + rim (bushes, logs) + border crowns outside the bounds.
+  Willow removed. Battle load builds the forest in ~1.3 s.
+- Tests updated: ForestPlanetTest storm block (spot regrows, dug spot does
+  not, no enemies), ForestWaveRuntimeTest (storm regrows 4 / 24 spots, no
+  reservations). TREE_PLANET_INTEGRATION.md has a new section.
+- Pre-existing failures unchanged (ForestPlanetTest mining module /
+  dispatch, BloodMoonCombat, VolcanicWaveSystem).

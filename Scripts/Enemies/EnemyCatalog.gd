@@ -23,6 +23,10 @@ const ENEMY_SCENES: Dictionary = {
 	&"sled_car_snow_monster": preload("res://Scenes/Enemies/sled_car_snow_monster.tscn"),
 	&"snow_monster_wizard": preload("res://Scenes/Enemies/snow_monster_wizard.tscn"),
 	&"mega_monster": preload("res://Scenes/Enemies/mega_monster.tscn"),
+	&"fairy": preload("res://Scenes/Enemies/fairy.tscn"),
+	&"treant": preload("res://Scenes/Enemies/treant.tscn"),
+	&"big_treant": preload("res://Scenes/Enemies/big_treant.tscn"),
+	&"chainsaw_spaceship_treant": preload("res://Scenes/Enemies/chainsaw_spaceship_treant.tscn"),
 }
 
 

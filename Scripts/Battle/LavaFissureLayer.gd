@@ -40,4 +40,4 @@ func _draw() -> void:
 	for phase in range(2):
 		if _core_meshes[phase] != null:
 			var pulse := 0.5 + 0.5 * sin(_time * 2.4 + PI * float(phase))
-			draw_mesh(_core_meshes[phase], null, Transform2D.IDENTITY, Color(1, 1, 1, 0.55 + 0.45 * pulse))
+			draw_mesh(_core_meshes[phase], null, Transform2D.IDENTITY, Color(1, 1, 1, 0.8 + 0.2 * pulse))

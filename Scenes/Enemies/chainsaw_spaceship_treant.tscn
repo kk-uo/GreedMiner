@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://Scripts/Enemies/ForestBoss.gd" id="1"]
+[sub_resource type="CircleShape2D" id="shape"]
+radius = 45.0
+[node name="ChainsawSpaceshipTreant" type="Area2D"]
+script = ExtResource("1")
+enemy_id = &"chainsaw_spaceship_treant"
+enemy_name = "Chainsaw Spaceship Treant"
+max_health = 50000.0
+move_speed = 15.0
+attack_damage = 10.0
+attack_interval = 0.5
+attack_range = 50.0
+reward_ore = 1000.0
+enemy_tier = 2
+spawn_map_id = &"tree_planet"
+minimum_spawn_wave = 10
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("shape")
+[node name="AttackTimer" type="Timer" parent="."]
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

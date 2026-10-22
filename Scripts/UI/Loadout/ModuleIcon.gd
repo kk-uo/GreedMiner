@@ -7,6 +7,8 @@ extends Control
 var _module_id: StringName = &""
 var _preview: Node2D = null
 var _icon_scale: float = 0.7
+## Draw the dark rounded backdrop (off for icons on light cards).
+var show_backdrop: bool = true
 
 
 func setup(module_id: StringName, box_size: float, icon_scale: float) -> void:
@@ -26,7 +28,8 @@ func _ready() -> void:
 
 
 func _draw() -> void:
-	Palette.draw_rounded_rect(self, Rect2(Vector2.ZERO, size), 8.0, Palette.UI_PANEL)
+	if show_backdrop:
+		Palette.draw_rounded_rect(self, Rect2(Vector2.ZERO, size), 8.0, Palette.UI_PANEL)
 
 
 func _rebuild() -> void:

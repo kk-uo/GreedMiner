@@ -375,8 +375,8 @@ func get_shield_research_definition(module_type_id: StringName) -> ResearchDefin
 	return null
 
 
-## Shield sockets are earned through research milestones, after the global
-## Chip Laboratory unlock. The configured milestones control all three slots.
+## Shield artifact sockets are earned through the configured research milestones.
+## The serialized milestone property retains its old name for save compatibility.
 func get_shield_bonus_chip_slot_count(module_type_id: StringName) -> int:
 	var definition := get_shield_research_definition(module_type_id)
 	if definition == null:
@@ -403,6 +403,16 @@ func get_shield_bonus_slot_unlock_level(module_type_id: StringName, bonus_slot_i
 	return levels[bonus_slot_index] if bonus_slot_index >= 0 and bonus_slot_index < levels.size() else 0
 
 
+## Public artifact terminology. The serialized milestone fields retain their
+## legacy names so existing .tres files and player saves remain compatible.
+func get_shield_artifact_slot_count(module_type_id: StringName) -> int:
+	return get_shield_bonus_chip_slot_count(module_type_id)
+
+
+func get_shield_artifact_slot_unlock_level(module_type_id: StringName, slot_index: int) -> int:
+	return get_shield_bonus_slot_unlock_level(module_type_id, slot_index)
+
+
 ## Finds the global damage-research definition shared by one weapon type.
 func get_weapon_research_definition(weapon_type_id: StringName) -> ResearchDefinition:
 	for definition in configuration.definitions:
@@ -423,7 +433,7 @@ func get_weapon_research_level(weapon_type_id: StringName) -> int:
 	return get_level(definition.research_id) if definition != null else 0
 
 
-## Returns type-level chip slots derived from reached research milestones.
+## Returns type-level artifact slots derived from reached research milestones.
 ## No separate unlock boolean is saved, so existing Level 10 saves migrate
 ## automatically and cannot disagree with their research progress.
 func get_weapon_chip_slot_count(weapon_type_id: StringName) -> int:
@@ -438,12 +448,29 @@ func get_weapon_chip_slot_count(weapon_type_id: StringName) -> int:
 	return slot_count
 
 
+func get_weapon_artifact_slot_count(weapon_type_id: StringName) -> int:
+	return get_weapon_chip_slot_count(weapon_type_id)
+
+
+func get_weapon_artifact_slot_unlock_level(weapon_type_id: StringName, slot_index: int) -> int:
+	var definition := get_weapon_research_definition(weapon_type_id)
+	if definition == null:
+		return 0
+	var levels: Array[int] = []
+	for milestone in definition.milestones:
+		if milestone == null:
+			continue
+		for _index in range(maxi(milestone.weapon_chip_slots_unlocked, 0)):
+			levels.append(milestone.target_level)
+	levels.sort()
+	return levels[slot_index] if slot_index >= 0 and slot_index < levels.size() else 0
+
+
 func is_weapon_chip_slot_unlocked(weapon_type_id: StringName) -> bool:
 	return get_weapon_chip_slot_count(weapon_type_id) > 0
 
 
-## The shared Chip Laboratory unlocks as soon as any weapon reaches the
-## Inspector-configured threshold. No separate save flag can become stale.
+## Legacy compatibility query retained for old saves and retired UI code.
 func is_chip_laboratory_unlocked() -> bool:
 	for definition in configuration.definitions:
 		if (

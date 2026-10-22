@@ -54,6 +54,11 @@ func _run() -> void:
 	await get_tree().process_frame
 
 	_expect_equal(ship.current_hp, 0.0, "ship reaches zero health")
+	# A short end beat (slow motion, blasts) plays before the panel.
+	_expect_false(game_over_panel.visible, "Game Over panel waits for the end beat")
+	_expect_true(Engine.time_scale < 1.0, "the end beat slows the game down")
+	await get_tree().create_timer(2.6, true, false, true).timeout
+	_expect_true(is_equal_approx(Engine.time_scale, 1.0), "time scale is restored after the beat")
 	_expect_true(game_over_panel.visible, "Game Over panel appears after destruction")
 	_expect_false(return_button.disabled, "Return to Base button remains clickable")
 	_expect_false(ship.are_weapon_attacks_enabled(), "ship disables all weapon attacks")

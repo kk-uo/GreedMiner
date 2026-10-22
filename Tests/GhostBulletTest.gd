@@ -36,6 +36,7 @@ func _run() -> void:
 	check(ArtifactManager.owns_artifact(&"ghost_bullet"), "ownership persists")
 	check(def not in ArtifactManager.get_unowned_mining_chest_artifacts(&"graveyard_planet"), "owned artifact excluded")
 	ShipLoadout.install_module(0, 0, "res://Scenes/Modules/Weapons/MachineGun/machine_gun.tscn")
+	ResearchManager.progress.levels["weapon_damage.machine_gun"] = 10
 	check(ArtifactManager.equip_module_artifact(Vector2i(0, 0), &"ghost_bullet"), "equip on machine gun")
 	ArtifactManager.reload_progress()
 	check(ArtifactManager.get_module_artifact(Vector2i(0, 0)) == &"ghost_bullet", "equipment persists")
@@ -44,9 +45,9 @@ func _run() -> void:
 	await get_tree().process_frame
 	var gun := ship.get_module_at(0, 0) as WeaponModule
 	ArtifactManager.attach_battle_effects(ship)
-	check(gun.artifact_projectile_pierces.is_valid() and int(gun.artifact_projectile_pierces.call()) == 1, "equipped weapon receives configured pierce")
+	check(gun.get_artifact_projectile_pierces() == 1, "equipped weapon receives configured pierce")
 	ArtifactManager.clear_battle_effects(ship)
-	check(not gun.artifact_projectile_pierces.is_valid(), "battle cleanup removes modifier")
+	check(gun.get_artifact_projectile_pierces() == 0, "battle cleanup removes modifier")
 	ship.queue_free()
 	var bullet := BULLET.instantiate() as MachineGunProjectile
 	add_child(bullet)

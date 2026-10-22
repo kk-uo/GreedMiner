@@ -41,11 +41,26 @@ func _run() -> void:
 	await get_tree().process_frame
 
 	_expect_equal(ship.total_power_capacity, 4, "one Energy Module supplies 4 power before research")
+	_expect_equal(ModuleCatalog.get_stats(&"energy_module").get("power_capacity"), 4, "loadout displays 4 Power before Energy Core research")
+	var energy_pill := LoadoutPanel.PowerPill.new()
+	energy_pill.setup(ModuleCatalog.get_stats(&"energy_module"))
+	_expect_equal(energy_pill.text, "+4", "Energy card shows +4 before research")
 	# Energy Core I (+1 Power per Energy Module); the rest of this test runs
 	# with it researched.
 	ResearchManager.progress.levels["energy_core_1"] = 1
 	ResearchManager.research_level_changed.emit(&"energy_core_1", 1)
 	_expect_equal(ship.total_power_capacity, 5, "Energy Core I raises one Energy Module to 5 power")
+	_expect_equal(ModuleCatalog.get_stats(&"energy_module").get("power_capacity"), 5, "loadout updates to 5 Power after Energy Core research")
+	energy_pill.setup(ModuleCatalog.get_stats(&"energy_module"))
+	_expect_equal(energy_pill.text, "+5", "Energy card shows +5 after research")
+	ResearchManager.progress.levels["energy_core_1"] = 0
+	ResearchManager.research_level_changed.emit(&"energy_core_1", 0)
+	_expect_equal(ModuleCatalog.get_stats(&"energy_module").get("power_capacity"), 4, "loadout returns to 4 Power after research reset")
+	energy_pill.setup(ModuleCatalog.get_stats(&"energy_module"))
+	_expect_equal(energy_pill.text, "+4", "Energy card returns to +4 after research reset")
+	ResearchManager.progress.levels["energy_core_1"] = 1
+	ResearchManager.research_level_changed.emit(&"energy_core_1", 1)
+	energy_pill.free()
 	_expect_equal(ship.total_expansion_capacity, 0, "expansion capacity remains zero")
 	_expect_true(ShipLoadout.has_module(1, 1), "starting Energy Module occupies the center cell")
 
@@ -89,11 +104,13 @@ func _run() -> void:
 	)
 	_expect_equal(ship.total_power_consumption, 5, "current load consumes 5 power")
 	_expect_equal(ship.available_power, 0, "fully powered example has zero available power")
+	_expect_equal(ModuleCatalog.get_stats(&"chainsaw").get("power_cost"), 2, "Chainsaw displays two power")
 	for module_id in [&"knockback_module", &"regeneration_module"]:
 		_expect_equal(ModuleCatalog.get_stats(module_id).get("power_cost"), 1, "%s displays one power" % module_id)
 	for shield_scene in [KNOCKBACK_SCENE, REGENERATION_SCENE]:
 		_expect_false(ship.install_module(shield_scene, Ship.ModuleType.Shield, 1, 2), "shield installation rejected when power is full")
 	_expect_true(ship.remove_module(1, 0), "remove weapon to free one power")
+	_expect_false(ship.install_module(CHAINSAW_SCENE, Ship.ModuleType.Weapon, 1, 0), "Chainsaw requires two available power")
 	_expect_true(ship.install_module(KNOCKBACK_SCENE, Ship.ModuleType.Shield, 1, 2), "Knockback uses the available power")
 	_expect_equal(ship.total_power_consumption, 5, "Knockback consumes one power")
 	_expect_true(ship.replace_module(REGENERATION_SCENE, Ship.ModuleType.Shield, 1, 2), "Regeneration replaces Knockback at equal cost")
@@ -132,9 +149,9 @@ func _run() -> void:
 	)
 	_expect_true(
 		ship.install_module(CHAINSAW_SCENE, Ship.ModuleType.Weapon, 1, 2),
-		"sixth unit of module load fits with two Energy Modules"
+		"Chainsaw fits with two Energy Modules"
 	)
-	_expect_equal(ship.total_power_consumption, 6, "current load consumes 6 power")
+	_expect_equal(ship.total_power_consumption, 7, "Chainsaw adds two power to the load")
 
 	var unsafe_energy_removal := ship.remove_module(2, 2)
 	_expect_false(unsafe_energy_removal, "Energy Module removal cannot cause a power deficit")

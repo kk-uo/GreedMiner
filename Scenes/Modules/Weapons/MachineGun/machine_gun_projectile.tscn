@@ -6,6 +6,9 @@
 radius = 4.0
 
 [node name="MachineGunProjectile" type="Area2D" unique_id=274201399]
+collision_layer = 0
+collision_mask = 1
+monitorable = false
 script = ExtResource("1_c2b7k")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1742145422]

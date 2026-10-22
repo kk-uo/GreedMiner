@@ -296,7 +296,8 @@ func _refresh_strip() -> void:
 	var cost := ResearchManager.get_upgrade_cost(selected_id)
 	var affordable := ResourceManager.stored_ore >= cost
 	_strip_cost.visible = state != &"COMPLETED"
-	_strip_cost_label.text = str(cost)
+	_strip_cost.get_child(0).visible = cost > 0
+	_strip_cost_label.text = tr("FREE") if cost == 0 else str(cost)
 	_strip_cost_label.add_theme_color_override("font_color", Palette.GOLD if affordable or state == &"LOCKED" else Palette.THREAT)
 	match state:
 		&"COMPLETED":

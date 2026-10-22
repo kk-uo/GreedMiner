@@ -51,6 +51,11 @@ var _look_angle: float = 0.0
 var _home_facing: float = 0.0
 var _step_index: int = 0
 var _rng := RandomNumberGenerator.new()
+## Detect steering loops and briefly walk toward the goal to escape them.
+var _progress_target := Vector2.INF
+var _progress_distance: float = INF
+var _progress_elapsed: float = 0.0
+var _escape_time: float = 0.0
 
 
 func _ready() -> void:
@@ -176,11 +181,26 @@ func _walk_to(target: Vector2, delta: float) -> bool:
 	var step := walk_speed * delta * (0.85 if carrying else 1.0)
 	if to_target.length() <= step:
 		position = target
+		_progress_target = Vector2.INF
+		_escape_time = 0.0
 		return true
+	if not _progress_target.is_equal_approx(target):
+		_progress_target = target
+		_progress_distance = to_target.length()
+		_progress_elapsed = 0.0
+		_escape_time = 0.0
+	_progress_elapsed += delta
+	if _progress_elapsed >= 1.5:
+		if _progress_distance - to_target.length() < 2.0 * body_scale:
+			_escape_time = 0.8
+		_progress_distance = to_target.length()
+		_progress_elapsed = 0.0
 	# Close to the goal: head straight in (steering there made dwarves circle
 	# a target that sits next to an obstacle without ever arriving).
 	var direction := to_target.normalized()
-	if to_target.length() > 30.0 * body_scale:
+	if _escape_time > 0.0:
+		_escape_time = maxf(_escape_time - delta, 0.0)
+	elif to_target.length() > 30.0 * body_scale:
 		direction = _steer(direction, target)
 	position += direction * step
 	facing = lerp_angle(facing, direction.angle(), minf(delta * 10.0, 1.0))

@@ -99,6 +99,10 @@ var cell_input_enabled: bool = true
 ## Emitted whenever ship health changes.
 signal health_changed(current_health: float, maximum_health: float)
 
+## Emitted when combat damage actually lands on the hull (after interceptors
+## such as shields). The battle HUD flashes a red screen edge (DamageVignette).
+signal damaged(amount: float)
+
 ## Current ship health used by enemy attacks.
 var current_hp: float = 0.0
 
@@ -146,6 +150,14 @@ var visual_altitude: float = 0.0:
 var thruster_power: float = 0.0:
 	set(value):
 		thruster_power = clampf(value, 0.0, 1.0)
+		queue_redraw()
+
+## 0..1 how far the thrusters are unfolded (style dependent; see
+## ShipHullVisual.THRUSTERS). 0 on the ground, 1 in flight. Animated by
+## ShipLaunchController.
+var thruster_deploy: float = 0.0:
+	set(value):
+		thruster_deploy = clampf(value, 0.0, 1.0)
 		queue_redraw()
 
 ## Maximum extra scale at visual_altitude = 1.
@@ -202,6 +214,7 @@ func _ready() -> void:
 	energy_system.totals_changed.connect(_on_energy_totals_changed)
 	ShipLoadout.style_changed.connect(_on_style_changed)
 	ShipLoadout.hull_changed.connect(_on_hull_changed)
+	ShipLoadout.thruster_changed.connect(_on_thruster_changed)
 	ShipLoadout.rotation_changed.connect(apply_layout_rotation)
 
 	# Keep world rendering centered and consistently scaled in every scene.
@@ -256,6 +269,10 @@ func _on_style_changed(_style_id: StringName) -> void:
 	queue_redraw()
 
 
+func _on_thruster_changed(_thruster_id: StringName) -> void:
+	queue_redraw()
+
+
 ## Rebuilds the outline when the player picks another hull design.
 func _on_hull_changed(_hull_id: StringName) -> void:
 	_rebuild_hull()
@@ -263,7 +280,7 @@ func _on_hull_changed(_hull_id: StringName) -> void:
 
 ## Animated hull patterns (runway lights) need a redraw every frame.
 func _process(_delta: float) -> void:
-	if ShipHullVisual.is_animated(_hull_geometry):
+	if ShipHullVisual.is_animated(_hull_geometry) or ShipHullVisual.thruster_needs_redraw(thruster_power, thruster_deploy):
 		queue_redraw()
 	if assembly_mode or not _all_modules_active or current_hp <= 0.0:
 		return
@@ -299,6 +316,7 @@ func take_damage(damage: float) -> void:
 
 	current_hp = maxf(current_hp - remaining_damage, 0.0)
 	health_changed.emit(current_hp, max_hp)
+	damaged.emit(remaining_damage)
 	print("Ship HP: %s" % current_hp)
 
 	if current_hp <= 0.0:
@@ -370,7 +388,7 @@ func _draw() -> void:
 
 	# Hull, pods and grid overlays scale around the hull center when airborne.
 	draw_set_transform(center - center * lift, 0.0, Vector2.ONE * lift)
-	ShipHullVisual.draw_pods(self, _hull_geometry, thruster_power)
+	ShipHullVisual.draw_pods(self, _hull_geometry, thruster_power, ShipLoadout.thruster_id, thruster_deploy)
 	ShipHullVisual.draw_hull(self, _hull_geometry, _hull_cells, CELL_SIZE)
 
 	for cell_position in _hull_cells:
@@ -419,12 +437,18 @@ func get_shadow_offset() -> Vector2:
 	return Palette.SHADOW_OFFSET + ALTITUDE_SHADOW * visual_altitude
 
 
+func _nozzles() -> PackedVector2Array:
+	if not _hull_geometry.has("pods"):
+		return PackedVector2Array()
+	return ShipHullVisual.nozzle_points(_hull_geometry, ShipLoadout.thruster_id, thruster_deploy)
+
+
 ## Global positions of the thruster nozzles as currently drawn.
 func get_thruster_global_positions() -> PackedVector2Array:
 	var result := PackedVector2Array()
 	var center := SHIP_SIZE * 0.5
 	var lift := get_visual_scale()
-	for pod in _hull_geometry.get("pods", PackedVector2Array()):
+	for pod in _nozzles():
 		result.append(to_global(center + (pod - center) * lift))
 	return result
 
@@ -436,7 +460,7 @@ func get_thruster_ground_positions() -> PackedVector2Array:
 	# The exhaust stays put on the ground under the hull; it does not follow
 	# the perspective drift of the shadow, so it reads as a rising launch.
 	var ground_scale := minf(get_visual_scale(), 1.1)
-	for pod in _hull_geometry.get("pods", PackedVector2Array()):
+	for pod in _nozzles():
 		result.append(to_global(center + (pod - center) * ground_scale))
 	return result
 

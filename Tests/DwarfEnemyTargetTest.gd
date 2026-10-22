@@ -22,9 +22,9 @@ func _run() -> void:
 	enemy.enemy_tier = BasicEnemy.EnemyTier.COMMON
 	_check(enemy.mining_target_range == 200.0, "default detection radius is 200 pixels")
 	dwarf.global_position = Vector2.ZERO
-	enemy.global_position = Vector2(201, 0)
+	enemy.global_position = Vector2(213, 0)
 	dwarf.state = DWARF.State.MINING
-	_check(enemy._find_targetable_dwarf() == null, "worker outside 200 pixels not targeted")
+	_check(enemy._find_targetable_dwarf() == null, "worker outside 200 pixels from enemy body not targeted")
 	enemy.global_position = Vector2(100, 0)
 	_check(enemy._find_targetable_dwarf() == dwarf, "mining dwarf targeted nearby")
 	dwarf.state = DWARF.State.OUTBOUND
@@ -60,6 +60,35 @@ func _run() -> void:
 	var previous_hp: float = dwarf.hp
 	enemy._on_attack_timer_timeout()
 	_check(is_equal_approx(dwarf.hp, previous_hp - enemy.attack_damage), "attack hits displayed worker position")
+	var golem := preload("res://Scenes/Enemies/rock_golem.tscn").instantiate() as BasicEnemy
+	add_child(golem)
+	golem.set_physics_process(false)
+	golem.global_position = target_pos + Vector2(35, 0)
+	var ship := Ship.new()
+	ship.current_hp = ship.max_hp
+	golem.target_ship = ship
+	golem._physics_process(0.016)
+	_check(golem._mining_target == dwarf and golem._is_attacking, "large melee enemy starts attacking the worker at body contact range")
+	previous_hp = dwarf.hp
+	golem._on_attack_timer_timeout()
+	_check(is_equal_approx(dwarf.hp, previous_hp - golem.attack_damage), "large melee enemy hits when its body is beside the worker")
+	ship.free()
+	var weather := WeatherManager.new()
+	weather.name = "WeatherManager"
+	add_child(weather)
+	weather.blood_moon_active = true
+	var enemies := Node2D.new()
+	enemies.name = "Enemies"
+	add_child(enemies)
+	var vampire := preload("res://Scenes/Enemies/vampire.tscn").instantiate() as BasicEnemy
+	enemies.add_child(vampire)
+	vampire.set_physics_process(false)
+	vampire.global_position = target_pos + Vector2(30, 0)
+	vampire._mining_target = dwarf
+	vampire._is_attacking = true
+	previous_hp = dwarf.hp
+	vampire._on_attack_timer_timeout()
+	_check(is_equal_approx(dwarf.hp, previous_hp - vampire.attack_damage), "vampire attacks mining dwarf during blood moon")
 	var explosion := preload("res://Scripts/VFX/EnemyExplosion.gd").new()
 	explosion.damage = 5.0
 	explosion.radius = 20.0

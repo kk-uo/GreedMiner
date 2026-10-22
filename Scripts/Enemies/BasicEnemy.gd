@@ -38,6 +38,8 @@ enum SpawnPattern {
 
 ## Human-readable name shown in tools and future UI.
 @export var enemy_name: String = "Little Rock"
+## Opt-in per-enemy logging; combat can generate thousands of events.
+@export var debug_combat_logging: bool = false
 
 ## Maximum health of this enemy.
 @export var max_health: float = 20.0
@@ -95,6 +97,9 @@ var target_ship: Node2D
 ## Working or ore-carrying workers attract nearby ordinary melee enemies.
 var _mining_target: Node2D
 @export_range(0.0, 1000.0, 1.0) var mining_target_range: float = 200.0
+@export_range(0.0, 1.0, 0.01) var mining_target_search_interval: float = 0.2
+const TARGET_SEARCH_SCHEDULE := preload("res://Scripts/Modules/Weapons/TargetSearchSchedule.gd")
+var _dwarf_search_schedule := TARGET_SEARCH_SCHEDULE.new()
 
 ## Whether the enemy is currently attacking.
 var _is_attacking: bool = false
@@ -126,6 +131,10 @@ var _facing: float = 0.0
 
 ## Initializes enemy health and attack behavior.
 func _ready() -> void:
+	# Enemies are passive targets. Projectile and melee areas detect them;
+	# enemy-vs-enemy overlap monitoring has no gameplay purpose.
+	monitoring = false
+	collision_mask = 0
 	_current_health = max_health
 
 	# Register this enemy for automatic weapon targeting.
@@ -137,7 +146,8 @@ func _ready() -> void:
 	attack_timer.stop()
 	health_changed.emit(_current_health, max_health)
 
-	print("%s spawned! HP: %s" % [enemy_name, _current_health])
+	if debug_combat_logging:
+		print("%s spawned! HP: %s" % [enemy_name, _current_health])
 
 
 ## Moves toward the ship and attacks when close enough.
@@ -160,7 +170,7 @@ func _physics_process(delta: float) -> void:
 		_stop_attacking()
 		return
 
-	var dwarf := _find_targetable_dwarf()
+	var dwarf := _find_targetable_dwarf(delta)
 	if dwarf != _mining_target:
 		_stop_attacking()
 		_mining_target = dwarf
@@ -168,11 +178,11 @@ func _physics_process(delta: float) -> void:
 		var dwarf_position: Vector2 = dwarf.call("get_enemy_target_position")
 		var distance := global_position.distance_to(dwarf_position)
 		_facing = (dwarf_position - global_position).angle()
-		if distance <= attack_range + 10.0:
+		if distance <= _dwarf_attack_reach():
 			_start_attacking()
 		else:
 			_stop_attacking()
-			global_position = global_position.move_toward(dwarf_position, minf(get_effective_move_speed() * delta, maxf(distance - attack_range - 10.0, 0.0)))
+			global_position = global_position.move_toward(dwarf_position, minf(get_effective_move_speed() * delta, maxf(distance - _dwarf_attack_reach(), 0.0)))
 		return
 
 	# Calculate the closest point on the transformed ship-grid boundary.
@@ -214,6 +224,16 @@ func _physics_process(delta: float) -> void:
 	var direction: Vector2 = global_position.direction_to(
 		target_position
 	)
+	# Directional army batches initially march in parallel; near the ship they
+	# resume normal targeting so units can reach the hull and attack.
+	if has_meta("formation_spawn_side"):
+		var side: Vector2 = get_meta("formation_spawn_side")
+		var ship_center := ship.to_global(Ship.SHIP_SIZE * 0.5)
+		if (global_position - ship_center).dot(side) > 250.0:
+			direction = -side
+			_facing = direction.angle()
+		else:
+			remove_meta("formation_spawn_side")
 
 	# Never cross the attack boundary, even during a long frame.
 	var remaining_approach_distance: float = maxf(
@@ -230,6 +250,8 @@ func _physics_process(delta: float) -> void:
 
 ## Weather is a transient additive modifier and never changes saved base stats.
 func get_effective_move_speed() -> float:
+	if enemy_tier == EnemyTier.BOSS:
+		return move_speed
 	var weather := get_node_or_null("../../WeatherManager")
 	if weather != null and weather.has_method("blood_moon_speed_bonus"):
 		return move_speed + float(weather.call("blood_moon_speed_bonus"))
@@ -337,7 +359,7 @@ func _on_attack_timer_timeout() -> void:
 	if not _is_attacking:
 		return
 	if is_instance_valid(_mining_target):
-		if _mining_target.call("is_enemy_targetable") and global_position.distance_to(_mining_target.call("get_enemy_target_position")) <= attack_range + 10.5:
+		if _mining_target.call("is_enemy_targetable") and global_position.distance_to(_mining_target.call("get_enemy_target_position")) <= _dwarf_attack_reach() + ATTACK_RANGE_TOLERANCE:
 			_mining_target.call("take_damage", attack_damage)
 		else:
 			_stop_attacking()
@@ -366,13 +388,17 @@ func _on_attack_timer_timeout() -> void:
 
 	_perform_attack(ship)
 
-func _find_targetable_dwarf() -> Node2D:
+func _find_targetable_dwarf(delta: float = -1.0) -> Node2D:
 	if attack_type != AttackType.MELEE or enemy_tier == EnemyTier.BOSS:
 		return null
+	var search_due := delta < 0.0 or _dwarf_search_schedule.is_due(delta, mining_target_search_interval)
 	var closest: Node2D
-	var best := maxf(ResearchManager.get_dwarf_detection_range(mining_target_range), 0.0)
+	# Detection and melee reach are measured from the edge of this enemy's body.
+	var best := maxf(ResearchManager.get_dwarf_detection_range(mining_target_range), 0.0) + get_collision_radius()
 	if is_instance_valid(_mining_target) and _mining_target.call("is_enemy_targetable") and global_position.distance_to(_mining_target.call("get_enemy_target_position")) < best:
 		return _mining_target
+	if not search_due:
+		return null
 	for node in get_tree().get_nodes_in_group("mining_dwarves"):
 		var dwarf := node as Node2D
 		if not is_instance_valid(dwarf) or not dwarf.has_method("is_enemy_targetable") or not dwarf.call("is_enemy_targetable"):
@@ -384,10 +410,16 @@ func _find_targetable_dwarf() -> Node2D:
 	return closest
 
 
+## Distance between body centres at which a melee strike can reach the dwarf.
+func _dwarf_attack_reach() -> float:
+	return attack_range + get_collision_radius() + 10.0
+
+
 ## Performs one attack. Ranged enemies override this to create a projectile.
 func _perform_attack(ship: Ship) -> void:
 	ship.take_damage(attack_damage)
-	print("%s attacks! Damage: %s" % [enemy_name, attack_damage])
+	if debug_combat_logging:
+		print("%s attacks! Damage: %s" % [enemy_name, attack_damage])
 
 
 ## Point on this enemy's body nearest to from_world. Weapons measure their
@@ -496,7 +528,7 @@ func take_damage(damage: float, ignore_damage_reduction: bool = false, count_for
 	# Damage reduction is applied exactly once per incoming hit.
 	var final_damage := damage if ignore_damage_reduction else damage * (1.0 - clampf(damage_reduction, 0.0, 1.0))
 	var weather := get_node_or_null("../../WeatherManager") as WeatherManager
-	if weather != null and weather.blood_moon_active:
+	if weather != null and weather.blood_moon_active and enemy_tier != EnemyTier.BOSS:
 		var total_reduction := get_blood_moon_total_damage_reduction()
 		if total_reduction >= 0.0:
 			final_damage = damage * (1.0 - clampf(total_reduction, 0.0, 1.0))
@@ -509,11 +541,12 @@ func take_damage(damage: float, ignore_damage_reduction: bool = false, count_for
 	_hit_flash_time = HIT_FLASH_DURATION
 	health_changed.emit(_current_health, max_health)
 
-	print("%s HP: %s (-%s)" % [
-		enemy_name,
-		_current_health,
-		final_damage,
-	])
+	if debug_combat_logging:
+		print("%s HP: %s (-%s)" % [
+			enemy_name,
+			_current_health,
+			final_damage,
+		])
 
 	# Destroy the enemy when health reaches zero.
 	if _current_health <= 0.0:
@@ -541,7 +574,8 @@ func _die() -> void:
 		_grant_reward(death_position)
 		_perform_death_effect()
 	died.emit(enemy_id, death_position)
-	print("%s destroyed!" % enemy_name)
+	if debug_combat_logging:
+		print("%s destroyed!" % enemy_name)
 
 	queue_free()
 

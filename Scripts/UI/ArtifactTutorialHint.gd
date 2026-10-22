@@ -119,5 +119,7 @@ func _draw() -> void:
 	var screen := canvas * world
 	var radius := 110.0 * canvas.get_scale().x
 	var local := get_global_transform_with_canvas().affine_inverse() * (screen - Vector2(0, radius))
-	var bob := sin(_time * 5.0) * 7.0
-	GUIDE_ARROW.draw(self, local - Vector2(0, 8.0 + bob), Vector2.DOWN, 0.5 + 0.5 * sin(_time * 4.0))
+	var center := get_global_transform_with_canvas().affine_inverse() * screen
+	var bob := sin(_time * TAU * 1.2) * 4.0
+	GUIDE_ARROW.draw_lock_circle(self, center, radius * 0.75, _time)
+	GUIDE_ARROW.draw(self, local - Vector2(0, 8.0 + bob), Vector2.DOWN)

@@ -39,6 +39,9 @@ func _run() -> void:
 	check(not ArtifactManager.grant_artifact(&"demon_prism"), "prism is unique")
 	ShipLoadout.install_module(0, 0, GUN)
 	ShipLoadout.install_module(0, 1, GUN)
+	ResearchManager.progress.levels["weapon_damage.machine_gun"] = 10
+	ResearchManager.progress.levels["weapon_damage.flamethrower"] = 10
+	ResearchManager.progress.levels["weapon_damage.laser"] = 10
 	check(ArtifactManager.equip_module_artifact(Vector2i(0, 0), &"demon_prism"), "equip prism")
 	var ship := load("res://Scenes/Ship/ship.tscn").instantiate() as Ship
 	add_child(ship)

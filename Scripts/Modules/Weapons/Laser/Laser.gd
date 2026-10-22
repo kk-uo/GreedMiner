@@ -74,7 +74,8 @@ func _physics_process(delta: float) -> void:
 	current_target = keep_or_find_target(
 		current_target,
 		_muzzle.global_position,
-		get_modified_attack_range(attack_range)
+		get_modified_attack_range(attack_range),
+		delta
 	)
 
 	if not is_instance_valid(current_target):

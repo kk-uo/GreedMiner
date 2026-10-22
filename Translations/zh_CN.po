@@ -487,6 +487,12 @@ msgid "NOT INSTALLED"
 msgstr "未安装"
 msgid "ARTIFACT · THIS MODULE"
 msgstr "魔法道具 · 当前模块"
+msgid "Artifact Slot %d"
+msgstr "魔法道具槽 %d"
+msgid "Research this module to Level %d"
+msgstr "将此模块研究至 %d 级"
+msgid "Research this module to Level %d to unlock the next artifact slot."
+msgstr "将此模块研究至 %d 级以解锁下一个魔法道具槽。"
 msgid "Orange tag = installed on that turret (R·C). Install / remove chips in the Hangar; idle chips can be scrapped."
 msgstr "橙色标记表示已安装在对应炮台（行·列）。在机库装卸芯片，闲置芯片可以拆解。"
 msgid "No chips yet.\nCraft them in the Laboratory (Chip Lab)."
@@ -597,8 +603,8 @@ msgid "Change the ship's colors"
 msgstr "更改飞船颜色"
 msgid "Research SHIP STYLE in the Laboratory (Ship)"
 msgstr "在实验室的飞船分类中研究飞船外观"
-msgid "Color and hull shape mix freely; modules keep their own colors. Rotation also turns the ship's edges in battle. Saved automatically."
-msgstr "颜色和船体造型可自由组合；模块保留各自颜色。旋转也会改变战斗中船体边缘的方向。更改将自动保存。"
+msgid "Color, hull and thrusters mix freely; modules keep their own colors. Rotation also turns the ship's edges in battle. Saved automatically."
+msgstr "颜色、船体和推进器可自由组合；模块保留各自颜色。旋转也会改变战斗中船体边缘的方向。更改将自动保存。"
 msgid "Turret chip sockets unlock at weapon Lv 10 / 20 / 30."
 msgstr "炮台芯片槽分别在武器研究达到 10、20、30 级时解锁。"
 msgid "Does not fit this module (no active skill)."
@@ -678,6 +684,8 @@ msgid "POWER FIRST"
 msgstr "优先提升电力"
 msgid "Save up %d ore and research ENERGY MODULE EXPANSION in Energy. A second battery means more Power for more turrets, and it leads to farther planets."
 msgstr "积攒 %d 矿石，在能源分类中研究能源模块扩容。第二块电池可以为更多炮台供电，也能帮助你前往更遥远的星球。"
+msgid "Research ENERGY MODULE EXPANSION for free in Energy. A second battery means more Power for more turrets, and it leads to farther planets."
+msgstr "在能源分类中免费研究能源模块扩容。第二块电池可以为更多炮台供电，也能帮助你前往更遥远的星球。"
 msgid "SHOW ME"
 msgstr "带我前往"
 msgid "LATER"
@@ -690,6 +698,12 @@ msgid "UPGRADE QUALITY  ◆ %s"
 msgstr "提升品质  ◆ %s"
 msgid "UNLOCK COST: %s ORE"
 msgstr "解锁费用：%s 矿石"
+msgid "UNLOCK COST: FREE"
+msgstr "解锁费用：免费"
+msgid "FREE"
+msgstr "免费"
+msgid "%s — FREE"
+msgstr "%s — 免费"
 msgid "‹  LOADOUT"
 msgstr "‹  装配"
 msgid "GOLD = FROM CHIPS"
@@ -767,8 +781,62 @@ msgstr "打开能源分类：第二块电池能为更多炮台供电，也能带
 msgid "ENERGY MODULE EXPANSION costs %d ore - you have %d. Bring more ore home from your next expedition, then research it here."
 msgstr "能源模块扩容需要 %d 矿石，你现在有 %d。下次远征多带些矿石回来，再来这里研究它。"
 
+msgid "Unlock a second battery for free. Open the LABORATORY to research it."
+msgstr "免费解锁第二块电池。打开实验室进行研究。"
+
 msgid "RESEARCH ENERGY MODULE EXPANSION"
 msgstr "研究能源模块扩容"
 
 msgid "Press RESEARCH: a second battery means more Power for more turrets, and it leads to farther planets."
 msgstr "点击研究：第二块电池能为更多炮台供电，也能带你前往更遥远的星球。"
+
+msgid "THRUSTERS"
+msgstr "推进器"
+
+msgid "ROUND PODS"
+msgstr "圆形推进舱"
+
+msgid "DIAMOND"
+msgstr "棱形推进器"
+
+msgid "RING"
+msgstr "环形推进器"
+
+msgid "STILTS"
+msgstr "支撑腿"
+
+msgid "FANS"
+msgstr "风扇"
+
+msgid "TREE PLANET"
+msgstr "树木星球"
+
+msgid "Tree Planet"
+msgstr "树木星球"
+
+msgid "A rain-soaked forest where cutting trees prevents their defenders from returning in storms."
+msgstr "一片终年下雨的森林。砍倒树木，便能阻止树人在暴雨中从该处再生。"
+
+msgid "Fairy"
+msgstr "仙子"
+
+msgid "Treant"
+msgstr "树人"
+
+msgid "Big Treant"
+msgstr "大树人"
+
+msgid "Chainsaw Spaceship Treant"
+msgstr "电锯飞船树精"
+
+msgid "STORM"
+msgstr "暴雨"
+
+msgid "STORM IN %d"
+msgstr "%d 秒后暴雨"
+
+msgid "ROOTED"
+msgstr "树根缠绕"
+
+msgid "Send a mining dwarf to cut the roots"
+msgstr "派采矿矮人砍断树根，才能撤离"

@@ -33,6 +33,9 @@ enum SpawnDirection {
 @export_range(0, 500, 1) var maximum_simultaneous_enemies: int = 0
 @export var spawn_pattern: SpawnPattern = SpawnPattern.RANDOM
 @export var spawn_direction_mode: SpawnDirectionMode = SpawnDirectionMode.RANDOM_EDGES
+## Arrange each scheduled batch in a compact block and approach in parallel.
+@export var directional_batch_formation: bool = false
+@export_range(40.0, 160.0, 1.0) var directional_formation_spacing: float = 46.0
 @export var allowed_directions: Array[SpawnDirection] = [
 	SpawnDirection.TOP,
 	SpawnDirection.BOTTOM,
@@ -61,6 +64,8 @@ enum SpawnDirection {
 @export_range(-1.0, 1.0, 0.01) var lightning_fraction: float = -1.0
 @export_range(-1.0, 1.0, 0.01) var blood_moon_start_fraction: float = -1.0
 @export_range(-1.0, 1.0, 0.01) var blood_moon_end_fraction: float = -1.0
+## Keep this wave's blood moon until the battle ends or is stopped.
+@export var blood_moon_until_battle_end: bool = false
 
 ## A pending wave is a deliberate development stop, not an empty completed wave.
 @export var configuration_pending: bool = false

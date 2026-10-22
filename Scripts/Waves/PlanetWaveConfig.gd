@@ -7,6 +7,8 @@ extends Resource
 @export var display_name: String = "Rocky Planet"
 ## Advance immediately once the wave's scheduled spawns and all enemies are cleared.
 @export var advance_on_wave_clear: bool = false
+## Delay after scheduled spawns finish before preparing the next wave.
+@export_range(0.0, 60.0, 0.1) var inter_wave_delay: float = 0.0
 @export var waves: Array[WaveDefinition] = []
 @export var special_spawn_rules: Array[SpecialSpawnEventRule] = []
 

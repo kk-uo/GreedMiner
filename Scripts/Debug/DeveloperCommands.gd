@@ -138,7 +138,6 @@ func reset_all_progress() -> Dictionary:
 	WeaponUnlockManager.reload_progress()
 	ShipLoadout.load_saved()
 	ResearchManager.reload_progress()
-	ChipManager.reload_progress()
 	ArtifactManager.reload_progress()
 	return _success("All progression was reset.")
 

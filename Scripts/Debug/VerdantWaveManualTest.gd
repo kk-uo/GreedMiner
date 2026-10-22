@@ -5,7 +5,7 @@ extends Node
 const BATTLE_SCENE: PackedScene = preload("res://Scenes/Battle/BattleMain.tscn")
 const VERDANT_CONFIG: PlanetWaveConfig = preload("res://Resources/Waves/VerdantPlanetWaves.tres")
 
-@export_range(1, 10, 1) var wave_number_to_test: int = 1
+@export_range(1, 9, 1) var wave_number_to_test: int = 1
 
 
 func _ready() -> void:
@@ -19,10 +19,11 @@ func _ready() -> void:
 	test_config.planet_id = &"verdant_manual_test"
 	test_config.display_name = "Verdant Manual Test"
 	test_config.special_spawn_rules = VERDANT_CONFIG.special_spawn_rules
-	test_config.waves = [VERDANT_CONFIG.waves[wave_number_to_test - 1]]
-	# Wave 10 must proceed to Wave 11 (Goblin Giant Chariot) instead of reporting victory.
-	if wave_number_to_test == 10:
-		test_config.waves.append(VERDANT_CONFIG.waves[10])
+	var selected_wave := clampi(wave_number_to_test, 1, VERDANT_CONFIG.waves.size())
+	test_config.waves = [VERDANT_CONFIG.waves[selected_wave - 1]]
+	# The Goblin Army must proceed to the Chariot boss wave.
+	if selected_wave == VERDANT_CONFIG.waves.size() - 1:
+		test_config.waves.append(VERDANT_CONFIG.waves.back())
 	manager.wave_config = test_config
 	battlefield.planet_theme = &"jungle"
 	add_child(battle)

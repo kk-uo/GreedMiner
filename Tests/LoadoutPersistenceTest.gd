@@ -69,6 +69,26 @@ func _run() -> void:
 	ShipLoadout.set_hull(&"classic")
 	ShipLoadout.save()
 
+	# The thruster style is saved too, and every style draws and has nozzles.
+	_expect_equal(ShipLoadout.thruster_id, &"pod", "round pods are the default thrusters")
+	for thruster_id in ShipHullVisual.THRUSTER_ORDER:
+		ShipLoadout.set_thruster(thruster_id)
+		base.ship.thruster_deploy = 1.0
+		base.ship.thruster_power = 1.0
+		_expect_true(base.ship.get_thruster_ground_positions().size() > 0, "%s has nozzles for the exhaust" % thruster_id)
+	base.ship.thruster_power = 0.0
+	base.ship.thruster_deploy = 0.0
+	ShipLoadout.set_thruster(&"ring")
+	ShipLoadout.save()
+	ShipLoadout.thruster_id = &"pod"
+	ProgressionStore.reload_from_disk()
+	ShipLoadout.load_saved()
+	_expect_equal(ShipLoadout.thruster_id, &"ring", "thruster style is restored after reload")
+	ShipLoadout.set_thruster(&"jetpack")
+	_expect_equal(ShipLoadout.thruster_id, &"ring", "unknown thruster styles are ignored")
+	ShipLoadout.set_thruster(&"pod")
+	ShipLoadout.save()
+
 	# Removing through the panel flow is saved too.
 	base.ship.select_cell(0, 2)
 	base._on_remove_requested()

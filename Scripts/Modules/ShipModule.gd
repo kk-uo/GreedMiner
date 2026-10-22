@@ -12,14 +12,29 @@ const CATEGORY_MINING: StringName = &"mining"
 const CATEGORY_ENERGY: StringName = &"energy"
 const CATEGORY_SHIELD: StringName = &"shield"
 
-## Instance-local artifact modifier shared by compatible explosive modules.
-var artifact_explosion_damage_bonus: Callable
+## Instance-local artifact modifiers shared by compatible explosive modules.
+## A list lets multiple equipped artifacts coexist without the last one
+## overwriting an earlier provider.
+var artifact_explosion_damage_bonuses: Array[Callable] = []
 
 
 func get_modified_explosion_damage(base_damage: float) -> float:
-	if artifact_explosion_damage_bonus.is_valid():
-		return base_damage * (1.0 + maxf(float(artifact_explosion_damage_bonus.call()), 0.0))
-	return base_damage
+	var total_bonus := 0.0
+	for provider in artifact_explosion_damage_bonuses.duplicate():
+		if provider.is_valid():
+			total_bonus += maxf(float(provider.call()), 0.0)
+		else:
+			artifact_explosion_damage_bonuses.erase(provider)
+	return base_damage * (1.0 + total_bonus)
+
+
+func add_artifact_explosion_damage_bonus(provider: Callable) -> void:
+	if provider.is_valid() and not artifact_explosion_damage_bonuses.has(provider):
+		artifact_explosion_damage_bonuses.append(provider)
+
+
+func remove_artifact_explosion_damage_bonus(provider: Callable) -> void:
+	artifact_explosion_damage_bonuses.erase(provider)
 
 
 ## Returns the module category used by Ship for grid classification.
@@ -52,16 +67,16 @@ func get_regeneration_per_second() -> float:
 	return 0.0
 
 
-## Chip adaptation category. Only explicitly supported modules return a value.
+## Legacy module-category interface retained only for old save migration.
 func get_chip_module_kind() -> StringName:
 	return &""
 
 
-## Number of instance-local chip sockets exposed after the Chip Lab unlock.
+## Legacy compatibility interface. Active equipment uses ArtifactManager.
 func get_chip_slot_count() -> int:
 	return 0
 
 
-## Active-skill chips are rejected unless a concrete module opts in here.
+## Legacy compatibility interface for retired active-skill chip data.
 func supports_active_skill() -> bool:
 	return false

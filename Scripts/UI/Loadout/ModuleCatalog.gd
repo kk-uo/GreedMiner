@@ -91,7 +91,10 @@ static func get_unlock_requirement(id: StringName) -> String:
 
 ## Reads gameplay values from a temporary instance of the module scene.
 static func get_stats(id: StringName) -> Dictionary:
-	if _stats_cache.has(id):
+	# Energy capacity and hull bonus depend on current research. Re-read this
+	# module so a cached +1 Power cannot survive a research reset.
+	var has_dynamic_research_stats := id == &"energy_module"
+	if not has_dynamic_research_stats and _stats_cache.has(id):
 		return _stats_cache[id]
 
 	var stats: Dictionary = {}
@@ -115,13 +118,14 @@ static func get_stats(id: StringName) -> Dictionary:
 			stats["mining_rate"] = float(ship_module.get("mining_rate"))
 		stats["max_hp_bonus"] = ship_module.get_max_hp_bonus()
 		stats["regeneration_per_second"] = ship_module.get_regeneration_per_second()
-		for key in ["knockback_damage", "trigger_range", "splash_radius", "cooldown", "healing_amount", "healing_interval", "healing_radius", "chip_slot_count", "max_chip_slots"]:
+		for key in ["knockback_damage", "trigger_range", "splash_radius", "cooldown", "healing_amount", "healing_interval", "healing_radius"]:
 			if key in ship_module:
 				stats[key] = ship_module.get(key)
 	if module != null:
 		module.free()
 
-	_stats_cache[id] = stats
+	if not has_dynamic_research_stats:
+		_stats_cache[id] = stats
 	return stats
 
 

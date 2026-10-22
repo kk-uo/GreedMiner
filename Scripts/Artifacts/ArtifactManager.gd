@@ -11,8 +11,9 @@ signal tutorial_state_changed(pending: bool, completed: bool)
 signal artifact_operation_failed(reason: String)
 
 const SAVE_SECTION: StringName = &"magic_artifacts"
-const SAVE_VERSION: int = 1
+const SAVE_VERSION: int = 2
 const SHIP_SLOT_COUNT: int = 3
+const MODULE_SLOT_COUNT: int = 3
 const DEFAULT_CONFIGURATION: MagicArtifactConfiguration = preload(
 	"res://Resources/Artifacts/ArtifactConfiguration.tres"
 )
@@ -20,7 +21,9 @@ const DEFAULT_CONFIGURATION: MagicArtifactConfiguration = preload(
 var configuration: MagicArtifactConfiguration = DEFAULT_CONFIGURATION
 var owned_artifact_ids: Dictionary = {}
 var ship_slots: Array[StringName] = [&"", &"", &""]
-## One instance-local slot per installed module cell. Key format: "row,column".
+## Three instance-local slots per installed module cell. Key format:
+## "row,column" -> Array[StringName]. Version 1 saves stored one String here;
+## reload_progress() migrates that value into slot zero when it is unlocked.
 var module_slots: Dictionary = {}
 var stall_unlocked: bool = false
 var tutorial_pending: bool = false
@@ -98,10 +101,20 @@ func reload_progress() -> void:
 		for raw_key in (raw_module_slots as Dictionary).keys():
 			var key := String(raw_key)
 			var cell := _parse_cell_key(key)
-			var artifact_id := StringName(String((raw_module_slots as Dictionary)[raw_key]))
-			if _is_valid_module_assignment(cell, artifact_id) and not used.has(String(artifact_id)):
-				module_slots[key] = artifact_id
-				used[String(artifact_id)] = true
+			var raw_slots: Variant = (raw_module_slots as Dictionary)[raw_key]
+			var candidates: Array = raw_slots if raw_slots is Array else [raw_slots]
+			var restored := _empty_module_slots()
+			for slot_index in range(mini(candidates.size(), MODULE_SLOT_COUNT)):
+				var artifact_id := StringName(String(candidates[slot_index]))
+				if (
+					_is_valid_module_assignment(cell, artifact_id)
+					and is_module_artifact_slot_unlocked(cell, slot_index)
+					and not used.has(String(artifact_id))
+				):
+					restored[slot_index] = artifact_id
+					used[String(artifact_id)] = true
+			if not _module_slot_array_is_empty(restored):
+				module_slots[key] = restored
 
 	# Persist the sanitized state so invalid legacy assignments do not return.
 	if not data.is_empty():
@@ -114,7 +127,10 @@ func save_progress() -> bool:
 		serialized_ship_slots.append(String(artifact_id))
 	var serialized_module_slots: Dictionary = {}
 	for key in module_slots:
-		serialized_module_slots[String(key)] = String(module_slots[key])
+		var serialized: Array[String] = []
+		for artifact_id in _module_slot_array(module_slots[key]):
+			serialized.append(String(artifact_id))
+		serialized_module_slots[String(key)] = serialized
 	return ProgressionStore.set_section(SAVE_SECTION, {
 		"version": SAVE_VERSION,
 		"owned": owned_artifact_ids.duplicate(true),
@@ -283,44 +299,104 @@ func unequip_ship_artifact(slot_index: int) -> bool:
 	return true
 
 
-func get_module_artifact(cell: Vector2i) -> StringName:
-	return StringName(String(module_slots.get(_cell_key(cell), "")))
+func get_module_artifact(cell: Vector2i, slot_index: int = 0) -> StringName:
+	if slot_index < 0 or slot_index >= MODULE_SLOT_COUNT:
+		return &""
+	var slots := _module_slot_array(module_slots.get(_cell_key(cell), []))
+	return slots[slot_index]
 
 
-func equip_module_artifact(cell: Vector2i, artifact_id: StringName) -> bool:
+func get_module_artifacts(cell: Vector2i) -> Array[StringName]:
+	return _module_slot_array(module_slots.get(_cell_key(cell), [])).duplicate()
+
+
+func get_module_artifact_slot_count(cell: Vector2i) -> int:
+	if not ShipLoadout.is_valid_cell(cell.x, cell.y) or not ShipLoadout.has_module(cell.x, cell.y):
+		return 0
+	var entry := ModuleCatalog.find_by_scene(ShipLoadout.get_module(cell.x, cell.y))
+	if entry.is_empty():
+		return 0
+	var module_id := StringName(entry.get("id", &""))
+	match StringName(entry.get("group", &"")):
+		&"weapon":
+			return mini(ResearchManager.get_weapon_artifact_slot_count(module_id), MODULE_SLOT_COUNT)
+		&"shield":
+			return mini(ResearchManager.get_shield_artifact_slot_count(module_id), MODULE_SLOT_COUNT)
+	return 0
+
+
+func get_module_artifact_slot_unlock_level(cell: Vector2i, slot_index: int) -> int:
+	if slot_index < 0 or slot_index >= MODULE_SLOT_COUNT:
+		return 0
+	var entry := ModuleCatalog.find_by_scene(ShipLoadout.get_module(cell.x, cell.y))
+	if entry.is_empty():
+		return 0
+	var module_id := StringName(entry.get("id", &""))
+	if StringName(entry.get("group", &"")) == &"weapon":
+		return ResearchManager.get_weapon_artifact_slot_unlock_level(module_id, slot_index)
+	if StringName(entry.get("group", &"")) == &"shield":
+		return ResearchManager.get_shield_artifact_slot_unlock_level(module_id, slot_index)
+	return 0
+
+
+func is_module_artifact_slot_unlocked(cell: Vector2i, slot_index: int) -> bool:
+	return slot_index >= 0 and slot_index < get_module_artifact_slot_count(cell)
+
+
+func equip_module_artifact(cell: Vector2i, artifact_id: StringName, slot_index: int = 0) -> bool:
 	if not equipment_changes_enabled:
 		return _fail("Magic artifacts can only be changed at the base.")
+	if not is_module_artifact_slot_unlocked(cell, slot_index):
+		return _fail("Research is required to unlock this module artifact slot.")
 	if not _is_valid_module_assignment(cell, artifact_id):
 		return _fail("Artifact is missing or incompatible with this module instance.")
 	var previous_ship := ship_slots.duplicate()
 	var previous_modules := module_slots.duplicate(true)
 	_remove_artifact_from_all_slots(artifact_id)
-	module_slots[_cell_key(cell)] = artifact_id
+	var key := _cell_key(cell)
+	var slots := _module_slot_array(module_slots.get(key, []))
+	slots[slot_index] = artifact_id
+	module_slots[key] = slots
 	if not save_progress():
 		ship_slots = previous_ship
 		module_slots = previous_modules
 		return _fail("Could not save artifact equipment.")
-	equipment_changed.emit(artifact_id, "module.%s" % _cell_key(cell))
+	equipment_changed.emit(artifact_id, "module.%s.%d" % [_cell_key(cell), slot_index])
 	return true
 
 
-func unequip_module_artifact(cell: Vector2i) -> bool:
+func unequip_module_artifact(cell: Vector2i, slot_index: int = 0) -> bool:
 	if not equipment_changes_enabled:
 		return _fail("Magic artifacts can only be changed at the base.")
+	if slot_index < 0 or slot_index >= MODULE_SLOT_COUNT:
+		return false
 	var key := _cell_key(cell)
 	if not module_slots.has(key):
 		return false
-	var artifact_id := StringName(String(module_slots[key]))
-	module_slots.erase(key)
+	var slots := _module_slot_array(module_slots[key])
+	var artifact_id := slots[slot_index]
+	if artifact_id.is_empty():
+		return false
+	slots[slot_index] = &""
+	if _module_slot_array_is_empty(slots):
+		module_slots.erase(key)
+	else:
+		module_slots[key] = slots
 	if not save_progress():
-		module_slots[key] = artifact_id
+		module_slots[key] = slots
+		(module_slots[key] as Array)[slot_index] = artifact_id
 		return _fail("Could not save artifact equipment.")
 	equipment_changed.emit(artifact_id, "")
 	return true
 
 
 func is_artifact_equipped(artifact_id: StringName) -> bool:
-	return ship_slots.has(artifact_id) or module_slots.values().has(artifact_id)
+	if ship_slots.has(artifact_id):
+		return true
+	for raw_slots in module_slots.values():
+		if _module_slot_array(raw_slots).has(artifact_id):
+			return true
+	return false
 
 
 func is_ship_artifact_equipped(artifact_id: StringName) -> bool:
@@ -332,8 +408,9 @@ func get_equipped_location(artifact_id: StringName) -> String:
 	if ship_index >= 0:
 		return "Ship Slot %d" % (ship_index + 1)
 	for key in module_slots:
-		if StringName(String(module_slots[key])) == artifact_id:
-			return "Module %s" % String(key)
+		var index := _module_slot_array(module_slots[key]).find(artifact_id)
+		if index >= 0:
+			return "Module %s Slot %d" % [String(key), index + 1]
 	return "Not Equipped"
 
 
@@ -378,18 +455,21 @@ func attach_battle_effects(target_ship: Ship) -> Node:
 	for cell in module_slots:
 		var position := _parse_cell_key(String(cell))
 		var module := target_ship.get_module_at(position.x, position.y) as ShipModule
-		var definition := get_definition(StringName(String(module_slots[cell])))
-		if module == null or definition == null or definition.effect_script == null:
+		if module == null:
 			continue
-		var effect := definition.effect_script.new() as MagicArtifactEffect
-		if effect == null:
-			continue
-		effect.configure(definition, target_ship)
-		if effect.has_method("configure_module"):
-			effect.call("configure_module", module)
-		elif module is WeaponModule and effect.has_method("configure_weapon"):
-			effect.call("configure_weapon", module)
-		container.add_child(effect)
+		for artifact_id in _module_slot_array(module_slots[cell]):
+			var definition := get_definition(artifact_id)
+			if definition == null or definition.effect_script == null:
+				continue
+			var effect := definition.effect_script.new() as MagicArtifactEffect
+			if effect == null:
+				continue
+			effect.configure(definition, target_ship)
+			if effect.has_method("configure_module"):
+				effect.call("configure_module", module)
+			elif module is WeaponModule and effect.has_method("configure_weapon"):
+				effect.call("configure_weapon", module)
+			container.add_child(effect)
 	return container
 
 
@@ -414,8 +494,17 @@ func _remove_artifact_from_all_slots(artifact_id: StringName) -> void:
 		if ship_slots[index] == artifact_id:
 			ship_slots[index] = &""
 	for key in module_slots.keys():
-		if StringName(String(module_slots[key])) == artifact_id:
-			module_slots.erase(key)
+		var slots := _module_slot_array(module_slots[key])
+		var changed := false
+		for slot_index in range(slots.size()):
+			if slots[slot_index] == artifact_id:
+				slots[slot_index] = &""
+				changed = true
+		if changed:
+			if _module_slot_array_is_empty(slots):
+				module_slots.erase(key)
+			else:
+				module_slots[key] = slots
 
 
 func _is_valid_module_assignment(cell: Vector2i, artifact_id: StringName) -> bool:
@@ -434,26 +523,52 @@ func _on_ship_cell_changed(cell: Vector2i, old_path: String, new_path: String) -
 		return
 	var key := _cell_key(cell)
 	if module_slots.has(key):
-		var artifact_id := StringName(String(module_slots[key]))
+		var removed := _module_slot_array(module_slots[key])
 		module_slots.erase(key)
 		save_progress()
-		equipment_changed.emit(artifact_id, "")
+		for artifact_id in removed:
+			if not artifact_id.is_empty():
+				equipment_changed.emit(artifact_id, "")
 
 
 func _on_ship_cells_swapped(cell_a: Vector2i, cell_b: Vector2i) -> void:
 	var key_a := _cell_key(cell_a)
 	var key_b := _cell_key(cell_b)
-	var value_a := StringName(String(module_slots.get(key_a, "")))
-	var value_b := StringName(String(module_slots.get(key_b, "")))
+	var value_a := _module_slot_array(module_slots.get(key_a, []))
+	var value_b := _module_slot_array(module_slots.get(key_b, []))
 	module_slots.erase(key_a)
 	module_slots.erase(key_b)
-	if not value_a.is_empty():
+	if not _module_slot_array_is_empty(value_a):
 		module_slots[key_b] = value_a
-	if not value_b.is_empty():
+	if not _module_slot_array_is_empty(value_b):
 		module_slots[key_a] = value_b
-	if not value_a.is_empty() or not value_b.is_empty():
+	if not _module_slot_array_is_empty(value_a) or not _module_slot_array_is_empty(value_b):
 		save_progress()
 		equipment_changed.emit(&"", "")
+
+
+func _empty_module_slots() -> Array[StringName]:
+	var slots: Array[StringName] = []
+	slots.resize(MODULE_SLOT_COUNT)
+	slots.fill(&"")
+	return slots
+
+
+func _module_slot_array(raw_value: Variant) -> Array[StringName]:
+	var slots := _empty_module_slots()
+	if raw_value is Array:
+		for index in range(mini((raw_value as Array).size(), MODULE_SLOT_COUNT)):
+			slots[index] = StringName(String((raw_value as Array)[index]))
+	elif raw_value != null and not String(raw_value).is_empty():
+		slots[0] = StringName(String(raw_value))
+	return slots
+
+
+func _module_slot_array_is_empty(slots: Array[StringName]) -> bool:
+	for artifact_id in slots:
+		if not artifact_id.is_empty():
+			return false
+	return true
 
 
 func _cell_key(cell: Vector2i) -> String:

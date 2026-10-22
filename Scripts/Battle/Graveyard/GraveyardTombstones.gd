@@ -12,6 +12,7 @@ extends Node2D
 
 ## Everything is drawn at this scale so the stones read at battle zoom.
 const DRAW_SCALE: float = 1.2
+const MAP_GRAVE := preload("res://Scripts/Battle/Graveyard/MapGrave.gd")
 
 ## Placement rules (world pixels, distances from the ship's hull edge):
 ## one 9-stone cluster 200-300 px from the ship, two more clusters elsewhere,
@@ -52,11 +53,16 @@ var _pen: Object = self
 var _static_mesh: ArrayMesh
 var _glow_meshes: Array = [null, null]
 var _time: float = 0.0
+var _diggable_stones: Array[Node2D] = []
 
 
 ## Places the clusters and single stones (see the rules above), avoiding
 ## claimed areas, and claims the ground they use.
 func generate(battlefield: Node, seed_value: int) -> void:
+	for proxy in _diggable_stones:
+		if is_instance_valid(proxy):
+			proxy.queue_free()
+	_diggable_stones.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	stones.clear(); plots.clear(); crypts.clear(); graves.clear(); pools.clear()
@@ -106,6 +112,12 @@ func generate(battlefield: Node, seed_value: int) -> void:
 			battlefield.claim_area(spot, STONE_RADIUS)
 			_add_single(rng, to_local(spot))
 	stones.sort_custom(func(a, b): return (a["pos"] as Vector2).y < (b["pos"] as Vector2).y)
+	for stone in stones:
+		var proxy: Node2D = MAP_GRAVE.new()
+		proxy.set("stone", stone)
+		proxy.position = stone["pos"]
+		add_child(proxy)
+		_diggable_stones.append(proxy)
 	_static_mesh = null
 	_glow_meshes = [null, null]
 	queue_redraw()
@@ -159,6 +171,29 @@ func get_emerge_points() -> Array[Vector2]:
 	for grave in graves:
 		points.append(to_global(grave["pos"]))
 	return points
+
+
+## Expose the original map stones to the same digging system as zombie graves.
+func get_diggable_stones_in(world_position: Vector2, radius: float) -> Array[Node2D]:
+	var result: Array[Node2D] = []
+	for proxy in _diggable_stones:
+		if not is_instance_valid(proxy) or proxy.is_queued_for_deletion():
+			continue
+		if is_instance_valid(proxy.get("dig_site")):
+			continue
+		if proxy.global_position.distance_to(world_position) <= radius:
+			result.append(proxy)
+	return result
+
+
+## Removing a stone also removes its spawn point and refreshes the baked art.
+func remove_stone(stone: Dictionary) -> void:
+	if not stones.has(stone):
+		return
+	stones.erase(stone)
+	_static_mesh = null
+	_glow_meshes = [null, null]
+	queue_redraw()
 
 
 func _add_stone(rng: RandomNumberGenerator, at: Vector2, s: float) -> void:

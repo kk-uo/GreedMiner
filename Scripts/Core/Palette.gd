@@ -88,6 +88,10 @@ const HIT_FLASH := Color("FFFFFF")
 # ==========================================
 
 const GOLD := Color("FFD23F")
+## Outline round a base facility under the mouse: a soft warm cream line
+## over a faint wide glow (see draw_hover_outline).
+const HOVER_OUTLINE := Color("F2E3C6", 0.55)
+const HOVER_GLOW := Color("F2E3C6", 0.12)
 const GOLD_SHADOW := Color("DC9D17")
 const GOLD_LIGHT := Color("FFF2B0")
 const COBALT := Color("5FB0FF")
@@ -177,6 +181,20 @@ const PLANETS := {
 		## Graveyard maps are 200 px bigger on each axis.
 		"map_extra": 200.0,
 	},
+	## Tree Planet (art direction A "ancient grove"): olive clearing, the dense
+	## forest itself is ForestCanopyLayer.
+	&"forest": {
+		"ground": Color("4E5B3A"),
+		"ground_dark": Color("445133"),
+		"ground_light": Color("5A6843"),
+		"rock": Color("3A4430"),
+		"rock_light": Color("67793F"),
+		"crater": Color("465236"),
+		"crater_inner": Color("4E5B3A"),
+		"decor": &"forest",
+		## Show 300 more world pixels of forest and extend the map to match.
+		"map_extra": 300.0,
+	},
 }
 
 
@@ -246,6 +264,12 @@ static func draw_shadowed_polygon(
 
 ## Draws a rounded rectangle as a flat polygon.
 ## `canvas`: a CanvasItem or a MeshBatch2D.
+## Soft hover outline along a closed polyline: faint wide glow + thin line.
+static func draw_hover_outline(canvas: Object, points: PackedVector2Array, width: float) -> void:
+	canvas.draw_polyline(points, HOVER_GLOW, width * 3.4)
+	canvas.draw_polyline(points, HOVER_OUTLINE, width * 0.75)
+
+
 static func draw_rounded_rect(canvas: Object, rect: Rect2, radius: float, color: Color) -> void:
 	canvas.draw_colored_polygon(rounded_rect_points(rect, radius), color)
 

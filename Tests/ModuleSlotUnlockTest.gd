@@ -78,13 +78,10 @@ func _test_purchases_limits_removal_and_persistence() -> void:
 	await get_tree().process_frame
 	_expect_true(ship.install_module(MINING_SCENE, Ship.ModuleType.Mining, 0, 0), "first Mining Module installs before unlock")
 
-	ResourceManager.stored_ore = 299.0
-	_expect_false(ResearchManager.purchase_research(&"energy_install_slot_unlock"), "insufficient Ore rejects Energy unlock")
-	_expect_equal(ResourceManager.stored_ore, 299.0, "failed Energy unlock spends no Ore")
-	ResourceManager.add_stored_ore(1.0)
-	_expect_equal(ResearchManager.get_upgrade_cost(&"energy_install_slot_unlock"), 300, "Energy unlock uses configured 300 Ore cost")
+	ResourceManager.stored_ore = 0.0
+	_expect_equal(ResearchManager.get_upgrade_cost(&"energy_install_slot_unlock"), 0, "Energy unlock is free")
 	_expect_true(ResearchManager.purchase_research(&"energy_install_slot_unlock"), "Energy unlock purchase succeeds")
-	_expect_equal(ResourceManager.stored_ore, 0.0, "Energy unlock deducts exactly 300 Ore")
+	_expect_equal(ResourceManager.stored_ore, 0.0, "free Energy unlock spends no Ore")
 	_expect_equal(ResearchManager.get_module_installation_limit(&"energy_module"), 2, "Energy unlock raises limit to two")
 	_expect_equal(ResearchManager.get_module_installation_limit(&"mining_module"), 1, "Energy unlock does not affect Mining")
 	var ore_after_energy := ResourceManager.stored_ore
@@ -94,10 +91,10 @@ func _test_purchases_limits_removal_and_persistence() -> void:
 	_expect_false(ship.install_module(ENERGY_SCENE, Ship.ModuleType.Energy, 2, 1), "third Energy Module is always rejected")
 	_expect_false(ship.install_module(MINING_SCENE, Ship.ModuleType.Mining, 0, 1), "Mining remains independently locked")
 
-	ResourceManager.add_stored_ore(500.0)
-	_expect_equal(ResearchManager.get_upgrade_cost(&"mining_install_slot_unlock"), 500, "Mining unlock uses configured 500 Ore cost")
+	ResourceManager.add_stored_ore(200.0)
+	_expect_equal(ResearchManager.get_upgrade_cost(&"mining_install_slot_unlock"), 200, "Mining unlock uses configured 200 Ore cost")
 	_expect_true(ResearchManager.purchase_research(&"mining_install_slot_unlock"), "Mining unlock purchase succeeds")
-	_expect_equal(ResourceManager.stored_ore, 0.0, "Mining unlock deducts exactly 500 Ore")
+	_expect_equal(ResourceManager.stored_ore, 0.0, "Mining unlock deducts exactly 200 Ore")
 	_expect_equal(ResearchManager.get_module_installation_limit(&"mining_module"), 2, "Mining unlock raises limit to two")
 	var ore_after_mining := ResourceManager.stored_ore
 	_expect_false(ResearchManager.purchase_research(&"mining_install_slot_unlock"), "Mining unlock cannot be purchased twice")

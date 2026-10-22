@@ -22,6 +22,12 @@ signal hull_changed(hull_id: StringName)
 ## Hull design id (see ShipHullVisual.HULLS). Saved with the loadout.
 var hull_id: StringName = &"classic"
 
+## Emitted when the thruster style changes (Ship redraws its pods).
+signal thruster_changed(thruster_id: StringName)
+
+## Thruster style id (see ShipHullVisual.THRUSTERS). Saved with the loadout.
+var thruster_id: StringName = &"pod"
+
 ## Emitted when the ship's layout rotation changes (Ship re-orients itself).
 signal rotation_changed(degrees: float)
 
@@ -60,6 +66,7 @@ func load_saved() -> void:
 	installed_modules.clear()
 	style_id = &"bone_iron"
 	hull_id = &"classic"
+	thruster_id = &"pod"
 	layout_rotation = 0.0
 	var data := ProgressionStore.get_section(SAVE_SECTION)
 	var saved_style := StringName(String(data.get("style", "")))
@@ -68,6 +75,9 @@ func load_saved() -> void:
 	var saved_hull := StringName(String(data.get("hull", "")))
 	if ShipHullVisual.HULLS.has(saved_hull):
 		hull_id = saved_hull
+	var saved_thruster := StringName(String(data.get("thruster", "")))
+	if ShipHullVisual.THRUSTERS.has(saved_thruster):
+		thruster_id = saved_thruster
 	var saved_rotation := float(data.get("rotation", 0.0))
 	if ROTATIONS.has(saved_rotation):
 		layout_rotation = saved_rotation
@@ -90,7 +100,7 @@ func save() -> bool:
 	var cells := {}
 	for cell in installed_modules.keys():
 		cells["%d,%d" % [cell.x, cell.y]] = installed_modules[cell]
-	return ProgressionStore.set_section(SAVE_SECTION, {"cells": cells, "style": String(style_id), "hull": String(hull_id), "rotation": layout_rotation})
+	return ProgressionStore.set_section(SAVE_SECTION, {"cells": cells, "style": String(style_id), "hull": String(hull_id), "thruster": String(thruster_id), "rotation": layout_rotation})
 
 
 ## Switches the hull color scheme (unknown ids are ignored). Call save() to keep it.
@@ -99,6 +109,14 @@ func set_style(new_style_id: StringName) -> void:
 		return
 	style_id = new_style_id
 	style_changed.emit(style_id)
+
+
+## Switches the thruster style (unknown ids are ignored). Call save() to keep it.
+func set_thruster(new_thruster_id: StringName) -> void:
+	if not ShipHullVisual.THRUSTERS.has(new_thruster_id) or new_thruster_id == thruster_id:
+		return
+	thruster_id = new_thruster_id
+	thruster_changed.emit(thruster_id)
 
 
 ## Switches the hull design (unknown ids are ignored). Call save() to keep it.

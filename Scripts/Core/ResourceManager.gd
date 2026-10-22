@@ -7,6 +7,8 @@ signal mission_ore_changed(amount: float)
 signal stored_ore_changed(amount: float)
 
 const DEFAULT_EXPEDITION_PLANET_ID: StringName = &"rocky_planet"
+## Opt-in logging; ore is updated often by mining modules.
+@export var debug_ore_logging: bool = false
 
 ## Ore collected during the current mission.
 var mission_ore: float = 0.0
@@ -40,7 +42,8 @@ func add_mission_ore(amount: float) -> void:
 
 	mission_ore += amount
 	mission_ore_changed.emit(mission_ore)
-	print("Mission Ore: ", mission_ore)
+	if debug_ore_logging:
+		print("Mission Ore: ", mission_ore)
 
 
 ## Resets resources for a new mission.

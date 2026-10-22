@@ -1,7 +1,7 @@
 extends Node
 
 ## Headless checks for linear (200 x L) costs, milestone slots, independent levels,
-## persistence, safe unfinished categories, chip interfaces, and Laboratory UI.
+## persistence, safe unfinished categories, artifact-slot milestones, and Laboratory UI.
 
 const TEST_SAVE_PATH: String = "user://greedminer_progression_test.json"
 const BASE_SCENE: PackedScene = preload("res://Scenes/Base/base_main.tscn")
@@ -10,7 +10,6 @@ const DWARF_CANNON_SCENE: PackedScene = preload("res://Scenes/Modules/Weapons/Dw
 
 var _failures: Array[String] = []
 var _original_research_configuration: ResearchConfiguration
-var _original_chip_configuration: ChipConfiguration
 
 
 func _ready() -> void:
@@ -19,17 +18,14 @@ func _ready() -> void:
 
 func _run() -> void:
 	_original_research_configuration = ResearchManager.configuration
-	_original_chip_configuration = ChipManager.configuration
 	_remove_test_save()
 	ProgressionStore.set_save_path_for_testing(TEST_SAVE_PATH)
 	ResourceManager.reload_persistent_resources()
 	ResearchManager.reload_progress()
-	ChipManager.reload_progress()
 
 	_test_categories_and_costs()
 	_test_weapon_damage_and_purchases()
 	_test_unimplemented_category_safety()
-	_test_chip_framework()
 	await _test_laboratory_ui()
 	_cleanup()
 
@@ -48,6 +44,7 @@ func _test_categories_and_costs() -> void:
 	_expect_equal(ResearchManager.get_categories().size(), 7, "seven research categories exist")
 	for category_id in expected_ids:
 		_expect_true(ResearchManager.configuration.get_category(category_id) != null, "category exists: %s" % category_id)
+	_expect_false(ResearchManager.configuration.get_category(&"chips").enabled, "retired chip category is disabled")
 
 	var expected_normal_costs := [200, 400, 600, 800, 1000, 1200, 1400, 1600]
 	var definition := ResearchManager.get_definition(&"weapon_damage.machine_gun")
@@ -64,7 +61,7 @@ func _test_categories_and_costs() -> void:
 		_expect_true(breakthrough != null, "Level 10 breakthrough is configured")
 		if breakthrough != null:
 			_expect_equal(breakthrough.upgrade_cost_override, -1, "Level 10 uses the normal linear cost")
-			_expect_equal(breakthrough.weapon_chip_slots_unlocked, 1, "breakthrough unlocks one chip slot")
+			_expect_equal(breakthrough.weapon_chip_slots_unlocked, 1, "breakthrough unlocks one artifact slot")
 
 
 func _test_weapon_damage_and_purchases() -> void:
@@ -95,10 +92,8 @@ func _test_weapon_damage_and_purchases() -> void:
 	_expect_equal(total_spent, 9000, "total linear cost (200 x L) to reach Level 10")
 	_expect_equal(ResourceManager.stored_ore, 0.0, "ore deducted exactly once")
 	_expect_equal(cannon.get_damage(), 30.0, "Cannon research remains independent")
-	_expect_equal(ResearchManager.get_weapon_chip_slot_count(&"machine_gun"), 1, "Machine Gun breakthrough unlocks one type-level chip slot")
-	_expect_equal(ResearchManager.get_weapon_chip_slot_count(&"dwarf_cannon"), 0, "Cannon chip slot remains independently locked")
-	_expect_true(ChipManager.is_weapon_chip_slot_unlocked(&"machine_gun"), "configured Machine Gun slot derives unlocked state")
-	_expect_false(ChipManager.is_weapon_chip_slot_unlocked(&"dwarf_cannon"), "configured Cannon slot remains locked")
+	_expect_equal(ResearchManager.get_weapon_artifact_slot_count(&"machine_gun"), 1, "Machine Gun breakthrough unlocks one type-level artifact slot")
+	_expect_equal(ResearchManager.get_weapon_artifact_slot_count(&"dwarf_cannon"), 0, "Cannon artifact slot remains independently locked")
 	var new_machine_gun := MACHINE_GUN_SCENE.instantiate() as MachineGun
 	_expect_equal(new_machine_gun.get_damage(), 14.0, "new Machine Gun inherits global Level 10 damage")
 	new_machine_gun.free()
@@ -136,114 +131,38 @@ func _test_unimplemented_category_safety() -> void:
 	ResearchManager.reload_progress()
 
 
-func _test_chip_framework() -> void:
-	var config := ChipConfiguration.new()
-	var chip := ChipDefinition.new()
-	chip.chip_id = &"test_chip"
-	chip.chip_name = "Test Chip"
-	chip.category_id = &"test"
-	config.chips = [chip]
-	var slot := ChipSlotDefinition.new()
-	slot.slot_id = &"weapon.machine_gun"
-	slot.display_name = "Machine Gun Chip Slot"
-	slot.scope_id = "weapon_type"
-	slot.target_id = &"machine_gun"
-	var locked_slot := ChipSlotDefinition.new()
-	locked_slot.slot_id = &"weapon.dwarf_cannon"
-	locked_slot.display_name = "Dwarf Cannon Chip Slot"
-	locked_slot.scope_id = "weapon_type"
-	locked_slot.target_id = &"dwarf_cannon"
-	config.slots = [slot, locked_slot]
-	ChipManager.configuration = config
-	ChipManager.reload_progress()
-	ShipLoadout.load_saved()
-	ShipLoadout.install_module(0, 0, MACHINE_GUN_SCENE.resource_path)
-	ShipLoadout.install_module(0, 1, DWARF_CANNON_SCENE.resource_path)
-	_expect_true(ChipManager.add_owned_chip(&"test_chip"), "configured chip can be owned")
-	var instance_id := ChipManager.get_owned_instances(&"test_chip")[0]
-	_expect_false(ChipManager.equip_turret_chip(Vector2i(2, 2), 0, instance_id), "empty cell fails safely")
-	_expect_false(ChipManager.equip_turret_chip(Vector2i(0, 1), 0, instance_id), "below-breakthrough weapon socket rejects equipment")
-	_expect_true(ChipManager.is_weapon_chip_slot_unlocked(&"machine_gun"), "Level 10 weapon slot reports unlocked")
-	_expect_true(ChipManager.equip_turret_chip(Vector2i(0, 0), 0, instance_id), "unlocked compatible turret socket equips chip")
-	_expect_equal(ChipManager.get_turret_chip(Vector2i(0, 0), 0), instance_id, "turret chip assignment is readable")
-	_expect_true(ChipManager.get_stat_modifiers({"cell": Vector2i(0, 0), "stat_id": &"damage"}).is_empty(), "chip without effects is inert")
-	ProgressionStore.reload_from_disk()
-	ChipManager.reload_progress()
-	_expect_equal(ChipManager.get_turret_chip(Vector2i(0, 0), 0), instance_id, "turret chip assignment persists")
-	ShipLoadout.load_saved()
-
-
 func _test_laboratory_ui() -> void:
 	ResearchManager.configuration = _original_research_configuration
 	ResearchManager.reload_progress()
-	ChipManager.configuration = _original_chip_configuration
-	ChipManager.reload_progress()
 	var base := BASE_SCENE.instantiate()
 	add_child(base)
 	await get_tree().process_frame
 	var panel := base.get_node("BaseUI/UIRoot/LaboratoryPanel") as LaboratoryPanel
 	panel.open_panel()
-	_expect_equal(panel.category_buttons.get_child_count(), 7, "Laboratory exposes seven category buttons")
+	_expect_equal(panel.category_buttons.get_child_count(), 6, "Laboratory hides the retired chip category")
+	WeaponUnlockManager.unlocked_weapon_ids["machine_gun"] = true
 	ResearchManager.progress.levels["weapon_damage.machine_gun"] = 9
-	ResourceManager.stored_ore = 1799.0
-	panel._select_category(&"chips")
-	_expect_true(_tree_contains_text(panel, "CHIP LABORATORY LOCKED"), "Chip Laboratory UI is locked before Level 10")
 	panel._select_category(&"weapon")
-	_expect_true(panel.upgrade_button.text.contains("UPGRADE TO LEVEL 10"), "Level 9 UI identifies breakthrough")
-	_expect_true(panel.upgrade_button.text.contains("1,800 ORE"), "Level 9 UI shows the 200 x L upgrade cost")
-	_expect_true(panel.upgrade_button.disabled, "unaffordable Level 10 button is disabled")
-	_expect_true(_tree_contains_text(panel, "UNLOCKS 1 WEAPON CHIP SLOT"), "Level 9 UI shows chip-slot reward")
+	var machine_card = panel._cards.get(&"weapon_damage.machine_gun")
+	_expect_true(machine_card != null, "Machine Gun research card remains available")
+	_expect_true(_tree_contains_text(machine_card, "UNLOCKS 1 WEAPON ARTIFACT SLOT"), "Level 9 UI shows artifact-slot reward")
 	ResearchManager.progress.levels["weapon_damage.machine_gun"] = 10
-	panel._select_category(&"weapon")
-	_expect_true(panel.upgrade_button.text.contains("2,000"), "Level 10 UI offers the 200 x L Level 11 cost")
-	_expect_true(_tree_contains_text(panel, "1 / 3 CHIP SLOTS"), "Level 10 UI displays one of three unlocked slots")
-	panel._select_category(&"chips")
-	_expect_true(_tree_contains_text(panel, "BLUEPRINTS"), "Level 10 unlocks the Chip Laboratory UI")
-	_expect_true(_tree_contains_text_fragment(panel, "POWER CHIP"), "Chip Laboratory shows the selected blueprint")
-	_expect_true(panel.craft_button != null and panel.craft_button.text.contains("500"), "blueprint offers CRAFT for 500 Ore")
-	_expect_false(_tree_contains_text_fragment(panel, "EQUIP"), "Chip Laboratory no longer installs chips")
-	var owned_before := ChipManager.get_owned_count(&"attack_chip")
-	ResourceManager.stored_ore = 600.0
 	panel._refresh_category()
-	panel.craft_button.pressed.emit()
-	_expect_equal(ChipManager.get_owned_count(&"attack_chip"), owned_before + 1, "CRAFT button crafts one chip")
-	ResourceManager.stored_ore = 2999.0
-	panel._select_category(&"mining")
-	_expect_true(panel._research_tree_view != null, "Mining category exposes its research tree")
-	_expect_true(_tree_node_shows(panel, &"mining_install_slot_unlock", "Mining Module Expansion I"), "Mining expansion appears in tree")
-	panel._select_category(&"energy")
-	_expect_true(_tree_node_shows(panel, &"energy_install_slot_unlock", "Energy Module Expansion I"), "Energy expansion appears in tree")
-	panel._select_category(&"ship")
-	_expect_true(_tree_node_shows(panel, &"ship_max_hp_1", "Ship HP +50"), "Ship root appears in tree")
-	_expect_true(_tree_node_shows(panel, &"ship_auto_regeneration_1", "Auto Regeneration I"), "Ship regeneration branch appears")
-	_expect_true(_tree_node_shows(panel, &"ship_magic_slot_1", "Magic Item Slot I"), "Ship magic slot branch appears")
+	machine_card = panel._cards.get(&"weapon_damage.machine_gun")
+	_expect_true(_tree_contains_text(machine_card, "1 / 3 ARTIFACT SLOTS"), "Level 10 UI displays one of three unlocked artifact slots")
 
-	# Shield research follows the permanent module unlock state. Locked modules
-	# must not expose a purchasable research button even when Ore is available.
-	panel._select_category(&"shield")
-	var knockback_card = panel._cards.get(&"shield_power.knockback_module")
-	var regeneration_card = panel._cards.get(&"shield_power.regeneration_module")
-	_expect_true(knockback_card != null and knockback_card.button.disabled, "locked Knockback research card is disabled")
-	_expect_true(knockback_card != null and knockback_card.button.text == "LOCKED", "locked Knockback research card says LOCKED")
-	_expect_true(regeneration_card != null and regeneration_card.button.disabled, "locked Regeneration research card is disabled")
-	_expect_true(regeneration_card != null and regeneration_card.button.text == "LOCKED", "locked Regeneration research card says LOCKED")
-
-	# Unlocking one module opens only its own research project.
+	# Shield modules use the same 10/20/30 artifact-slot milestones.
 	WeaponUnlockManager.unlocked_weapon_ids["knockback_module"] = true
-	panel._refresh_category()
-	knockback_card = panel._cards.get(&"shield_power.knockback_module")
-	regeneration_card = panel._cards.get(&"shield_power.regeneration_module")
-	_expect_true(knockback_card != null and not knockback_card.button.disabled, "unlocked Knockback research becomes purchasable")
-	_expect_true(regeneration_card != null and regeneration_card.button.disabled, "Regeneration research remains independently locked")
 	WeaponUnlockManager.unlocked_weapon_ids["regeneration_module"] = true
 	ResearchManager.progress.levels["shield_power.regeneration_module"] = 5
-	panel._refresh_category()
-	regeneration_card = panel._cards.get(&"shield_power.regeneration_module")
-	_expect_true(_tree_contains_text(regeneration_card, "0 / 3 CHIP SLOTS"), "Level 5 Regeneration UI shows no unlocked slots")
+	panel._select_category(&"shield")
+	var regeneration_card = panel._cards.get(&"shield_power.regeneration_module")
+	_expect_true(_tree_contains_text(regeneration_card, "0 / 3 ARTIFACT SLOTS"), "Level 5 Regeneration UI shows no unlocked slots")
 	ResearchManager.progress.levels["shield_power.regeneration_module"] = 10
 	panel._refresh_category()
 	regeneration_card = panel._cards.get(&"shield_power.regeneration_module")
-	_expect_true(_tree_contains_text(regeneration_card, "1 / 3 CHIP SLOTS"), "Level 10 Regeneration UI shows one unlocked slot")
+	_expect_true(_tree_contains_text(regeneration_card, "1 / 3 ARTIFACT SLOTS"), "Level 10 Regeneration UI shows one unlocked slot")
+	WeaponUnlockManager.unlocked_weapon_ids.erase("machine_gun")
 	WeaponUnlockManager.unlocked_weapon_ids.erase("regeneration_module")
 	WeaponUnlockManager.unlocked_weapon_ids.erase("knockback_module")
 	base.queue_free()
@@ -280,13 +199,11 @@ func _tree_contains_text_fragment(root: Node, expected_text: String) -> bool:
 
 func _cleanup() -> void:
 	ResearchManager.configuration = _original_research_configuration
-	ChipManager.configuration = _original_chip_configuration
 	_remove_test_save()
 	# Keep the isolated path active until this test process exits. Switching back
 	# can overwrite the player's real progression during shutdown or reloads.
 	ResourceManager.reload_persistent_resources()
 	ResearchManager.reload_progress()
-	ChipManager.reload_progress()
 
 
 func _remove_test_save() -> void:

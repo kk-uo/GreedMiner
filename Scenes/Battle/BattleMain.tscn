@@ -14,6 +14,9 @@
 [ext_resource type="Script" path="res://Scripts/Mining/QTE/MiningQteManager.gd" id="14_mining_qte"]
 [ext_resource type="Script" path="res://Scripts/Battle/WeatherManager.gd" id="15_weather"]
 [ext_resource type="Script" path="res://Scripts/UI/SettingsMenu.gd" id="16_settings"]
+[ext_resource type="PackedScene" path="res://Scenes/UI/developer_panel.tscn" id="17_developer"]
+[ext_resource type="Script" path="res://Scripts/Debug/DeveloperBattleSpeed.gd" id="18_speed"]
+[ext_resource type="Script" path="res://Scripts/UI/BattleHudIcon.gd" id="19_hud_icon"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_ore_counter"]
 content_margin_left = 12.0
@@ -66,6 +69,9 @@ interactive_lava_vents = true
 
 [node name="Enemies" type="Node2D" parent="." unique_id=604526529]
 
+[node name="DeveloperBattleSpeed" type="Node" parent="." groups=["developer_battle_speed"]]
+script = ExtResource("18_speed")
+
 [node name="MiningQteManager" type="Node2D" parent="."]
 script = ExtResource("14_mining_qte")
 
@@ -98,11 +104,23 @@ offset_bottom = 54.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBox_health_counter")
 
-[node name="HealthLabel" type="Label" parent="BattleUI/UIRoot/HealthCounter"]
+[node name="HealthRow" type="HBoxContainer" parent="BattleUI/UIRoot/HealthCounter"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+mouse_filter = 2
+
+[node name="ShipIcon" type="Control" parent="BattleUI/UIRoot/HealthCounter/HealthRow"]
+custom_minimum_size = Vector2(22, 22)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("19_hud_icon")
+
+[node name="HealthLabel" type="Label" parent="BattleUI/UIRoot/HealthCounter/HealthRow"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.949, 0.918, 0.851, 1)
 theme_override_font_sizes/font_size = 16
-text = "HULL  100 / 100"
+text = "100 / 100"
 horizontal_alignment = 1
 
 [node name="OreCounter" type="PanelContainer" parent="BattleUI/UIRoot"]
@@ -149,11 +167,24 @@ theme_override_styles/panel = SubResource("StyleBox_health_counter")
 layout_mode = 2
 script = ExtResource("13_wave_hud")
 
-[node name="WaveLabel" type="Label" parent="BattleUI/UIRoot/WaveStatus/VBoxContainer"]
+[node name="WaveRow" type="HBoxContainer" parent="BattleUI/UIRoot/WaveStatus/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+mouse_filter = 2
+
+[node name="FlagIcon" type="Control" parent="BattleUI/UIRoot/WaveStatus/VBoxContainer/WaveRow"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("19_hud_icon")
+icon = 1
+
+[node name="WaveLabel" type="Label" parent="BattleUI/UIRoot/WaveStatus/VBoxContainer/WaveRow"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.949, 0.918, 0.851, 1)
 theme_override_font_sizes/font_size = 14
-text = "WAVE  1 / 10"
+text = "1 / 10"
+vertical_alignment = 1
 
 [node name="StatusLabel" type="Label" parent="BattleUI/UIRoot/WaveStatus/VBoxContainer"]
 layout_mode = 2
@@ -161,11 +192,24 @@ theme_override_colors/font_color = Color(0.4, 0.9, 0.9, 1)
 theme_override_font_sizes/font_size = 13
 text = "PREP  15"
 
-[node name="RemainingLabel" type="Label" parent="BattleUI/UIRoot/WaveStatus/VBoxContainer"]
+[node name="EnemyRow" type="HBoxContainer" parent="BattleUI/UIRoot/WaveStatus/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+mouse_filter = 2
+
+[node name="SkullIcon" type="Control" parent="BattleUI/UIRoot/WaveStatus/VBoxContainer/EnemyRow"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("19_hud_icon")
+icon = 2
+
+[node name="RemainingLabel" type="Label" parent="BattleUI/UIRoot/WaveStatus/VBoxContainer/EnemyRow"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.949, 0.918, 0.851, 1)
 theme_override_font_sizes/font_size = 13
-text = "ENEMIES  6"
+text = "6"
+vertical_alignment = 1
 
 [node name="EvacuationPanel" type="Control" parent="BattleUI/UIRoot"]
 custom_minimum_size = Vector2(120, 120)
@@ -271,5 +315,8 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("16_settings")
 pause_game_when_open = true
-allow_developer_mode = false
 allow_language_change = false
+
+[node name="DeveloperPanel" parent="BattleUI/UIRoot" instance=ExtResource("17_developer")]
+process_mode = 3
+battle_mode = true

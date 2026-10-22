@@ -117,6 +117,8 @@ func _draw() -> void:
 			_draw_volcanic_planet(center, radius)
 		&"graveyard":
 			_draw_graveyard_planet(center, radius)
+		&"forest":
+			_draw_forest_planet(center, radius)
 		_:
 			_draw_rocky_planet(center, radius)
 
@@ -129,6 +131,38 @@ func _draw() -> void:
 		_draw_lock(center, radius)
 	elif uncharted or lock_on > 0.0:
 		_draw_locate_reticle(center, radius)
+
+## Tree Planet (art direction A, "ancient grove"): an olive disc packed with
+## oak crowns, one winding river and rain streaks (it always rains there).
+func _draw_forest_planet(center: Vector2, radius: float) -> void:
+	var ground := Palette.planet(&"forest")
+	var disc := Palette.offset_points(Palette.regular_polygon(64, radius), center)
+	draw_colored_polygon(disc, Color("2F3B26"))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9
+	var oak: Array[Color] = [Color("2C4A2A"), Color("3C6234"), Color("5C8A48")]
+	var deep: Array[Color] = [Color("263F26"), Color("335530"), Color("4E7A40")]
+	# A small clearing and the river first, crowns over them.
+	draw_circle(center + Vector2(14.0, 10.0), radius * 0.16, ground["ground"])
+	var river := PackedVector2Array()
+	for k in range(11):
+		var x := -1.0 + 2.0 * float(k) / 10.0
+		river.append(center + Vector2(x * radius * 0.95, sin(x * 3.0) * radius * 0.2 + radius * 0.12))
+	draw_polyline(river, Color("4A7A8A"), radius * 0.05)
+	for i in range(150):
+		var at := center + Vector2.RIGHT.rotated(rng.randf() * TAU) * radius * sqrt(rng.randf())
+		if at.distance_to(center + Vector2(14.0, 10.0)) < radius * 0.17:
+			continue
+		var r := rng.randf_range(0.08, 0.14) * radius
+		var tones: Array[Color] = oak if i % 3 != 0 else deep
+		for layer in range(3):
+			var k: float = [1.0, 0.76, 0.34][layer]
+			var shape := Palette.offset_points(Palette.regular_polygon(8, r * k, 0.3), at + Vector2(-0.22, -0.26) * r * float(layer))
+			for part in Geometry2D.intersect_polygons(shape, disc):
+				draw_colored_polygon(part, tones[layer])
+	for k in range(30):
+		var p := center + Vector2.RIGHT.rotated(rng.randf() * TAU) * radius * sqrt(rng.randf()) * 0.9
+		draw_line(p, p + Vector2(-3.0, -9.0), Color(0.86, 0.92, 0.94, 0.4), 1.2)
 
 
 ## Targeting reticle over a planet whose coordinates are not known yet. After

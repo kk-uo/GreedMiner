@@ -5,6 +5,7 @@ const DWARF := preload("res://Scripts/Mining/DwarfMiner.gd")
 ## Zombie graves are dug up by dwarves: releasing a drag on graves (no crystal
 ## under the cursor) digs every grave inside GraveDigSite.DIG_RADIUS.
 const GRAVE_DIG_SITE := preload("res://Scripts/Battle/Graveyard/GraveDigSite.gd")
+const FOREST_CHOP_SITE := preload("res://Scripts/Battle/Forest/ForestChopSite.gd")
 const RESPAWN_SECONDS := 15.0
 const PICK_RADIUS := 32.0
 var battle: Node2D
@@ -71,7 +72,7 @@ func handle_input(event: InputEvent) -> bool:
 		var target := _crystal_at(point)
 		if target != null:
 			dispatch(selected, target)
-		else:
+		elif not dispatch_to_trees(selected, point):
 			dispatch_to_graves(selected, point)
 		return true
 	return false
@@ -120,7 +121,7 @@ func dispatch(module: MiningModule, crystal: Node2D) -> bool:
 	dwarf.global_position = module.global_position
 	return true
 
-## Sends the module's dwarf to dig up every unclaimed zombie grave inside
+## Sends the module's dwarf to dig up every unclaimed grave inside
 ## the circle around point. False when there are none (or no dwarf free).
 func dispatch_to_graves(module: MiningModule, point: Vector2) -> bool:
 	var graves := _graves_at(point)
@@ -135,11 +136,33 @@ func dispatch_to_graves(module: MiningModule, point: Vector2) -> bool:
 		return false
 	return true
 
+## Forest chopping uses the same dispatch radius and mining duration as grave
+## removal. Every tree in the selected circle is claimed by this one dwarf.
+func dispatch_to_trees(module: MiningModule, point: Vector2) -> bool:
+	var trees := _trees_at(point)
+	if trees.is_empty():
+		return false
+	var site: Node2D = FOREST_CHOP_SITE.new()
+	site.call("setup", trees)
+	field.get_interactables_root().add_child(site)
+	site.global_position = point
+	if not dispatch(module, site):
+		site.call("release")
+		return false
+	return true
+
+func _trees_at(point: Vector2) -> Array[Node2D]:
+	var result: Array[Node2D] = []
+	if field == null or not field.has_method("get_choppable_trees_in"):
+		return result
+	result.append_array(field.get_choppable_trees_in(point, GRAVE_DIG_SITE.DIG_RADIUS))
+	return result
+
 
 func _graves_at(point: Vector2) -> Array[Node2D]:
-	if field == null or not field.has_method("get_zombie_graves_in"):
+	if field == null or not field.has_method("get_diggable_graves_in"):
 		return []
-	return field.get_zombie_graves_in(point, GRAVE_DIG_SITE.DIG_RADIUS)
+	return field.get_diggable_graves_in(point, GRAVE_DIG_SITE.DIG_RADIUS)
 
 
 ## A dwarf that leaves a dig site unfinished lets the graves go again.
@@ -182,8 +205,10 @@ func _draw() -> void:
 	var from := to_local(dragging.global_position)
 	var target := _crystal_at(drag_position)
 	var graves: Array[Node2D] = []
+	var trees: Array[Node2D] = []
 	if target == null:
 		graves = _graves_at(drag_position)
+		trees = _trees_at(drag_position)
 	var to := to_local(target.global_position) if target != null else to_local(drag_position)
 	var length := from.distance_to(to)
 	var dir := (to - from) / maxf(length, 0.001)
@@ -206,13 +231,13 @@ func _draw() -> void:
 		for k in range(4):
 			var a := TAU * float(k) / 4.0 + _time * 1.5
 			draw_line(to + Vector2.RIGHT.rotated(a) * 27.0, to + Vector2.RIGHT.rotated(a) * 33.0, GOLD, 2.5)
-	elif not graves.is_empty():
+	elif not graves.is_empty() or not trees.is_empty():
 		# Dig circle: every grave inside is dug up.
 		const LILAC := Color("C4A0FF")
 		var pulse := 0.5 + 0.5 * sin(_time * 8.0)
 		draw_circle(to, GRAVE_DIG_SITE.DIG_RADIUS, Color(LILAC, 0.1))
 		draw_arc(to, GRAVE_DIG_SITE.DIG_RADIUS, 0.0, TAU, 48, LILAC, 2.5)
-		for grave in graves:
-			draw_arc(to_local(grave.global_position) + Vector2(0, -8), 16.0 + 2.0 * pulse, 0.0, TAU, 20, Color(LILAC, 0.9), 2.0)
+		for target_site in graves + trees:
+			draw_arc(to_local(target_site.global_position) + Vector2(0, -8), 16.0 + 2.0 * pulse, 0.0, TAU, 20, Color(LILAC, 0.9), 2.0)
 	else:
 		draw_arc(to, 10.0, 0.0, TAU, 20, Color(GOLD, 0.6), 2.0)

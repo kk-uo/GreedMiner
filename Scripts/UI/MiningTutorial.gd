@@ -272,16 +272,15 @@ func _set_target(point: Vector2, radius: float) -> void:
 func _draw() -> void:
 	if not _has_target:
 		return
-	var bob := sin(_time * 5.0) * 7.0
-	var pulse := 0.5 + 0.5 * sin(_time * 4.0)
-	draw_arc(_target, _target_radius + 6.0 * pulse, 0.0, TAU, 64, Color(Palette.ACCENT, 0.35 + 0.4 * pulse), 3.0)
+	var bob := sin(_time * TAU * 1.2) * 4.0
+	GUIDE_ARROW.draw_lock_circle(self, _target, _target_radius, _time)
 	var arrow_dir := Vector2.DOWN
 	if _show_ghost:
 		_draw_ghost_drag()
 		# Arrow comes from the side away from the crystal.
 		if _ghost_to.distance_to(_ghost_from) > 1.0:
 			arrow_dir = (_ghost_from - _ghost_to).normalized() * -1.0
-	_draw_arrow(_target - arrow_dir * (_target_radius + 10.0 + bob), arrow_dir)
+	_draw_arrow(_target - arrow_dir * (_target_radius + 22.0 + bob), arrow_dir)
 
 
 ## A ghost cursor pressing on the module and dragging to the crystal (loops).

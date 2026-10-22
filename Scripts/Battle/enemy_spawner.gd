@@ -33,7 +33,8 @@ func spawn_enemy(
 	selected_scene: PackedScene,
 	spawn_pattern: int = WaveDefinition.SpawnPattern.RANDOM,
 	sequence_index: int = 0,
-	requested_direction: Vector2 = Vector2.ZERO
+	requested_direction: Vector2 = Vector2.ZERO,
+	formation_position: Vector2 = Vector2.INF
 ) -> BasicEnemy:
 	if not _spawning_enabled or selected_scene == null:
 		return null
@@ -56,6 +57,17 @@ func spawn_enemy(
 		collision_clearance,
 		has_requested_direction
 	)
+	if formation_position.is_finite():
+		spawn_position = formation_position
+		enemy.set_meta("formation_spawn_side", direction)
+	if battlefield.planet_theme == &"forest" and enemy.enemy_id in [&"treant", &"big_treant"]:
+		var tree := battlefield.take_forest_spawn_tree()
+		if tree == null:
+			enemy.free()
+			return null
+		spawn_position = tree.global_position
+		tree.spawned_enemy_id = enemy.enemy_id
+		enemy.set_meta("forest_tree_spawn", tree.get_instance_id())
 	enemy.target_ship = ship
 	enemies.add_child(enemy)
 	enemy.global_position = spawn_position
@@ -107,7 +119,8 @@ func spawn_formation(
 	count: int,
 	direction: Vector2,
 	spacing: float = 30.0,
-	with_flag_bearer: bool = true
+	with_flag_bearer: bool = true,
+	march_in_formation: bool = false
 ) -> Array[BasicEnemy]:
 	var spawned: Array[BasicEnemy] = []
 	if not _spawning_enabled or selected_scene == null or count <= 0:
@@ -126,6 +139,8 @@ func spawn_formation(
 			continue
 		if bool(slot["flag"]) and "is_flag_bearer" in enemy:
 			enemy.set("is_flag_bearer", true)
+		if march_in_formation:
+			enemy.set_meta("formation_spawn_side", side)
 		enemy.target_ship = ship
 		enemies.add_child(enemy)
 		var position: Vector2 = slot["position"]
@@ -135,6 +150,31 @@ func spawn_formation(
 		)
 		spawned.append(enemy)
 	return spawned
+
+
+## Compact centered blocks use one spacing grid even with mixed enemy types.
+func get_directional_formation_positions(direction: Vector2, count: int, spacing: float, lane_offset: float = 0.0) -> Array[Vector2]:
+	var side := direction.normalized()
+	if side == Vector2.ZERO:
+		side = Vector2.UP
+	var rows := SpawnFormation.get_rows(count, false).size()
+	var bounds := battlefield.get_world_bounds().grow(-map_edge_margin - 20.0)
+	var anchor := _get_spawn_position(side, 3, 20.0) + side * float(rows - 1) * spacing * 0.5
+	anchor += Vector2(-side.y, side.x) * lane_offset
+	# Shift the whole block inside the bounds rather than clamping each slot.
+	var slots := SpawnFormation.place(anchor, -side, count, spacing, false)
+	var result: Array[Vector2] = []
+	var block := Rect2(anchor, Vector2.ZERO)
+	for slot in slots:
+		block = block.expand(slot["position"])
+	var shift := Vector2.ZERO
+	if block.position.x < bounds.position.x: shift.x = bounds.position.x - block.position.x
+	if block.end.x + shift.x > bounds.end.x: shift.x += bounds.end.x - (block.end.x + shift.x)
+	if block.position.y < bounds.position.y: shift.y = bounds.position.y - block.position.y
+	if block.end.y + shift.y > bounds.end.y: shift.y += bounds.end.y - (block.end.y + shift.y)
+	for slot in slots:
+		result.append((slot["position"] as Vector2) + shift)
+	return result
 
 
 func _find_cluster_position(

@@ -6,6 +6,7 @@ extends RefCounted
 ## the ship, flat three-tone shading like DemonVisual. Arms hang at the
 ## sides and swing with the walk; an attack swipes one arm forward.
 ## Every shape is recorded into one MeshBatch2D and flushed as a single draw.
+## Zombies and vampires omit ground projections; other undead keep theirs.
 
 const SHADOW := Color(0, 0, 0, 0.28)
 const ATTACK_POSE_TIME: float = 0.35
@@ -172,7 +173,7 @@ static func draw_zombie(canvas: CanvasItem, facing: float, step: float, attack: 
 	var sway := sin(time * 2.2) * 0.8
 	var body := ngon(Vector2(-3, 0), Vector2(7, 10.5), 12, 0.1)
 	var head := ngon(Vector2(4.5, 2.0 + sway * 0.4), Vector2(6.0, 5.8), 10, 0.3)
-	_shadow(c, facing, [body, head])
+	c.draw_set_transform(Vector2.ZERO, facing, Vector2.ONE * _scale)
 	# Arms hang at the sides, swinging with the shamble; the attack swipes
 	# the right arm forward.
 	var left_hand := Vector2(2.0 + step * 2.5, -12.5)
@@ -258,7 +259,7 @@ static func draw_vampire(canvas: CanvasItem, facing: float, step: float, attack:
 	var billow := sin(time * 2.0) * 1.2
 	var cape := PackedVector2Array([Vector2(4, -11), Vector2(-2, -21 - billow), Vector2(-9, -26 - billow), Vector2(-12, -19), Vector2(-18, -22 - billow), Vector2(-20, -14), Vector2(-26, -14), Vector2(-24, -6), Vector2(-29, -2), Vector2(-24, 0), Vector2(-29, 2), Vector2(-24, 6), Vector2(-26, 14), Vector2(-20, 14), Vector2(-18, 22 + billow), Vector2(-12, 19), Vector2(-9, 26 + billow), Vector2(-2, 21 + billow), Vector2(4, 11)])
 	var head := ngon(Vector2(5, 0), Vector2(6.2, 5.8), 12, 0.0)
-	_shadow(c, facing, [cape, head])
+	c.draw_set_transform(Vector2.ZERO, facing, Vector2.ONE * _scale)
 	c.draw_colored_polygon(cape, _t(V_CAPE[0]))
 	if not flash:
 		c.draw_colored_polygon(_shrink(cape, 0.86, Vector2(1, 0)), V_LINING)

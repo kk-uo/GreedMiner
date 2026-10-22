@@ -13,6 +13,7 @@
 [sub_resource type="Resource" id="GoblinPackRule"]
 script = ExtResource("4_rule")
 pattern = 1
+starting_wave = 1
 
 [sub_resource type="Resource" id="Entry_1_Goblin"]
 script = ExtResource("1_entry")
@@ -71,6 +72,7 @@ spawn_cost = 3
 script = ExtResource("2_wave")
 wave_number = 2
 spawn_direction_mode = 1
+directional_batch_formation = true
 spawn_phase_duration = 20.0
 batch_spawning_enabled = true
 interleave_enemy_types = true
@@ -104,7 +106,7 @@ spawn_cost = 3
 
 [sub_resource type="Resource" id="Wave_3"]
 script = ExtResource("2_wave")
-wave_number = 3
+wave_number = 1
 spawn_interval = 1.5
 spawn_pattern = 1
 spawn_phase_duration = 19.5
@@ -140,7 +142,7 @@ spawn_cost = 3
 
 [sub_resource type="Resource" id="Wave_4"]
 script = ExtResource("2_wave")
-wave_number = 4
+wave_number = 2
 spawn_interval = 1.5
 spawn_pattern = 1
 spawn_phase_duration = 22.5
@@ -176,10 +178,11 @@ spawn_cost = 3
 
 [sub_resource type="Resource" id="Wave_5"]
 script = ExtResource("2_wave")
-wave_number = 5
+wave_number = 3
 spawn_interval = 1.5
 spawn_pattern = 1
 spawn_direction_mode = 1
+directional_batch_formation = true
 spawn_phase_duration = 24.0
 batch_spawning_enabled = true
 interleave_enemy_types = true
@@ -213,7 +216,7 @@ spawn_cost = 3
 
 [sub_resource type="Resource" id="Wave_6"]
 script = ExtResource("2_wave")
-wave_number = 6
+wave_number = 4
 spawn_interval = 1.3
 spawn_pattern = 2
 spawn_phase_duration = 23.4
@@ -249,7 +252,7 @@ spawn_cost = 3
 
 [sub_resource type="Resource" id="Wave_7"]
 script = ExtResource("2_wave")
-wave_number = 7
+wave_number = 5
 spawn_interval = 1.3
 spawn_pattern = 2
 spawn_phase_duration = 27.3
@@ -286,10 +289,11 @@ spawn_cost = 3
 
 [sub_resource type="Resource" id="Wave_8"]
 script = ExtResource("2_wave")
-wave_number = 8
+wave_number = 6
 spawn_interval = 1.0
 spawn_pattern = 2
 spawn_direction_mode = 1
+directional_batch_formation = true
 spawn_phase_duration = 23.0
 batch_spawning_enabled = true
 interleave_enemy_types = true
@@ -324,10 +328,11 @@ spawn_cost = 3
 
 [sub_resource type="Resource" id="Wave_9"]
 script = ExtResource("2_wave")
-wave_number = 9
+wave_number = 7
 spawn_interval = 1.0
 spawn_pattern = 2
 spawn_direction_mode = 1
+directional_batch_formation = true
 spawn_phase_duration = 26.0
 batch_spawning_enabled = true
 interleave_enemy_types = true
@@ -362,10 +367,11 @@ spawn_cost = 3
 
 [sub_resource type="Resource" id="Wave_10"]
 script = ExtResource("2_wave")
-wave_number = 10
+wave_number = 8
 spawn_interval = 1.5
 spawn_pattern = 2
 spawn_direction_mode = 1
+directional_batch_formation = true
 spawn_phase_duration = 15.0
 batch_spawning_enabled = true
 interleave_enemy_types = true
@@ -387,7 +393,7 @@ spawn_count = 10
 
 [sub_resource type="Resource" id="Wave_11"]
 script = ExtResource("2_wave")
-wave_number = 11
+wave_number = 9
 spawn_interval = 1.5
 spawn_pattern = 2
 spawn_direction_mode = 2
@@ -399,5 +405,5 @@ enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_11_Chariot"), 
 script = ExtResource("3_config")
 planet_id = &"goblin_planet"
 display_name = "Verdant Planet"
-waves = Array[ExtResource("2_wave")]([SubResource("Wave_1"), SubResource("Wave_2"), SubResource("Wave_3"), SubResource("Wave_4"), SubResource("Wave_5"), SubResource("Wave_6"), SubResource("Wave_7"), SubResource("Wave_8"), SubResource("Wave_9"), SubResource("Wave_10"), SubResource("Wave_11")])
+waves = Array[ExtResource("2_wave")]([SubResource("Wave_3"), SubResource("Wave_4"), SubResource("Wave_5"), SubResource("Wave_6"), SubResource("Wave_7"), SubResource("Wave_8"), SubResource("Wave_9"), SubResource("Wave_10"), SubResource("Wave_11")])
 special_spawn_rules = Array[ExtResource("4_rule")]([SubResource("GoblinPackRule")])

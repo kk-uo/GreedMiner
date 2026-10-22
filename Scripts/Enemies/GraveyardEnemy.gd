@@ -16,7 +16,7 @@ func _draw() -> void:
 		_:
 			UndeadVisual.draw_zombie(self, _facing, _walk_step(0.8), attack, _is_flashing(), _anim_time)
 
-## Death: bone pile / bat swarm / moon howl (UndeadDeath).
+## Death: bone pile / bat swarm / blood burst (UndeadDeath).
 func _spawn_death_visual(death_position: Vector2) -> void:
 	if enemy_id in [&"skeleton", &"vampire", &"werewolf"]:
 		UNDEAD_DEATH.spawn(get_parent(), death_position, enemy_id, _get_visual_radius() / 12.0, _facing)
@@ -55,8 +55,6 @@ func _process(delta: float) -> void:
 
 
 func _on_attack_timer_timeout() -> void:
-	if enemy_id == &"vampire" and is_blood_moon_active():
-		return
 	super()
 	if _is_attacking:
 		_attack_pose_time = UndeadVisual.ATTACK_POSE_TIME

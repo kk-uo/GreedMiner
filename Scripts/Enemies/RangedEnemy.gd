@@ -31,4 +31,5 @@ func _perform_attack(ship: Ship) -> void:
 		spawn_parent = get_parent()
 	spawn_parent.add_child(projectile)
 	projectile.global_position = global_position + direction_to_ship * projectile_spawn_offset
-	print("%s fires! Damage: %s" % [enemy_name, attack_damage])
+	if debug_combat_logging:
+		print("%s fires! Damage: %s" % [enemy_name, attack_damage])

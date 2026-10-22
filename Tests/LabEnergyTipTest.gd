@@ -17,6 +17,7 @@ func _run() -> void:
 	SAVE.isolate("lab_energy_tip")
 	ProgressionStore.set_section(&"tutorial", {"done": true, "lab_done": true})
 	ResourceManager.stored_ore = 0.0
+	_expect(ResearchManager.get_upgrade_cost(&"energy_install_slot_unlock") == 0, "energy expansion is free")
 	for visit in range(2):
 		get_tree().current_scene = null
 		get_tree().change_scene_to_file(BASE)
@@ -33,8 +34,8 @@ func _run() -> void:
 		_expect(bool(guide.get("_has_target")), "arrow on the ENERGY tab")
 		var lab: Control = base.get("laboratory_panel")
 		_expect(not is_instance_valid(lab.get("energy_tip")), "no separate tip any more")
-	ResourceManager.add_stored_ore(5000.0)
 	_expect(ResearchManager.purchase_research(&"energy_install_slot_unlock"), "energy expansion researched")
+	_expect(ResourceManager.stored_ore == 0.0, "free research spends no Ore")
 	get_tree().change_scene_to_file(BASE)
 	await get_tree().create_timer(1.2).timeout
 	_expect(get_tree().current_scene.find_child("TutorialGuide", true, false) == null, "no guide once researched")

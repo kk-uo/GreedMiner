@@ -59,10 +59,12 @@ func _run() -> void:
 	var spent_before_weather := manager.get_spent_spawn_budget()
 	manager._update_graveyard_weather(CONFIG.waves[8])
 	check(weather.blood_moon_active, "wave 9 blood moon overlaps lightning")
-	check(manager.extra_weather_spawned == 0, "skeletons wait for the blackout")
+	check(manager.extra_weather_spawned == 0, "zombies wait for the blackout")
 	await get_tree().create_timer(0.7).timeout
 	check(manager.extra_weather_spawned > 0 and manager.get_alive_enemy_count() == manager.extra_weather_spawned, "weather extras tracked")
-	check(manager.extra_weather_spawned >= grave_count and manager.extra_weather_spawned <= grave_count * 3, "lightning spawns 1-3 skeletons per valid grave (%d for %d graves)" % [manager.extra_weather_spawned, grave_count])
+	check(manager.extra_weather_spawned <= grave_count, "at most one zombie per map grave (%d for %d graves)" % [manager.extra_weather_spawned, grave_count])
+	for summoned in battle.get_node("Enemies").get_children():
+		check(summoned is BasicEnemy and summoned.enemy_id == &"zombie", "lightning summons zombies rather than skeletons")
 	check(manager.get_scheduled_spawn_budget() == budget_before_weather and manager.get_spent_spawn_budget() == spent_before_weather, "weather summons do not consume wave budget")
 	var enemy := battle.get_node("Enemies").get_child(0) as BasicEnemy
 	check(is_equal_approx(enemy.get_effective_move_speed(), enemy.move_speed + 10.0), "new enemy receives speed bonus")
@@ -71,25 +73,48 @@ func _run() -> void:
 	check(manager.extra_weather_spawned == extras, "lightning event does not duplicate")
 	manager._spawn_phase_elapsed = 50.0
 	manager._update_graveyard_weather(CONFIG.waves[8])
-	check(not weather.blood_moon_active and is_equal_approx(enemy.get_effective_move_speed(), enemy.move_speed), "blood moon removed")
+	check(weather.blood_moon_active and is_equal_approx(enemy.get_effective_move_speed(), enemy.move_speed + 10.0), "wave 9 blood moon persists beyond its old end time")
 	for child in battle.get_node("Enemies").get_children():
 		child.queue_free()
 	await get_tree().process_frame
-	check(CONFIG.advance_on_wave_clear, "graveyard advances after clearing")
+	manager._finish_current_wave_spawning()
+	check(manager.get_current_wave_number() == 10 and weather.blood_moon_active, "blood moon survives the transition to wave 10")
+	manager._update_preparation(5.0)
+	battle.get_node("EnemySpawner").call("set_spawning_enabled", true)
+	for _tick in range(60):
+		if is_instance_valid(manager._boss):
+			break
+		check(weather.blood_moon_active, "blood moon remains active before boss spawn")
+		manager._update_spawning(1.0)
+	check(is_instance_valid(manager._boss) and weather.blood_moon_active, "blood moon remains active after boss spawn")
+	if is_instance_valid(manager._boss):
+		var boss := manager._boss
+		check(is_equal_approx(boss.get_effective_move_speed(), boss.move_speed), "boss receives no blood moon speed bonus")
+		var before := boss.get_current_health()
+		boss.take_damage(100.0)
+		check(is_equal_approx(before - boss.get_current_health(), 100.0), "boss receives no blood moon damage reduction")
+		boss.damage_reduction = 0.5
+		before = boss.get_current_health()
+		boss.take_damage(100.0)
+		check(is_equal_approx(before - boss.get_current_health(), 50.0), "boss retains its own damage reduction")
+	manager.stop_wave_system()
+	check(not weather.blood_moon_active, "blood moon is cleared when battle stops")
+	for child in battle.get_node("Enemies").get_children():
+		child.queue_free()
+	await get_tree().process_frame
+	check(not CONFIG.advance_on_wave_clear and is_equal_approx(CONFIG.inter_wave_delay, 5.0), "graveyard advances five seconds after scheduled spawning")
 	check(manager.start_wave_system(), "graveyard wave system starts")
 	manager.set_process(false)
 	for _tick in range(31):
 		manager._update_spawning(1.0)
-	check(manager.get_current_wave_number() == 1, "wave stays at 1 while enemies survive")
-	check(manager._state == WaveManager.State.CLEARING, "wave enters clearing before 60 seconds")
-	check(manager.get_scheduled_spawned_count() == 31, "all first-wave enemies spawned")
+	check(manager.get_current_wave_number() == 2 and manager._state == WaveManager.State.PREPARING, "next wave waits after all first-wave enemies spawn")
+	check(battle.get_node("Enemies").get_child_count() == 31, "all first-wave enemies spawned and remain alive")
 	await get_tree().process_frame
-	check(manager.get_current_wave_number() == 1, "deferred clear does not skip living enemies")
-	for child in battle.get_node("Enemies").get_children():
-		child.queue_free()
-	await get_tree().process_frame
-	await get_tree().process_frame
-	check(manager.get_current_wave_number() == 2, "wave 2 starts as soon as wave 1 enemies are gone")
+	manager._update_preparation(4.9)
+	check(manager._state == WaveManager.State.PREPARING, "next wave does not start before five seconds")
+	manager._update_preparation(0.1)
+	check(manager._state == WaveManager.State.SPAWNING and manager.get_current_wave_number() == 2, "wave 2 starts after five seconds even with survivors")
+	check(battle.get_node("Enemies").get_child_count() == 31, "previous-wave survivors remain")
 	manager.set_process(false)
 	for _tick in range(10):
 		manager._update_spawning(1.0)

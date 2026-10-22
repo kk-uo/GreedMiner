@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://Scripts/Enemies/ForestSawProjectile.gd" id="1"]
+[sub_resource type="CircleShape2D" id="shape"]
+radius = 15.0
+[node name="ForestSawProjectile" type="Area2D"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1")
+speed = 450.0
+damage = 20.0
+maximum_lifetime = 3.0
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("shape")

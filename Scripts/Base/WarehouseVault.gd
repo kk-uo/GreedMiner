@@ -51,7 +51,7 @@ static func contains(mock_point: Vector2) -> bool:
 
 ## Draws the vault. `open_amount` (0..1) swings the door open on its hinge:
 ## the locking bolts retract first, then the door turns away from the wall and
-## reveals the lit store room behind it. `hovered` adds the orange hover frame.
+## reveals the lit store room behind it. `hovered` adds the white hover frame.
 static func draw(canvas: CanvasItem, layout_scale: float, _time: float, open_amount: float, hovered: bool) -> void:
 	var base := Transform2D(ANGLE, Vector2.ONE * layout_scale * DRAW_SCALE, 0.0, CENTER * layout_scale)
 	canvas.draw_set_transform_matrix(base)
@@ -133,7 +133,9 @@ static func draw(canvas: CanvasItem, layout_scale: float, _time: float, open_amo
 
 	canvas.draw_set_transform_matrix(base)
 	if hovered:
-		_octagon_outline(canvas, 47.0, Palette.ACCENT, 2.2)
+		var octagon := _octagon_points(Vector2.ZERO, 47.0)
+		octagon.append(octagon[0])
+		Palette.draw_hover_outline(canvas, octagon, 2.4)
 	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 

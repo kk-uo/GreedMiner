@@ -48,7 +48,7 @@ static func _bolt(rng: RandomNumberGenerator, branches: Array, start: Vector2, h
 	var end := start + Vector2.RIGHT.rotated(heading) * length
 	var points := PackedVector2Array([start, end])
 	var rough := 0.22
-	for level in range(5):
+	for level in range(4):
 		var next := PackedVector2Array([points[0]])
 		for index in range(points.size() - 1):
 			var a := points[index]
@@ -81,27 +81,26 @@ static func _bolt(rng: RandomNumberGenerator, branches: Array, start: Vector2, h
 
 # ------------------------------------------------------------------ drawing
 
-## Static layers (baked once): glow, crust, crust edge, dark lava, lava.
+## Static layers (baked once), flat like the rest of the art: a charred
+## rim, then even lava bands (no glow halo or gradient streaks).
 static func draw_static(c: Object, fissure: Dictionary) -> void:
 	var branches: Array = fissure["branches"]
 	# Each layer over all branches so the joints merge.
 	for branch in branches:
-		_strip(c, branch, 26.0, 1.15, Color(LAVA, 0.08))
-	for branch in branches:
-		_strip(c, branch, 8.0, 1.08, CRUST)
-	for branch in branches:
-		_strip(c, branch, 2.0, 1.0, CRUST_EDGE)
+		_strip(c, branch, 7.0, 1.0, CRUST)
 	for branch in branches:
 		_strip(c, branch, 0.0, 1.0, LAVA_DEEP)
-		_strip(c, branch, 0.0, 0.72, LAVA, Vector2(-0.6, -0.6))
+	for branch in branches:
+		_strip(c, branch, -1.0, 0.8, LAVA)
 
 
-## Hot streak and bright core; `phase` 0/1 alternates halves of the
-## segments so two baked meshes can pulse out of step (a flowing glow).
+## One flat lighter band down the middle. Phase 0 holds the whole band and
+## phase 1 is empty, so the layer pulses evenly instead of in patches.
 static func draw_core(c: Object, fissure: Dictionary, phase: int) -> void:
+	if phase != 0:
+		return
 	for branch in fissure["branches"]:
-		_strip(c, branch, 0.0, 0.38, LAVA_HOT, Vector2(-0.8, -0.8), phase)
-		_strip(c, branch, -4.0, 0.16, LAVA_CORE, Vector2(-0.8, -0.8), phase)
+		_strip(c, branch, -3.0, 0.42, LAVA_HOT)
 
 
 ## One polyline as quads + joint discs: width * k + extra. phase >= 0 keeps

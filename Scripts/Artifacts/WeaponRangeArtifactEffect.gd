@@ -13,7 +13,7 @@ func configure_weapon(target_weapon: WeaponModule) -> void:
 
 func _ready() -> void:
 	if is_instance_valid(weapon):
-		weapon.artifact_range_bonus = _get_range_bonus
+		weapon.add_artifact_range_bonus(Callable(self, "_get_range_bonus"))
 		_aura = WeaponArtifactAura.new()
 		_aura.set("kind", definition.artifact_id)
 		weapon.add_child(_aura)
@@ -25,8 +25,8 @@ func _get_range_bonus() -> float:
 
 
 func cleanup() -> void:
-	if is_instance_valid(weapon) and weapon.artifact_range_bonus == Callable(self, "_get_range_bonus"):
-		weapon.artifact_range_bonus = Callable()
+	if is_instance_valid(weapon):
+		weapon.remove_artifact_range_bonus(Callable(self, "_get_range_bonus"))
 	if is_instance_valid(_aura):
 		_aura.queue_free()
 	queue_free()

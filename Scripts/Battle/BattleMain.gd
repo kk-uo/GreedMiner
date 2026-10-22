@@ -14,6 +14,7 @@ const VOLCANIC_WAVE_CONFIG: PlanetWaveConfig = preload(
 )
 const FROZEN_WAVE_CONFIG: PlanetWaveConfig = preload("res://Resources/Waves/FrozenPlanetWaves.tres")
 const GRAVEYARD_WAVE_CONFIG: PlanetWaveConfig = preload("res://Resources/Waves/GraveyardPlanetWaves.tres")
+const TREE_WAVE_CONFIG: PlanetWaveConfig = preload("res://Resources/Waves/TreePlanetWaves.tres")
 const EXPEDITION_CONFIGS: Dictionary = {
 	&"graveyard_planet": {
 		"wave_config": GRAVEYARD_WAVE_CONFIG,
@@ -35,10 +36,14 @@ const EXPEDITION_CONFIGS: Dictionary = {
 		"wave_config": FROZEN_WAVE_CONFIG,
 		"theme": &"frozen",
 	},
+	&"tree_planet": {
+		"wave_config": TREE_WAVE_CONFIG,
+		"theme": &"forest",
+	},
 }
 
 @onready var ore_label: Label = $BattleUI/UIRoot/OreCounter/HBoxContainer/OreLabel
-@onready var health_label: Label = $BattleUI/UIRoot/HealthCounter/HealthLabel
+@onready var health_label: Label = $BattleUI/UIRoot/HealthCounter/HealthRow/HealthLabel
 @onready var evacuation_panel: EvacuationPanel = $BattleUI/UIRoot/EvacuationPanel
 @onready var game_over_panel: PanelContainer = $BattleUI/UIRoot/GameOverPanel
 @onready var return_to_base_button: Button = $BattleUI/UIRoot/GameOverPanel/VBoxContainer/ReturnToBaseButton
@@ -56,6 +61,13 @@ const EXPEDITION_CONFIGS: Dictionary = {
 var _battle_ended: bool = false
 const DWARF_MINING_CONTROLLER := preload("res://Scripts/Mining/DwarfMiningController.gd")
 var _dwarf_mining: Node2D
+const FOREST_STORMS := preload("res://Scripts/Battle/Forest/ForestStormController.gd")
+const FOREST_SETTINGS: ForestPlanetSettings = preload("res://Resources/Forest/ForestPlanetSettings.tres")
+const FOREST_ROOT := preload("res://Scripts/Battle/Forest/ForestRoot.gd")
+const STRANDED_DWARF := preload("res://Scripts/Battle/Forest/StrandedDwarfMarker.gd")
+var _forest_storms: ForestStormController
+var _forest_boss: ForestBoss
+var _forest_root: ForestRoot
 
 func freeze_ship_input(duration: float) -> void:
 	if not _battle_ended:
@@ -68,6 +80,9 @@ func _on_ship_freeze_changed(frozen: bool) -> void:
 
 ## Ice coating the frozen ship (presentation only); shatters when it thaws.
 const SHIP_FROST_VISUAL := preload("res://Scripts/VFX/ShipFrostVisual.gd")
+const DAMAGE_VIGNETTE := preload("res://Scripts/UI/DamageVignette.gd")
+## Short slow-motion beat before the result panels (no instant jump).
+const BATTLE_END_BEAT := preload("res://Scripts/VFX/BattleEndBeat.gd")
 var _frost_visual: Node2D
 
 func _update_frost_visual(frozen: bool) -> void:
@@ -112,19 +127,39 @@ func _input(event: InputEvent) -> void:
 			return
 
 
+func _open_developer_panel() -> void:
+	$BattleUI/UIRoot/SettingsMenu.close_menu()
+	$BattleUI/UIRoot/DeveloperPanel.open_panel()
+
 func _ready() -> void:
+	$BattleUI/UIRoot/SettingsMenu.developer_mode_requested.connect(_open_developer_panel)
 	LanguageManager.language_changed.connect(_on_language_changed)
 	$WeatherManager.ship_freeze_changed.connect(_on_ship_freeze_changed)
-	ChipManager.set_equipment_changes_enabled(false)
 	ArtifactManager.set_equipment_changes_enabled(false)
 	_configure_current_expedition()
-	if battlefield.planet_theme == &"rocky" or battlefield.has_planet_ores():
+	if battlefield.planet_theme == &"rocky" or battlefield.planet_theme == &"forest" or battlefield.has_planet_ores():
 		_dwarf_mining = DWARF_MINING_CONTROLLER.new()
 		_dwarf_mining.battle = self
 		_dwarf_mining.ship = ship
 		_dwarf_mining.field = battlefield
 		add_child(_dwarf_mining)
 		_build_mining_tutorial()
+	if battlefield.planet_theme == &"forest":
+		_forest_storms = FOREST_STORMS.new() as ForestStormController
+		_forest_storms.name = "ForestStorms"
+		_forest_storms.battle = self
+		_forest_storms.field = battlefield
+		_forest_storms.ship = ship
+		_forest_storms.enemies = $Enemies
+		_forest_storms.wave_manager = wave_manager
+		_forest_storms.storm_interval = FOREST_SETTINGS.storm_interval
+		_forest_storms.warning_duration = FOREST_SETTINGS.storm_warning_duration
+		_forest_storms.storm_duration = FOREST_SETTINGS.storm_duration
+		_forest_storms.respawn_spread_duration = FOREST_SETTINGS.respawn_spread_duration
+		_forest_storms.maximum_respawns_per_frame = FOREST_SETTINGS.maximum_respawns_per_frame
+		add_child(_forest_storms)
+		move_child(_forest_storms, $BattleUI.get_index())
+		$Enemies.child_entered_tree.connect(_on_forest_enemy_entered)
 	if battlefield.planet_theme == &"volcanic" and not battlefield.get_lava_emerge_points().is_empty():
 		var emergence: Node = LAVA_EMERGENCE.new()
 		emergence.name = "LavaEmergence"
@@ -166,6 +201,15 @@ func _ready() -> void:
 		ship.health_changed.connect(health_callback)
 
 	_on_ship_health_changed(ship.current_hp, ship.max_hp)
+
+	# Red screen edge on every hull hit.
+	var vignette: CanvasLayer = DAMAGE_VIGNETTE.new()
+	vignette.name = "DamageVignette"
+	add_child(vignette)
+	var battle_ui := get_node_or_null("BattleUI")
+	if battle_ui != null:
+		move_child(vignette, battle_ui.get_index())
+	vignette.call("watch", ship)
 
 	var return_callback := Callable(self, "_on_return_to_base_pressed")
 	if not return_to_base_button.pressed.is_connected(return_callback):
@@ -217,6 +261,51 @@ func _configure_current_expedition() -> void:
 		battlefield.generate(battlefield.get_map_seed())
 	apply_planet_view(planet_theme)
 
+## The boss only blocks escape once the player actually attempts takeoff. A
+## root may be cut with the same dwarf dispatch gesture used on forest trees.
+func _on_forest_enemy_entered(node: Node) -> void:
+	var boss := node as ForestBoss
+	if boss == null or boss.enemy_id != &"chainsaw_spaceship_treant":
+		return
+	_forest_boss = boss
+	if not boss.died.is_connected(_on_forest_boss_died):
+		boss.died.connect(_on_forest_boss_died)
+
+func _summon_forest_escape_root() -> void:
+	evacuation_panel.reset_attempt()
+	evacuation_panel.set_external_lock(true)
+	_forest_root = FOREST_ROOT.new() as ForestRoot
+	_forest_root.name = "EscapeRoot"
+	battlefield.get_interactables_root().add_child(_forest_root)
+	_forest_root.global_position = ship.to_global(Ship.SHIP_SIZE * 0.5) + Vector2(150.0, 0.0)
+	if is_instance_valid(battlefield.forest_terrain):
+		battlefield.forest_terrain.escape_root = _forest_root
+	_forest_root.felled.connect(_on_forest_escape_root_cut)
+
+func _on_forest_escape_root_cut(_tree: ForestTree) -> void:
+	evacuation_panel.set_external_lock(false)
+
+func _on_forest_boss_died(_enemy_id: StringName, _position: Vector2) -> void:
+	_forest_boss = null
+	if is_instance_valid(_forest_root) and not _forest_root.chopped:
+		_forest_root.chop()
+	evacuation_panel.set_external_lock(false)
+
+func _stop_forest_storms() -> void:
+	if is_instance_valid(_forest_storms):
+		_forest_storms.stop_storms()
+
+func _show_stranded_dwarves() -> void:
+	var ship_center := ship.to_global(Ship.SHIP_SIZE * 0.5)
+	for node in get_tree().get_nodes_in_group("mining_dwarves"):
+		var dwarf := node as Node2D
+		if not is_instance_valid(dwarf) or dwarf.global_position.distance_to(ship_center) <= 130.0:
+			continue
+		var marker := STRANDED_DWARF.new() as Node2D
+		marker.name = "StrandedDwarfVisual"
+		add_child(marker)
+		marker.global_position = dwarf.global_position
+
 
 ## Presentation: a planet whose map is bigger (Palette "map_extra", e.g. the
 ## Graveyard Planet +200 px) also shows that much more of it - the camera
@@ -240,7 +329,7 @@ func apply_planet_view(planet_theme: StringName) -> float:
 func _on_language_changed(_locale: StringName) -> void:
 	_on_mission_ore_changed(ResourceManager.mission_ore)
 	# Refresh text only: do not invoke the damage or game-over flow.
-	health_label.text = tr("HULL  %d / %d") % [ceili(ship.current_hp), ceili(ship.max_hp)]
+	health_label.text = "%d / %d" % [ceili(ship.current_hp), ceili(ship.max_hp)]
 
 
 ## Updates the HUD using whole ore units while preserving fractional resources.
@@ -250,7 +339,7 @@ func _on_mission_ore_changed(_amount: float) -> void:
 
 ## Updates the battle HUD whenever enemies damage the ship.
 func _on_ship_health_changed(current_health: float, maximum_health: float) -> void:
-	health_label.text = tr("HULL  %d / %d") % [
+	health_label.text = "%d / %d" % [
 		ceili(current_health),
 		ceili(maximum_health)
 	]
@@ -263,6 +352,7 @@ func _on_ship_health_changed(current_health: float, maximum_health: float) -> vo
 ## Ends combat while keeping the Game Over controls responsive.
 func _handle_ship_destroyed() -> void:
 	_battle_ended = true
+	_stop_forest_storms()
 	$WeatherManager.clear_transient_effects()
 	if is_instance_valid(_evacuation_tip):
 		_evacuation_tip.finish()
@@ -271,6 +361,9 @@ func _handle_ship_destroyed() -> void:
 	wave_manager.stop_wave_system(&"player_defeated")
 	evacuation_panel.set_battle_active(false)
 	ship.set_all_modules_active(false)
+	await BATTLE_END_BEAT.play(self, ship, &"defeat")
+	if not is_inside_tree():
+		return
 	game_over_panel.show()
 	return_to_base_button.disabled = false
 
@@ -299,8 +392,18 @@ func _on_evacuation_completed() -> void:
 	if _battle_ended or ship.current_hp <= 0.0:
 		evacuation_panel.set_battle_active(false)
 		return
+	if is_instance_valid(_forest_boss) and not _forest_boss.is_dying() and not is_instance_valid(_forest_root):
+		_summon_forest_escape_root()
+		return
+	if is_instance_valid(_forest_root) and not _forest_root.chopped:
+		evacuation_panel.reset_attempt()
+		evacuation_panel.set_external_lock(true)
+		return
 
 	_battle_ended = true
+	_stop_forest_storms()
+	if battlefield.planet_theme == &"forest" and is_instance_valid(_forest_boss) and not _forest_boss.is_dying():
+		_show_stranded_dwarves()
 	$WeatherManager.clear_transient_effects()
 	ArtifactManager.clear_battle_effects(ship)
 	_shutdown_mining_qte()
@@ -323,6 +426,7 @@ func _on_planet_completed(config: PlanetWaveConfig) -> void:
 	if _battle_ended:
 		return
 	_battle_ended = true
+	_stop_forest_storms()
 	$WeatherManager.clear_transient_effects()
 	if is_instance_valid(_evacuation_tip):
 		_evacuation_tip.finish()
@@ -341,6 +445,9 @@ func _on_planet_completed(config: PlanetWaveConfig) -> void:
 				names.append(tr(definition.display_name) if definition != null else String(weapon_id))
 			completion_unlock_label.text = tr("NEW UNLOCK: %s") % ", ".join(names)
 			completion_unlock_label.show()
+	await BATTLE_END_BEAT.play(self, ship, &"victory")
+	if not is_inside_tree():
+		return
 	completion_panel.show()
 	completion_return_button.disabled = false
 
@@ -434,6 +541,7 @@ func play_rocky_finale(titan_position: Vector2) -> void:
 	if _battle_ended:
 		return
 	_battle_ended = true
+	_stop_forest_storms()
 	$WeatherManager.clear_transient_effects()
 	if is_instance_valid(_evacuation_tip):
 		_evacuation_tip.finish()
@@ -520,7 +628,7 @@ func find_knockback_module_at(world_point: Vector2) -> KnockbackModule:
 
 
 ## Attack range of a weapon in world units (0 if it has none), including
-## range bonuses (Range Chip, Demon Prism) so the preview ring matches play.
+## range bonuses (for example Demon Prism) so the preview ring matches play.
 static func get_weapon_range(weapon: Node) -> float:
 	for property in [&"attack_range", &"attack_radius"]:
 		var value: Variant = weapon.get(property)

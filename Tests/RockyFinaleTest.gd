@@ -43,6 +43,12 @@ func _run() -> void:
 	_expect(golems == 0, "titan did not split, no enemies left (%d)" % golems)
 	_expect(camera.zoom.x < zoom_before, "camera pulling back")
 	var finale: Node = battle.get_node("RockyFinale")
+	# Clicking before the title has been up for 2 s does nothing.
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	finale.call("_input", click)
+	_expect(not bool(finale.get("_leaving")), "early click does not skip the finale")
 	finale.call("return_to_base")
 	_expect(FINALE.has_been_seen(), "finale saved as seen")
 	_expect(WeaponUnlockManager.has_completed_planet(&"rocky_planet"), "rocky planet recorded")

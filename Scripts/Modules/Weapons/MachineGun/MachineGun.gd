@@ -143,7 +143,8 @@ func _process(delta: float) -> void:
 	current_target = keep_or_find_target(
 		current_target,
 		global_position,
-		get_modified_attack_range(attack_range)
+		get_modified_attack_range(attack_range),
+		delta
 	)
 
 	# Stop attacking when no enemy is in range.
@@ -204,6 +205,7 @@ func fire() -> void:
 	# Apply the machine gun's configured statistics.
 	projectile.damage = damage
 	projectile.source_weapon = self
-	if artifact_projectile_pierces.is_valid():
-		projectile.enable_ghost_piercing(int(artifact_projectile_pierces.call()))
+	var artifact_pierces := get_artifact_projectile_pierces()
+	if artifact_pierces > 0:
+		projectile.enable_ghost_piercing(artifact_pierces)
 	projectile.speed = projectile_speed

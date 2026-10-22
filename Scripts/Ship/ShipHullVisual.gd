@@ -161,26 +161,259 @@ static func draw_shadow(canvas: CanvasItem, geometry: Dictionary, offset: Vector
 		canvas.draw_circle(pod + offset, POD_RADIUS, color)
 
 
+## Selectable thruster styles (Hangar > SHIP STYLE > THRUSTERS), drawn on the
+## convex hull corners (geometry "pods" / "pod_dirs"). Each has a stowed look
+## (deploy 0, on the ground) and unfolds for flight (deploy 1, animated by
+## ShipLaunchController) before it fires (thrust):
+## - pod:     the original round pod with a glowing nozzle.
+## - diamond: square blocks turn 45 degrees into diamonds and fire down.
+## - ring:    an arc round each corner (convex side out) pushes outward and
+##            fires down along its length.
+## - stilts:  L-shaped landing frames push out on pistons; the jet is hidden
+##            under the middle of the hull (glow and dust round the edges).
+## - fans:    fans tucked beside each corner swing out to the diagonal and spin
+##            up, blowing air rings.
+const DEFAULT_THRUSTER: StringName = &"pod"
+const THRUSTERS := {
+	&"pod": {"name": "Round Pods"},
+	&"diamond": {"name": "Diamond"},
+	&"ring": {"name": "Ring"},
+	&"stilts": {"name": "Stilts"},
+	&"fans": {"name": "Fans"},
+}
+const THRUSTER_ORDER: Array[StringName] = [&"pod", &"diamond", &"ring", &"stilts", &"fans"]
+const CHROME := Color("B9B2A8")
+
+
+static func _thruster(thruster_id: StringName) -> StringName:
+	if thruster_id == &"":
+		thruster_id = ShipLoadout.thruster_id
+	return thruster_id if THRUSTERS.has(thruster_id) else DEFAULT_THRUSTER
+
+
+## Thrusters that move on their own (fans spin, jets flicker) need redraws.
+static func thruster_needs_redraw(thrust: float, deploy: float) -> bool:
+	return thrust > 0.0 or (deploy > 0.0 and deploy < 1.0)
+
+
+static func _pods_center(geometry: Dictionary) -> Vector2:
+	var pods: PackedVector2Array = geometry["pods"]
+	var sum := Vector2.ZERO
+	for pod in pods:
+		sum += pod
+	return sum / float(maxi(pods.size(), 1))
+
+
+## Where the jets are for the current style (local space): the exhaust FX
+## emits from these.
+static func nozzle_points(geometry: Dictionary, thruster_id: StringName = &"", deploy: float = 1.0) -> PackedVector2Array:
+	var kind := _thruster(thruster_id)
+	var pods: PackedVector2Array = geometry["pods"]
+	var dirs: PackedVector2Array = geometry.get("pod_dirs", PackedVector2Array())
+	var out := PackedVector2Array()
+	if kind == &"stilts":
+		out.append(_pods_center(geometry))
+		return out
+	for index in range(pods.size()):
+		var p: Vector2 = pods[index]
+		var d: Vector2 = dirs[index] if index < dirs.size() else Vector2.ZERO
+		match kind:
+			&"diamond":
+				out.append(p + d * 14.0 * deploy)
+			&"ring":
+				out.append(p - d * 25.0 + d * (34.0 + 22.0 * deploy))
+			&"fans":
+				out.append(_fan_position(p, d, deploy))
+			_:
+				out.append(p)
+	return out
+
+
 ## Thruster pods; drawn before the frame so the hull overlaps their inner side.
-## thrust 0..1 lights the nozzles.
-static func draw_pods(canvas: CanvasItem, geometry: Dictionary, thrust: float) -> void:
+## thrust 0..1 fires the jets; deploy 0..1 unfolds them (style dependent).
+static func draw_pods(canvas: CanvasItem, geometry: Dictionary, thrust: float, thruster_id: StringName = &"", deploy: float = 0.0) -> void:
 	var style := _current()
+	var kind := _thruster(thruster_id)
+	var pods: PackedVector2Array = geometry["pods"]
+	var dirs: PackedVector2Array = geometry.get("pod_dirs", PackedVector2Array())
+	var now := float(Time.get_ticks_msec()) * 0.001
+	if kind == &"stilts":
+		_draw_under_jet(canvas, geometry, thrust, now)
+	for index in range(pods.size()):
+		var p: Vector2 = pods[index]
+		var d: Vector2 = dirs[index] if index < dirs.size() else Vector2(1, 1).normalized()
+		match kind:
+			&"diamond":
+				_draw_diamond(canvas, p, d, thrust, deploy, style, now)
+			&"ring":
+				_draw_ring(canvas, p, d, thrust, deploy, style, now)
+			&"stilts":
+				_draw_stilt(canvas, p, d, deploy, style)
+			&"fans":
+				_draw_fan(canvas, p, d, thrust, deploy, style, now)
+			_:
+				_draw_round_pod(canvas, p, thrust, style)
+
+
+static func _draw_round_pod(canvas: CanvasItem, pod: Vector2, thrust: float, style: Dictionary) -> void:
+	if style.get("glow", false):
+		canvas.draw_circle(pod, POD_RADIUS + 8.0, Color(style["accent"], 0.14))
+	canvas.draw_circle(pod, POD_RADIUS, style["iron"])
+	canvas.draw_circle(pod + Vector2(-1.0, -1.0), POD_RADIUS - 3.5, style["band"])
+	canvas.draw_circle(pod, POD_RADIUS - 8.0, Palette.UI_PANEL)
+	canvas.draw_arc(pod, POD_RADIUS - 8.0, 0.0, TAU, 24, style["accent"], 2.5)
+	if thrust > 0.01:
+		canvas.draw_circle(pod, (POD_RADIUS - 10.0) * (0.5 + 0.5 * thrust), Palette.SHOT)
+		canvas.draw_circle(pod, (POD_RADIUS - 14.0) * (0.5 + 0.5 * thrust), Palette.SHOT_CORE)
+	else:
+		canvas.draw_circle(pod, 4.0, style["iron"])
+	for index in range(4):
+		var angle := PI * 0.25 + PI * 0.5 * float(index)
+		var bolt: Vector2 = pod + Vector2.RIGHT.rotated(angle) * (POD_RADIUS - 2.0)
+		canvas.draw_rect(Rect2(bolt - Vector2(2.0, 2.0), Vector2(4.0, 4.0)), Palette.UI_PANEL)
+
+
+## A downward jet seen from above: hot core, flicker and expanding rings.
+static func _draw_jet(canvas: CanvasItem, p: Vector2, r: float, k: float, now: float) -> void:
+	if k <= 0.01:
+		return
+	var flick := 0.85 + 0.15 * sin(now * 47.0 + p.x * 0.7 + p.y)
+	canvas.draw_circle(p, r * 1.8 * k * flick, Color(Palette.SHOT, 0.26 * k))
+	canvas.draw_circle(p, r * k * flick, Color(Palette.SHOT, 0.9))
+	canvas.draw_circle(p, r * 0.5 * k, Palette.SHOT_CORE)
+	for ring in range(2):
+		var ph := fposmod(now * 3.0 + float(ring) * 0.5, 1.0)
+		canvas.draw_arc(p, r * (1.2 + 1.6 * ph), 0.0, TAU, 20, Color(Palette.SHOT, 0.35 * (1.0 - ph) * k), 2.0)
+
+
+static func _draw_diamond(canvas: CanvasItem, pod: Vector2, d: Vector2, thrust: float, deploy: float, style: Dictionary, now: float) -> void:
+	var p := pod + d * 14.0 * deploy
+	var a := PI * 0.25 * deploy
+	var s := 17.0 + 3.0 * deploy
+	var pts := PackedVector2Array()
+	for c in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		pts.append(p + ((c as Vector2) * s).rotated(a))
+	if style.get("glow", false):
+		canvas.draw_circle(p, s + 8.0, Color(style["accent"], 0.12))
+	canvas.draw_colored_polygon(pts, style["iron"])
+	var inner := PackedVector2Array()
+	var window := PackedVector2Array()
+	for q in pts:
+		inner.append(p + (q - p) * 0.72 + Vector2(-1.0, -1.0))
+		window.append(p + (q - p) * 0.38)
+	canvas.draw_colored_polygon(inner, style["band"])
+	canvas.draw_colored_polygon(window, Palette.UI_PANEL)
+	var outline := window.duplicate()
+	outline.append(window[0])
+	canvas.draw_polyline(outline, style["accent"], 2.0)
+	_draw_jet(canvas, p, 7.0, thrust, now)
+
+
+static func _draw_ring(canvas: CanvasItem, pod: Vector2, d: Vector2, thrust: float, deploy: float, style: Dictionary, now: float) -> void:
+	var corner := pod - d * 25.0
+	var r := 34.0 + 22.0 * deploy
+	var base := d.angle()
+	var a0 := base - 0.62
+	var a1 := base + 0.62
+	# Two short arms from the hull corner to the arc.
+	for end in [a0 + 0.25, a1 - 0.25]:
+		var tip := corner + Vector2.RIGHT.rotated(end) * (r - 6.0)
+		canvas.draw_line(corner, tip, style["iron"], 5.0)
+		canvas.draw_line(corner, tip, style["band"], 2.0)
+	if thrust > 0.01:
+		canvas.draw_arc(corner, r, a0, a1, 24, Color(Palette.SHOT, 0.25 * thrust), 26.0 * thrust)
+	canvas.draw_arc(corner, r, a0, a1, 24, style["iron"], 12.0)
+	canvas.draw_arc(corner, r + 3.0, a0 + 0.04, a1 - 0.04, 24, Color(style["band"]).lightened(0.2), 2.5)
+	canvas.draw_arc(corner, r - 3.5, a0 + 0.06, a1 - 0.06, 24, style["accent"] if thrust <= 0.01 else Palette.SHOT_CORE, 2.0)
+	for end in [a0, a1]:
+		canvas.draw_circle(corner + Vector2.RIGHT.rotated(end) * r, 6.0, style["iron"])
+		canvas.draw_circle(corner + Vector2.RIGHT.rotated(end) * r, 2.5, style["accent"])
+	if thrust > 0.01:
+		for j in range(5):
+			var a := lerpf(a0 + 0.1, a1 - 0.1, float(j) / 4.0)
+			_draw_jet(canvas, corner + Vector2.RIGHT.rotated(a) * r, 5.0, thrust, now)
+
+
+static func _draw_under_jet(canvas: CanvasItem, geometry: Dictionary, thrust: float, now: float) -> void:
+	if thrust <= 0.01:
+		return
+	var center := _pods_center(geometry)
+	var reach := 0.0
 	for pod in geometry["pods"]:
-		if style.get("glow", false):
-			canvas.draw_circle(pod, POD_RADIUS + 8.0, Color(style["accent"], 0.14))
-		canvas.draw_circle(pod, POD_RADIUS, style["iron"])
-		canvas.draw_circle(pod + Vector2(-1.0, -1.0), POD_RADIUS - 3.5, style["band"])
-		canvas.draw_circle(pod, POD_RADIUS - 8.0, Palette.UI_PANEL)
-		canvas.draw_arc(pod, POD_RADIUS - 8.0, 0.0, TAU, 24, style["accent"], 2.5)
-		if thrust > 0.01:
-			canvas.draw_circle(pod, (POD_RADIUS - 10.0) * (0.5 + 0.5 * thrust), Palette.SHOT)
-			canvas.draw_circle(pod, (POD_RADIUS - 14.0) * (0.5 + 0.5 * thrust), Palette.SHOT_CORE)
-		else:
-			canvas.draw_circle(pod, 4.0, style["iron"])
-		for index in range(4):
-			var angle := PI * 0.25 + PI * 0.5 * float(index)
-			var bolt: Vector2 = pod + Vector2.RIGHT.rotated(angle) * (POD_RADIUS - 2.0)
-			canvas.draw_rect(Rect2(bolt - Vector2(2.0, 2.0), Vector2(4.0, 4.0)), Palette.UI_PANEL)
+		reach = maxf(reach, (pod as Vector2).distance_to(center))
+	var flick := 0.9 + 0.1 * sin(now * 40.0)
+	for ring in range(4):
+		canvas.draw_circle(center, (reach * 0.8 + 18.0 * float(ring)) * flick, Color(Palette.SHOT, 0.07 * thrust))
+	for ring in range(3):
+		var ph := fposmod(now * 1.5 + float(ring) / 3.0, 1.0)
+		canvas.draw_arc(center, reach * 0.85 + 90.0 * ph, 0.0, TAU, 48, Color("D9C8A8", 0.35 * (1.0 - ph) * thrust), 6.0)
+
+
+static func _draw_stilt(canvas: CanvasItem, pod: Vector2, d: Vector2, deploy: float, style: Dictionary) -> void:
+	var axis := Vector2(signf(d.x), signf(d.y))
+	var base := pod - d * 11.0
+	var elbow := base + d * (8.5 + 37.0 * deploy)
+	var arms := [Vector2(-axis.x, 0.0) * 38.0, Vector2(0.0, -axis.y) * 38.0]
+	var iron: Color = style["iron"]
+	var band: Color = style["band"]
+	var band_hi := band.lightened(0.2)
+	# Pistons from the hull to each arm: dark sleeve + chrome rod.
+	for arm in arms:
+		var anchor: Vector2 = base - d * 16.0 + (arm as Vector2) * 0.55
+		var joint: Vector2 = elbow + (arm as Vector2) * 0.55
+		var mid := anchor.lerp(joint, 0.45)
+		canvas.draw_line(anchor, mid, iron, 8.0)
+		canvas.draw_line(mid, joint, CHROME, 4.0)
+		canvas.draw_circle(joint, 4.5, iron)
+	for arm in arms:
+		var tip: Vector2 = elbow + arm
+		canvas.draw_line(elbow + Vector2(3, 4), tip + Vector2(3, 4), Color(0, 0, 0, 0.2), 13.0)
+	for arm in arms:
+		var tip: Vector2 = elbow + arm
+		canvas.draw_line(elbow, tip, iron, 13.0)
+		canvas.draw_line(elbow, tip, band, 7.0)
+		canvas.draw_line(elbow, tip, band_hi, 2.0)
+		canvas.draw_circle(tip, 9.0, iron)
+		canvas.draw_circle(tip, 6.0, band)
+		canvas.draw_circle(tip + Vector2(-1.5, -1.5), 2.5, band_hi)
+	canvas.draw_circle(elbow, 11.0, iron)
+	canvas.draw_circle(elbow, 8.0, Palette.UI_PANEL)
+	canvas.draw_arc(elbow, 8.0, d.angle() - 1.0, d.angle() + 1.0, 12, style["accent"], 3.0)
+	canvas.draw_circle(elbow, 3.0, band_hi)
+
+
+static func _fan_position(pod: Vector2, d: Vector2, deploy: float) -> Vector2:
+	var corner := pod - d * 6.0
+	var angle := lerp_angle(d.angle() - 1.15, d.angle(), deploy)
+	return corner + Vector2.RIGHT.rotated(angle) * (22.0 + 12.0 * deploy)
+
+
+static func _draw_fan(canvas: CanvasItem, pod: Vector2, d: Vector2, thrust: float, deploy: float, style: Dictionary, now: float) -> void:
+	var corner := pod - d * 6.0
+	var p := _fan_position(pod, d, deploy)
+	var r := 20.0
+	var spin := now * (0.6 + 26.0 * thrust)
+	var iron: Color = style["iron"]
+	canvas.draw_line(corner, p, iron, 6.0)
+	if style.get("glow", false):
+		canvas.draw_circle(p, r + 7.0, Color(style["accent"], 0.12))
+	canvas.draw_circle(p, r, iron)
+	canvas.draw_circle(p, r - 3.0, Palette.UI_PANEL)
+	var blade_color := Color(style["band"]).lightened(0.25)
+	for b in range(5):
+		var a := spin + TAU * float(b) / 5.0
+		canvas.draw_colored_polygon(PackedVector2Array([
+			p + Vector2.RIGHT.rotated(a) * 3.0,
+			p + Vector2.RIGHT.rotated(a + 0.3) * (r - 4.0),
+			p + Vector2.RIGHT.rotated(a + 0.75) * (r - 5.0),
+		]), Color(blade_color, 1.0 - 0.6 * thrust))
+	if thrust > 0.01:
+		canvas.draw_circle(p, r - 3.0, Color(blade_color, 0.25 * thrust))
+		for ring in range(2):
+			var ph := fposmod(now * 2.5 + float(ring) * 0.5, 1.0)
+			canvas.draw_arc(p, r + 6.0 + 26.0 * ph, 0.0, TAU, 28, Color(1, 1, 1, 0.35 * (1.0 - ph) * thrust), 2.5)
+	canvas.draw_circle(p, 5.0, iron)
+	canvas.draw_circle(p, 2.5, style["accent"])
 
 
 ## Forged frame, add-on plates, bone floor tiles and the accent pattern.

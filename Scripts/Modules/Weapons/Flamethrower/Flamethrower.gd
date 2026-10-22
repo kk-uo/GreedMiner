@@ -74,7 +74,7 @@ func _process(delta: float) -> void:
 		_pause_left = 0.0
 		return
 	_pause_left = maxf(_pause_left - delta, 0.0)
-	current_target = keep_or_find_target(current_target, global_position, get_modified_attack_range(attack_range))
+	current_target = keep_or_find_target(current_target, global_position, get_modified_attack_range(attack_range), delta)
 	if is_instance_valid(current_target):
 		rotate_turret_toward(_turret, current_target.get_target_point(global_position), rotation_speed, delta)
 	var rate := get_fire_rate()

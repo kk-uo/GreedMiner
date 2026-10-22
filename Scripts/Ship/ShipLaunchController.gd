@@ -58,6 +58,7 @@ func play_landing() -> void:
 	_busy = true
 	ship.visual_altitude = 1.0
 	ship.thruster_power = 1.0
+	ship.thruster_deploy = 1.0
 	ship.modulate.a = 0.0
 
 	var descend := create_tween()
@@ -75,6 +76,10 @@ func play_landing() -> void:
 	var cut := create_tween()
 	cut.tween_property(ship, "thruster_power", 0.0, 0.6).set_delay(0.1)
 	await cut.finished
+	# Fold the thrusters away (style dependent).
+	var fold := create_tween()
+	fold.tween_property(ship, "thruster_deploy", 0.0, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	await fold.finished
 	_busy = false
 	sequence_finished.emit()
 
@@ -84,6 +89,10 @@ func play_takeoff() -> void:
 	if ship == null:
 		return
 	_busy = true
+	# Unfold the thrusters (style dependent), then ignite.
+	var unfold := create_tween()
+	unfold.tween_property(ship, "thruster_deploy", 1.0, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await unfold.finished
 	var ignite := create_tween()
 	ignite.tween_property(ship, "thruster_power", 0.75, 0.35)
 	_shake(3.0, 0.45)

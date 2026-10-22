@@ -128,6 +128,9 @@ var _crystal_container: Node2D
 ## Graveyard theme: tombstones and grave clusters (decor "grave").
 const GRAVEYARD_TOMBSTONES := preload("res://Scripts/Battle/Graveyard/GraveyardTombstones.gd")
 var _graveyard_tombs: Node2D
+const FOREST_TERRAIN := preload("res://Scripts/Battle/Forest/ForestTerrain.gd")
+const FOREST_SETTINGS: ForestPlanetSettings = preload("res://Resources/Forest/ForestPlanetSettings.tres")
+var forest_terrain: ForestTerrain
 ## Extra map size currently applied from the theme's "map_extra" (the map
 ## grows equally on every side, so its center - and the ship - stay put).
 var _applied_map_extra: float = 0.0
@@ -169,12 +172,39 @@ func generate(seed_value: int = 0) -> void:
 	_ensure_interactables_root()
 	_rebuild_rocky_crystals()
 	_rebuild_verdant_trees()
+	_rebuild_forest_trees()
 	_rebuild_lava_vents()
 	_update_lava_layer()
 	_update_fissure_layer()
 	_baked_mesh = null
 	queue_redraw()
 	generated.emit(_seed)
+
+func _rebuild_forest_trees() -> void:
+	if is_instance_valid(forest_terrain):
+		_interactables.remove_child(forest_terrain)
+		forest_terrain.queue_free()
+		forest_terrain = null
+	if planet_theme != &"forest":
+		return
+	forest_terrain = FOREST_TERRAIN.new() as ForestTerrain
+	forest_terrain.name = "ForestTerrain"
+	forest_terrain.maximum_trees = FOREST_SETTINGS.maximum_trees
+	forest_terrain.tree_spacing = FOREST_SETTINGS.tree_spacing
+	forest_terrain.empty_radius = FOREST_SETTINGS.empty_radius
+	forest_terrain.sparse_ring_width = FOREST_SETTINGS.sparse_ring_width
+	forest_terrain.sparse_ring_density = FOREST_SETTINGS.sparse_ring_density
+	_interactables.add_child(forest_terrain)
+	forest_terrain.generate(self, _seed)
+
+func take_forest_spawn_tree() -> ForestTree:
+	return forest_terrain.take_spawn_tree() if is_instance_valid(forest_terrain) else null
+
+func get_choppable_trees_in(world_position: Vector2, radius: float) -> Array[Node2D]:
+	var result: Array[Node2D] = []
+	if is_instance_valid(forest_terrain):
+		result.append_array(forest_terrain.choppable_in(world_position, radius))
+	return result
 
 
 ## Hit-test individual crystals in reverse draw order, using world coordinates.
@@ -761,6 +791,8 @@ func _place_craters(rng: RandomNumberGenerator, center: Vector2) -> void:
 
 func _place_deposits(rng: RandomNumberGenerator, center: Vector2) -> void:
 	_deposits.clear()
+	if planet_theme == &"forest":
+		return
 	var foliage: bool = Palette.planet(planet_theme).get("decor", &"rock") == &"foliage"
 	# The 40 px allowance covers a crystal's random offset and drawn size.
 	# Verdant deposits become trees, so retain their existing placement.
@@ -793,11 +825,12 @@ func _place_deposits(rng: RandomNumberGenerator, center: Vector2) -> void:
 			continue
 		_deposits.append(_make_deposit(rng, point))
 		_claims.append([point, keep_free])
-	# The Rocky Planet always has at least one crystal deposit (user request).
-	if _deposits.is_empty() and planet_theme == &"rocky" and interactive_rocky_crystals:
-		var spot := _guaranteed_spot(rng, bounds, center, clear_radius + 40.0, 46.0)
-		_deposits.append(_make_deposit(rng, spot))
-		_claims.append([spot, 46.0])
+	# Keep at least two separate mineable crystal deposits on the Rocky Planet.
+	if planet_theme == &"rocky" and interactive_rocky_crystals:
+		while _deposits.size() < 2:
+			var spot := _guaranteed_spot(rng, bounds, center, clear_radius + 40.0, 46.0)
+			_deposits.append(_make_deposit(rng, spot))
+			_claims.append([spot, 46.0])
 
 
 func _make_deposit(rng: RandomNumberGenerator, point: Vector2) -> Dictionary:
@@ -832,6 +865,8 @@ func _guaranteed_spot(rng: RandomNumberGenerator, bounds: Rect2, center: Vector2
 
 func _place_rocks(rng: RandomNumberGenerator) -> void:
 	_rocks.clear()
+	if planet_theme == &"forest":
+		return
 	var colors := Palette.planet(planet_theme)
 	# Jungle worlds are overgrown: tighter spacing and a much higher fill rate.
 	var foliage: bool = colors.get("decor", &"rock") == &"foliage"
@@ -925,7 +960,7 @@ func get_grave_emerge_points() -> Array[Vector2]:
 	return []
 
 
-## Zombie graves are separate from map graves used by skeletons and the boss.
+## Zombie graves are separate from the original map tombstones.
 const ZOMBIE_GRAVE := preload("res://Scripts/Battle/Graveyard/ZombieGrave.gd")
 var _zombie_graves: Array[Node2D] = []
 
@@ -954,6 +989,14 @@ func get_zombie_graves_in(world_position: Vector2, radius: float) -> Array[Node2
 			continue
 		if grave.global_position.distance_to(world_position) <= radius:
 			result.append(grave)
+	return result
+
+
+## Both original tombstones and zombie graves can be cleared by miners.
+func get_diggable_graves_in(world_position: Vector2, radius: float) -> Array[Node2D]:
+	var result := get_zombie_graves_in(world_position, radius)
+	if is_instance_valid(_graveyard_tombs):
+		result.append_array(_graveyard_tombs.call("get_diggable_stones_in", world_position, radius))
 	return result
 
 func get_zombie_grave_points() -> Array[Vector2]:

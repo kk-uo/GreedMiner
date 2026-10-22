@@ -97,10 +97,16 @@ var hovered: StringName = HOTSPOT_NONE:
 		queue_redraw()
 
 ## Name tags only make sense in the overview; BaseMain hides them while zoomed in.
+## Even then a facility's tag only fades in while it is hovered or pinned.
 var show_tags: bool = true:
 	set(value):
 		show_tags = value
 		queue_redraw()
+
+## Facilities whose name tag stays up (a tutorial arrow points at them).
+var pinned_tags: Array[StringName] = []
+## Per-facility name tag opacity, eased every frame (0 hidden .. 1 shown).
+var _tag_alpha: Dictionary = {}
 
 ## Set while the first-artifact guide points the player toward this hotspot.
 var artifact_guide_active: bool = false:
@@ -150,6 +156,10 @@ func _process(delta: float) -> void:
 	_stall_wake = move_toward(_stall_wake, stall_target, delta / RuneShrine.WAKE_TIME)
 	if is_instance_valid(_crane_operator):
 		_crane_operator.facing = float(_crane_state()["angle"])
+	for hotspot in [HOTSPOT_HANGAR, HOTSPOT_STAR_MAP, HOTSPOT_LAB, HOTSPOT_WAREHOUSE, HOTSPOT_MAGIC_STALL]:
+		var pinned: bool = hotspot in pinned_tags or (hotspot == HOTSPOT_MAGIC_STALL and artifact_guide_active)
+		var target := 1.0 if show_tags and (hovered == hotspot or pinned) else 0.0
+		_tag_alpha[hotspot] = move_toward(float(_tag_alpha.get(hotspot, 0.0)), target, delta / 0.18)
 	if is_instance_valid(_live):
 		_live.queue_redraw()
 
@@ -213,12 +223,13 @@ func _draw() -> void:
 	if hovered == HOTSPOT_HANGAR:
 		var frame := Palette.rounded_rect_points(PAD_RECT.grow(18.0), 20.0)
 		frame.append(frame[0])
-		draw_polyline(frame, Palette.ACCENT, 3.0)
+		Palette.draw_hover_outline(self, frame, 3.0)
 	if hovered == HOTSPOT_STAR_MAP:
-		draw_arc(STAR_MAP_CENTER, STAR_MAP_RADIUS + 10.0, 0.0, TAU, 72, Palette.ACCENT, 3.0)
+		var ring := PackedVector2Array()
+		for k in range(73):
+			ring.append(STAR_MAP_CENTER + Vector2.RIGHT.rotated(TAU * float(k) / 72.0) * (STAR_MAP_RADIUS + 10.0))
+		Palette.draw_hover_outline(self, ring, 3.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	if show_tags:
-		_draw_name_tags()
 
 
 ## Animated parts, every frame, on the live layer (above the rails).
@@ -236,6 +247,8 @@ func _draw_live() -> void:
 	RuneShrine.draw(_live, _time, _stall_wake, hovered == HOTSPOT_MAGIC_STALL, artifact_guide_active)
 	_live.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	WarehouseVault.draw(_live, LAYOUT_SCALE, _time, _vault_open, hovered == HOTSPOT_WAREHOUSE)
+	_live.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	_draw_name_tags()
 	_c = self
 
 
@@ -449,16 +462,26 @@ func _rect_points(xf: Transform2D, rect_size: Vector2) -> PackedVector2Array:
 	])
 
 
-## Name tags are drawn unscaled so the text stays crisp.
+## Name tags (live layer, unscaled so the text stays crisp): hidden unless the
+## facility is hovered or pinned by a tutorial; they fade and rise in.
 func _draw_name_tags() -> void:
-	_draw_tag(mock_to_local(Vector2(640.0, PAD_RECT.end.y + 36.0)), "HANGAR", hovered == HOTSPOT_HANGAR)
-	_draw_tag(mock_to_local(STAR_MAP_CENTER + Vector2(0.0, -STAR_MAP_RADIUS - 24.0)), "STAR MAP", hovered == HOTSPOT_STAR_MAP)
-	_draw_tag(mock_to_local(ResearchLab.tag_mock_point()), "LAB", hovered == HOTSPOT_LAB)
-	_draw_tag(mock_to_local(WarehouseVault.CENTER + WarehouseVault.floor_direction() * 74.0), "WAREHOUSE", hovered == HOTSPOT_WAREHOUSE)
-	_draw_tag(mock_to_local(MAGIC_STALL_RECT.get_center() + Vector2(0.0, 66.0)), "MAGIC STALL", hovered == HOTSPOT_MAGIC_STALL)
+	_draw_tag(mock_to_local(Vector2(640.0, PAD_RECT.end.y + 36.0)), "HANGAR", HOTSPOT_HANGAR)
+	_draw_tag(mock_to_local(STAR_MAP_CENTER + Vector2(0.0, -STAR_MAP_RADIUS - 24.0)), "STAR MAP", HOTSPOT_STAR_MAP)
+	_draw_tag(mock_to_local(ResearchLab.tag_mock_point()), "LAB", HOTSPOT_LAB)
+	_draw_tag(mock_to_local(WarehouseVault.CENTER + WarehouseVault.floor_direction() * 74.0), "WAREHOUSE", HOTSPOT_WAREHOUSE)
+	_draw_tag(mock_to_local(MAGIC_STALL_RECT.get_center() + Vector2(0.0, 66.0)), "MAGIC STALL", HOTSPOT_MAGIC_STALL)
 
 
-func _draw_tag(center: Vector2, text: String, active: bool) -> void:
+## Opacity of a facility's name tag right now (0..1).
+func get_tag_alpha(hotspot: StringName) -> float:
+	return float(_tag_alpha.get(hotspot, 0.0))
+
+
+func _draw_tag(center: Vector2, text: String, hotspot: StringName) -> void:
+	var alpha := get_tag_alpha(hotspot)
+	if alpha <= 0.01:
+		return
+	center += Vector2(0.0, 8.0 * (1.0 - alpha))
 	text = tr(text)
 	var font := ThemeDB.fallback_font
 	var theme := ThemeDB.get_project_theme()
@@ -467,9 +490,8 @@ func _draw_tag(center: Vector2, text: String, active: bool) -> void:
 	var font_size := 22
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
 	var pill := Rect2(center - Vector2(text_size.x * 0.5 + 18.0, 20.0), Vector2(text_size.x + 36.0, 40.0))
-	Palette.draw_rounded_rect(self, pill, 20.0, Palette.ACCENT if active else Color(Palette.UI_PANEL, 0.9))
-	var ink := Palette.UI_PANEL if active else Palette.UI_TEXT
-	draw_string(font, Vector2(pill.position.x, center.y + 8.0), text, HORIZONTAL_ALIGNMENT_CENTER, pill.size.x, font_size, ink)
+	Palette.draw_rounded_rect(_live, pill, 20.0, Color(Palette.UI_PANEL, 0.9 * alpha))
+	_live.draw_string(font, Vector2(pill.position.x, center.y + 8.0), text, HORIZONTAL_ALIGNMENT_CENTER, pill.size.x, font_size, Color(Palette.UI_TEXT, alpha))
 
 
 ## Rock all around the hold (behind everything) and the mine tracks on it.

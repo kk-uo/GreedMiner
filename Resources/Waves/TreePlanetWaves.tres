@@ -1,0 +1,293 @@
+[gd_resource type="Resource" script_class="PlanetWaveConfig" format=3]
+
+[ext_resource type="Script" path="res://Scripts/Waves/EnemySpawnEntry.gd" id="entry"]
+[ext_resource type="Script" path="res://Scripts/Waves/WaveDefinition.gd" id="wave"]
+[ext_resource type="Script" path="res://Scripts/Waves/PlanetWaveConfig.gd" id="config"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/treant.tscn" id="treant"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/big_treant.tscn" id="big_treant"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/fairy.tscn" id="fairy"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/chainsaw_spaceship_treant.tscn" id="boss"]
+
+[sub_resource type="Resource" id="Entry_1_treant"]
+script = ExtResource("entry")
+enemy_id = &"treant"
+enemy_scene = ExtResource("treant")
+spawn_count = 4
+
+[sub_resource type="Resource" id="Entry_1_fairy"]
+script = ExtResource("entry")
+enemy_id = &"fairy"
+enemy_scene = ExtResource("fairy")
+spawn_count = 1
+
+[sub_resource type="Resource" id="Wave_1"]
+script = ExtResource("wave")
+wave_number = 1
+spawn_interval = 2.0
+spawn_phase_duration = 18.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_1_treant"), SubResource("Entry_1_fairy")])
+
+[sub_resource type="Resource" id="Entry_2_treant"]
+script = ExtResource("entry")
+enemy_id = &"treant"
+enemy_scene = ExtResource("treant")
+spawn_count = 5
+
+[sub_resource type="Resource" id="Entry_2_fairy"]
+script = ExtResource("entry")
+enemy_id = &"fairy"
+enemy_scene = ExtResource("fairy")
+spawn_count = 1
+
+[sub_resource type="Resource" id="Wave_2"]
+script = ExtResource("wave")
+wave_number = 2
+spawn_interval = 2.0
+spawn_phase_duration = 20.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_2_treant"), SubResource("Entry_2_fairy")])
+
+[sub_resource type="Resource" id="Entry_3_treant"]
+script = ExtResource("entry")
+enemy_id = &"treant"
+enemy_scene = ExtResource("treant")
+spawn_count = 6
+
+[sub_resource type="Resource" id="Entry_3_big_treant"]
+script = ExtResource("entry")
+enemy_id = &"big_treant"
+enemy_scene = ExtResource("big_treant")
+spawn_count = 1
+
+[sub_resource type="Resource" id="Entry_3_fairy"]
+script = ExtResource("entry")
+enemy_id = &"fairy"
+enemy_scene = ExtResource("fairy")
+spawn_count = 1
+
+[sub_resource type="Resource" id="Wave_3"]
+script = ExtResource("wave")
+wave_number = 3
+spawn_interval = 2.0
+spawn_phase_duration = 22.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_3_treant"), SubResource("Entry_3_big_treant"), SubResource("Entry_3_fairy")])
+
+[sub_resource type="Resource" id="Entry_4_treant"]
+script = ExtResource("entry")
+enemy_id = &"treant"
+enemy_scene = ExtResource("treant")
+spawn_count = 7
+
+[sub_resource type="Resource" id="Entry_4_big_treant"]
+script = ExtResource("entry")
+enemy_id = &"big_treant"
+enemy_scene = ExtResource("big_treant")
+spawn_count = 1
+
+[sub_resource type="Resource" id="Entry_4_fairy"]
+script = ExtResource("entry")
+enemy_id = &"fairy"
+enemy_scene = ExtResource("fairy")
+spawn_count = 2
+
+[sub_resource type="Resource" id="Wave_4"]
+script = ExtResource("wave")
+wave_number = 4
+spawn_interval = 1.5
+spawn_phase_duration = 24.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_4_treant"), SubResource("Entry_4_big_treant"), SubResource("Entry_4_fairy")])
+
+[sub_resource type="Resource" id="Entry_5_treant"]
+script = ExtResource("entry")
+enemy_id = &"treant"
+enemy_scene = ExtResource("treant")
+spawn_count = 8
+
+[sub_resource type="Resource" id="Entry_5_big_treant"]
+script = ExtResource("entry")
+enemy_id = &"big_treant"
+enemy_scene = ExtResource("big_treant")
+spawn_count = 2
+
+[sub_resource type="Resource" id="Entry_5_fairy"]
+script = ExtResource("entry")
+enemy_id = &"fairy"
+enemy_scene = ExtResource("fairy")
+spawn_count = 2
+
+[sub_resource type="Resource" id="Wave_5"]
+script = ExtResource("wave")
+wave_number = 5
+spawn_interval = 1.5
+spawn_phase_duration = 26.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_5_treant"), SubResource("Entry_5_big_treant"), SubResource("Entry_5_fairy")])
+
+[sub_resource type="Resource" id="Entry_6_treant"]
+script = ExtResource("entry")
+enemy_id = &"treant"
+enemy_scene = ExtResource("treant")
+spawn_count = 9
+
+[sub_resource type="Resource" id="Entry_6_big_treant"]
+script = ExtResource("entry")
+enemy_id = &"big_treant"
+enemy_scene = ExtResource("big_treant")
+spawn_count = 2
+
+[sub_resource type="Resource" id="Entry_6_fairy"]
+script = ExtResource("entry")
+enemy_id = &"fairy"
+enemy_scene = ExtResource("fairy")
+spawn_count = 2
+
+[sub_resource type="Resource" id="Wave_6"]
+script = ExtResource("wave")
+wave_number = 6
+spawn_interval = 1.5
+spawn_phase_duration = 28.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_6_treant"), SubResource("Entry_6_big_treant"), SubResource("Entry_6_fairy")])
+
+[sub_resource type="Resource" id="Entry_7_treant"]
+script = ExtResource("entry")
+enemy_id = &"treant"
+enemy_scene = ExtResource("treant")
+spawn_count = 10
+
+[sub_resource type="Resource" id="Entry_7_big_treant"]
+script = ExtResource("entry")
+enemy_id = &"big_treant"
+enemy_scene = ExtResource("big_treant")
+spawn_count = 3
+
+[sub_resource type="Resource" id="Entry_7_fairy"]
+script = ExtResource("entry")
+enemy_id = &"fairy"
+enemy_scene = ExtResource("fairy")
+spawn_count = 3
+
+[sub_resource type="Resource" id="Wave_7"]
+script = ExtResource("wave")
+wave_number = 7
+spawn_interval = 1.5
+spawn_phase_duration = 30.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_7_treant"), SubResource("Entry_7_big_treant"), SubResource("Entry_7_fairy")])
+
+[sub_resource type="Resource" id="Entry_8_treant"]
+script = ExtResource("entry")
+enemy_id = &"treant"
+enemy_scene = ExtResource("treant")
+spawn_count = 11
+
+[sub_resource type="Resource" id="Entry_8_big_treant"]
+script = ExtResource("entry")
+enemy_id = &"big_treant"
+enemy_scene = ExtResource("big_treant")
+spawn_count = 3
+
+[sub_resource type="Resource" id="Entry_8_fairy"]
+script = ExtResource("entry")
+enemy_id = &"fairy"
+enemy_scene = ExtResource("fairy")
+spawn_count = 3
+
+[sub_resource type="Resource" id="Wave_8"]
+script = ExtResource("wave")
+wave_number = 8
+spawn_interval = 1.5
+spawn_phase_duration = 32.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_8_treant"), SubResource("Entry_8_big_treant"), SubResource("Entry_8_fairy")])
+
+[sub_resource type="Resource" id="Entry_9_treant"]
+script = ExtResource("entry")
+enemy_id = &"treant"
+enemy_scene = ExtResource("treant")
+spawn_count = 12
+
+[sub_resource type="Resource" id="Entry_9_big_treant"]
+script = ExtResource("entry")
+enemy_id = &"big_treant"
+enemy_scene = ExtResource("big_treant")
+spawn_count = 4
+
+[sub_resource type="Resource" id="Entry_9_fairy"]
+script = ExtResource("entry")
+enemy_id = &"fairy"
+enemy_scene = ExtResource("fairy")
+spawn_count = 4
+
+[sub_resource type="Resource" id="Wave_9"]
+script = ExtResource("wave")
+wave_number = 9
+spawn_interval = 1.5
+spawn_phase_duration = 34.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_9_treant"), SubResource("Entry_9_big_treant"), SubResource("Entry_9_fairy")])
+
+[sub_resource type="Resource" id="Entry_10_treant"]
+script = ExtResource("entry")
+enemy_id = &"treant"
+enemy_scene = ExtResource("treant")
+spawn_count = 4
+
+[sub_resource type="Resource" id="Entry_10_big_treant"]
+script = ExtResource("entry")
+enemy_id = &"big_treant"
+enemy_scene = ExtResource("big_treant")
+spawn_count = 1
+
+[sub_resource type="Resource" id="Entry_10_fairy"]
+script = ExtResource("entry")
+enemy_id = &"fairy"
+enemy_scene = ExtResource("fairy")
+spawn_count = 1
+
+[sub_resource type="Resource" id="Entry_10_chainsaw_spaceship_treant"]
+script = ExtResource("entry")
+enemy_id = &"chainsaw_spaceship_treant"
+enemy_scene = ExtResource("boss")
+spawn_count = 1
+is_boss = true
+
+[sub_resource type="Resource" id="Wave_10"]
+script = ExtResource("wave")
+wave_number = 10
+spawn_interval = 1.5
+spawn_phase_duration = 30.0
+batch_spawning_enabled = true
+interleave_enemy_types = true
+wait_for_spawn_phase_end = true
+boss_wave = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_10_treant"), SubResource("Entry_10_big_treant"), SubResource("Entry_10_fairy"), SubResource("Entry_10_chainsaw_spaceship_treant")])
+
+[resource]
+script = ExtResource("config")
+planet_id = &"tree_planet"
+display_name = "Tree Planet"
+inter_wave_delay = 5.0
+waves = Array[ExtResource("wave")]([SubResource("Wave_1"), SubResource("Wave_2"), SubResource("Wave_3"), SubResource("Wave_4"), SubResource("Wave_5"), SubResource("Wave_6"), SubResource("Wave_7"), SubResource("Wave_8"), SubResource("Wave_9"), SubResource("Wave_10")])
+

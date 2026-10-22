@@ -1,5 +1,6 @@
 extends Node2D
 
+const SAVE := preload("res://Tests/TestSave.gd")
 const GUN := "res://Scenes/Modules/Weapons/MachineGun/machine_gun.tscn"
 const MINER := "res://Scenes/Modules/Mining/mining_module.tscn"
 var failures: Array[String] = []
@@ -12,10 +13,7 @@ func check(condition: bool, message: String) -> void:
 		failures.append(message)
 
 func _run() -> void:
-	ProgressionStore.set_save_path_for_testing("user://angry_stone_test.json")
-	ProgressionStore.reset_all_progress()
-	ShipLoadout.load_saved()
-	ArtifactManager.reload_progress()
+	SAVE.isolate("angry_stone")
 	ArtifactManager.set_equipment_changes_enabled(true)
 	ResourceManager.current_expedition_planet_id = &"rocky_planet"
 	check(ArtifactManager.get_unowned_mining_chest_artifacts().size() == 1, "chest pool")
@@ -57,6 +55,7 @@ func _run() -> void:
 	chest2.open()
 	check(is_equal_approx(ResourceManager.mission_ore - ore_before, 250.0), "empty pool returns ore")
 	ShipLoadout.install_module(0, 0, GUN)
+	ResearchManager.progress.levels["weapon_damage.machine_gun"] = 10
 	ResearchManager.progress.levels["ship_magic_slot_1"] = 1
 	check(not ArtifactManager.equip_ship_artifact(0, &"angry_stone"), "ship incompatible")
 	check(ArtifactManager.equip_module_artifact(Vector2i(0, 0), &"angry_stone"), "weapon equip")

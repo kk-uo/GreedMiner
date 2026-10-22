@@ -9,7 +9,7 @@ extends Control
 ## Load with preload(); no class_name on purpose.
 
 const ARTIFACT_VISUAL := preload("res://Scripts/UI/Artifacts/ArtifactVisual.gd")
-const HOLD: float = 5.5
+const HOLD: float = 7.5
 const WIDTH: float = 520.0
 
 var definition: MagicArtifactDefinition

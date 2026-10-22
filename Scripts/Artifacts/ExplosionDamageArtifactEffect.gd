@@ -12,7 +12,7 @@ func configure_module(target_module: ShipModule) -> void:
 
 func _ready() -> void:
 	if is_instance_valid(module):
-		module.artifact_explosion_damage_bonus = _get_bonus
+		module.add_artifact_explosion_damage_bonus(Callable(self, "_get_bonus"))
 		# Presentation: particles under the equipped module.
 		_aura = WEAPON_ARTIFACT_AURA.new()
 		_aura.set("kind", definition.artifact_id)
@@ -25,8 +25,8 @@ func _get_bonus() -> float:
 
 
 func cleanup() -> void:
-	if is_instance_valid(module) and module.artifact_explosion_damage_bonus == Callable(self, "_get_bonus"):
-		module.artifact_explosion_damage_bonus = Callable()
+	if is_instance_valid(module):
+		module.remove_artifact_explosion_damage_bonus(Callable(self, "_get_bonus"))
 	if is_instance_valid(_aura):
 		_aura.queue_free()
 	queue_free()

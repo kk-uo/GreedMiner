@@ -82,6 +82,19 @@ func _run() -> void:
 		if not field.get_world_bounds().has_point(p):
 			inside = false
 	check(inside, "every grave is inside the map")
+	var tombs := field.get_interactables_root().get_node("GraveyardTombstones")
+	var proxy: Node2D = tombs.get_child(0)
+	var stone_count: int = tombs.get("stones").size()
+	var emerge_count := field.get_grave_emerge_points().size()
+	check(field.get_diggable_graves_in(proxy.global_position, 1.0).has(proxy), "original tombstone is available to miners")
+	var site := preload("res://Scripts/Battle/Graveyard/GraveDigSite.gd").new()
+	field.get_interactables_root().add_child(site)
+	var selected: Array[Node2D] = [proxy]
+	site.setup(selected)
+	check(not field.get_diggable_graves_in(proxy.global_position, 1.0).has(proxy), "claimed tombstone cannot be claimed twice")
+	site.advance_mining(site.dig_duration())
+	check(tombs.get("stones").size() == stone_count - 1, "digging removes original tombstone")
+	check(field.get_grave_emerge_points().size() == emerge_count - 1, "removed tombstone cannot summon")
 	field.generate(4242)
 	check(field.world_size == size_before + Vector2(200.0, 200.0), "regenerating does not grow the map twice")
 	field.planet_theme = &"rocky"

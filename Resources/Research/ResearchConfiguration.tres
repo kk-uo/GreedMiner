@@ -60,7 +60,7 @@ script = ExtResource("1_category")
 category_id = &"chips"
 display_name = "Chips"
 description = "Craft and upgrade universal module chips."
-implemented = true
+enabled = false
 
 [sub_resource type="Resource" id="Cost_MachineGun"]
 script = ExtResource("2_cost")
@@ -74,19 +74,19 @@ script = ExtResource("3_damage_effect")
 [sub_resource type="Resource" id="Milestone_MachineGun_Level10"]
 script = ExtResource("6_milestone")
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks 1 Weapon Chip Slot"
+display_text = "Unlocks 1 Weapon Artifact Slot"
 
 [sub_resource type="Resource" id="Milestone_MachineGun_Level20"]
 script = ExtResource("6_milestone")
 target_level = 20
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks Weapon Chip Slot 2"
+display_text = "Unlocks Weapon Artifact Slot 2"
 
 [sub_resource type="Resource" id="Milestone_MachineGun_Level30"]
 script = ExtResource("6_milestone")
 target_level = 30
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks Weapon Chip Slot 3"
+display_text = "Unlocks Weapon Artifact Slot 3"
 
 [sub_resource type="Resource" id="Definition_MachineGun"]
 script = ExtResource("4_definition")
@@ -113,19 +113,19 @@ script = ExtResource("3_damage_effect")
 [sub_resource type="Resource" id="Milestone_DwarfCannon_Level10"]
 script = ExtResource("6_milestone")
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks 1 Weapon Chip Slot"
+display_text = "Unlocks 1 Weapon Artifact Slot"
 
 [sub_resource type="Resource" id="Milestone_DwarfCannon_Level20"]
 script = ExtResource("6_milestone")
 target_level = 20
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks Weapon Chip Slot 2"
+display_text = "Unlocks Weapon Artifact Slot 2"
 
 [sub_resource type="Resource" id="Milestone_DwarfCannon_Level30"]
 script = ExtResource("6_milestone")
 target_level = 30
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks Weapon Chip Slot 3"
+display_text = "Unlocks Weapon Artifact Slot 3"
 
 [sub_resource type="Resource" id="Definition_DwarfCannon"]
 script = ExtResource("4_definition")
@@ -153,19 +153,19 @@ script = ExtResource("3_damage_effect")
 [sub_resource type="Resource" id="Milestone_Laser_Level10"]
 script = ExtResource("6_milestone")
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks 1 Weapon Chip Slot"
+display_text = "Unlocks 1 Weapon Artifact Slot"
 
 [sub_resource type="Resource" id="Milestone_Laser_Level20"]
 script = ExtResource("6_milestone")
 target_level = 20
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks Weapon Chip Slot 2"
+display_text = "Unlocks Weapon Artifact Slot 2"
 
 [sub_resource type="Resource" id="Milestone_Laser_Level30"]
 script = ExtResource("6_milestone")
 target_level = 30
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks Weapon Chip Slot 3"
+display_text = "Unlocks Weapon Artifact Slot 3"
 
 [sub_resource type="Resource" id="Definition_Laser"]
 script = ExtResource("4_definition")
@@ -193,19 +193,19 @@ script = ExtResource("3_damage_effect")
 [sub_resource type="Resource" id="Milestone_Chainsaw_Level10"]
 script = ExtResource("6_milestone")
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks 1 Weapon Chip Slot"
+display_text = "Unlocks 1 Weapon Artifact Slot"
 
 [sub_resource type="Resource" id="Milestone_Chainsaw_Level20"]
 script = ExtResource("6_milestone")
 target_level = 20
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks Weapon Chip Slot 2"
+display_text = "Unlocks Weapon Artifact Slot 2"
 
 [sub_resource type="Resource" id="Milestone_Chainsaw_Level30"]
 script = ExtResource("6_milestone")
 target_level = 30
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks Weapon Chip Slot 3"
+display_text = "Unlocks Weapon Artifact Slot 3"
 
 [sub_resource type="Resource" id="Definition_Chainsaw"]
 script = ExtResource("4_definition")
@@ -233,19 +233,19 @@ script = ExtResource("3_damage_effect")
 [sub_resource type="Resource" id="Milestone_Flamethrower_Level10"]
 script = ExtResource("6_milestone")
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks 1 Weapon Chip Slot"
+display_text = "Unlocks 1 Weapon Artifact Slot"
 
 [sub_resource type="Resource" id="Milestone_Flamethrower_Level20"]
 script = ExtResource("6_milestone")
 target_level = 20
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks Weapon Chip Slot 2"
+display_text = "Unlocks Weapon Artifact Slot 2"
 
 [sub_resource type="Resource" id="Milestone_Flamethrower_Level30"]
 script = ExtResource("6_milestone")
 target_level = 30
 weapon_chip_slots_unlocked = 1
-display_text = "Unlocks Weapon Chip Slot 3"
+display_text = "Unlocks Weapon Artifact Slot 3"
 
 [sub_resource type="Resource" id="Definition_Flamethrower"]
 script = ExtResource("4_definition")
@@ -275,26 +275,26 @@ stat_id = &"shockwave_damage"
 script = ExtResource("6_milestone")
 target_level = 10
 module_chip_slots_unlocked = 1
-display_text = "Unlocks Knockback Chip Slot 1"
+display_text = "Unlocks Knockback Artifact Slot 1"
 
 [sub_resource type="Resource" id="Milestone_Knockback_Level20"]
 script = ExtResource("6_milestone")
 target_level = 20
 module_chip_slots_unlocked = 1
-display_text = "Unlocks Knockback Chip Slot 2"
+display_text = "Unlocks Knockback Artifact Slot 2"
 
 [sub_resource type="Resource" id="Milestone_Knockback_Level30"]
 script = ExtResource("6_milestone")
 target_level = 30
 module_chip_slots_unlocked = 1
-display_text = "Unlocks Knockback Chip Slot 3"
+display_text = "Unlocks Knockback Artifact Slot 3"
 
 [sub_resource type="Resource" id="Definition_KnockbackResearch"]
 script = ExtResource("4_definition")
 research_id = &"shield_power.knockback_module"
 category_id = &"shield"
 display_name = "Knockback Shockwave"
-description = "Each level adds 20% of the original Knockback shockwave damage. Levels 10, 20 and 30 unlock module chip slots."
+description = "Each level adds 20% of the original Knockback shockwave damage. Levels 10, 20 and 30 unlock module artifact slots."
 max_level = 30
 cost_configuration = SubResource("Cost_KnockbackResearch")
 target_id = &"knockback_module"
@@ -317,26 +317,26 @@ stat_id = &"healing_amount"
 script = ExtResource("6_milestone")
 target_level = 10
 module_chip_slots_unlocked = 1
-display_text = "Unlocks Regeneration Chip Slot 1"
+display_text = "Unlocks Regeneration Artifact Slot 1"
 
 [sub_resource type="Resource" id="Milestone_Regeneration_Level20"]
 script = ExtResource("6_milestone")
 target_level = 20
 module_chip_slots_unlocked = 1
-display_text = "Unlocks Regeneration Chip Slot 2"
+display_text = "Unlocks Regeneration Artifact Slot 2"
 
 [sub_resource type="Resource" id="Milestone_Regeneration_Level30"]
 script = ExtResource("6_milestone")
 target_level = 30
 module_chip_slots_unlocked = 1
-display_text = "Unlocks Regeneration Chip Slot 3"
+display_text = "Unlocks Regeneration Artifact Slot 3"
 
 [sub_resource type="Resource" id="Definition_RegenerationResearch"]
 script = ExtResource("4_definition")
 research_id = &"shield_power.regeneration_module"
 category_id = &"shield"
 display_name = "Regeneration Healing"
-description = "Each level adds 20% of the original healing per pulse. Levels 10, 20 and 30 unlock module chip slots."
+description = "Each level adds 20% of the original healing per pulse. Levels 10, 20 and 30 unlock module artifact slots."
 max_level = 30
 cost_configuration = SubResource("Cost_RegenerationResearch")
 target_id = &"regeneration_module"
@@ -347,7 +347,7 @@ implemented = true
 
 [sub_resource type="Resource" id="Cost_EnergyInstallSlot"]
 script = ExtResource("2_cost")
-base_upgrade_cost = 300
+base_upgrade_cost = 0
 linear_cost_coefficient = 0
 quadratic_cost_coefficient = 0
 

@@ -6,6 +6,7 @@ extends Area2D
 @export var speed: float = 300.0
 @export var damage: float = 5.0
 @export var maximum_lifetime: float = 3.0
+@export var debug_hit_logging: bool = false
 
 var direction: Vector2 = Vector2.RIGHT
 var target_ship: Ship
@@ -47,4 +48,5 @@ func _on_area_entered(area: Area2D) -> void:
 
 ## Presentation/log hook for projectile families.
 func _on_ship_hit() -> void:
-	print("Hostile projectile hit! Damage: %s" % damage)
+	if debug_hit_logging:
+		print("Hostile projectile hit! Damage: %s" % damage)

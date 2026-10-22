@@ -6,8 +6,8 @@ extends Node2D
 ## - skeleton: blows apart - a flash, bones and skull fly out spinning,
 ##             bounce once and clatter to rest
 ## - vampire:  bursts into a swarm of bats that scatter and fly off
-## - werewolf: a last howl of ice-blue moonlight rings; the body dissolves
-##             into silver sparkles
+## - werewolf: the body swells and twitches, then bursts - a spray of blood,
+##             fur-and-meat chunks fly and bounce, splats and a pool stay
 ## The enemy's own art (UndeadVisual) stays for the first moments and is
 ## faded / sunk per kind. One batched draw per frame. Presentation only.
 ## Load with preload(); no class_name on purpose.
@@ -24,6 +24,12 @@ const V_RED := Color("FF4A7A")
 const BLOOD_LIT := Color("8E1C36")
 const W_FUR: Array[Color] = [Color("464A56"), Color("7A8090"), Color("B8BECB")]
 const W_EYE := Color("7FD8FF")
+const BLOOD_DARK := Color("4E0B16")
+const BLOOD := Color("8E1626")
+const BLOOD_RED := Color("C42A33")
+const MEAT := Color("B8545A")
+## Werewolf: when the swollen body bursts.
+const BURST_AT: float = 0.22
 const DIRT := Color("3A3128")
 const DIRT_LIGHT := Color("5A4A38")
 const HOLE := Color("15110E")
@@ -116,6 +122,13 @@ func _update_body() -> void:
 		&"vampire":
 			gone = smoothstep(0.0, 0.3, _age)
 			grow = 1.0 + 0.3 * gone
+		&"werewolf":
+			# Swells, flushes red and twitches, then pops.
+			var swell := smoothstep(0.0, BURST_AT, _age)
+			gone = 1.0 if _age >= BURST_AT else 0.0
+			grow = 1.0 + 0.3 * swell
+			tint = Color.WHITE.lerp(Color(1.5, 0.55, 0.55), swell)
+			shift = Vector2(sin(_age * 95.0), cos(_age * 77.0)) * 1.6 * swell
 		_:
 			gone = smoothstep(0.25, 1.0, _age)
 			tint = Color.WHITE.lerp(Color(0.75, 0.95, 1.2), gone)
@@ -132,7 +145,7 @@ func _draw() -> void:
 	match kind:
 		&"skeleton": _bone_burst(c, r0, fade)
 		&"vampire": _bat_swarm(c, r0, fade)
-		&"werewolf": _moon_howl(c, r0, fade)
+		&"werewolf": _blood_burst(c, r0, fade)
 		_: _sink(c, r0, fade)
 	c.flush_to(self)
 
@@ -298,24 +311,76 @@ func _bat_swarm(c: Object, r0: float, fade: float) -> void:
 		_bat(c, p, r0 * 0.4 * float(bit["r"]), _age * 22.0 + float(bit["phase"]), dir.angle(), V_CAPE[1], alpha)
 
 
-## Werewolf: a last howl - ice-blue moonlight rings - and the body dissolves
-## into silver sparkles.
-func _moon_howl(c: Object, r0: float, fade: float) -> void:
-	for ring in range(3):
-		var t := clampf((_age - 0.15 * float(ring)) / 0.9, 0.0, 1.0)
-		if t > 0.0 and t < 1.0:
-			c.draw_arc(Vector2.ZERO, r0 * lerpf(0.9, 2.3, _out(t)), 0.0, TAU, 32, Color(W_EYE, 0.65 * (1.0 - t)), 2.6 * (1.0 - t) + 0.8)
-	var dissolve := smoothstep(0.2, 1.2, _age)
+## Werewolf: the swollen body bursts - a red flash and mist, blood drops
+## arc out and land as splats, fur-and-meat chunks spin out and bounce, and a
+## pool spreads where it stood. Everything lies there, then fades.
+func _blood_burst(c: Object, r0: float, fade: float) -> void:
+	var t0 := _age - BURST_AT
+	if t0 < 0.0:
+		return
+	# Pool spreading under the body.
+	var pool := _out(t0 / 0.6)
+	c.draw_colored_polygon(_blob(Vector2.ZERO, Vector2(r0 * 1.5, r0 * 1.15) * pool, 1.7, 13), Color(BLOOD_DARK, 0.92 * fade))
+	c.draw_colored_polygon(_blob(Vector2(-r0 * 0.15, -r0 * 0.12), Vector2(r0 * 1.05, r0 * 0.75) * pool, 3.1, 11), Color(BLOOD, fade))
+	c.draw_colored_polygon(_blob(Vector2(-r0 * 0.4, -r0 * 0.3), Vector2(r0 * 0.35, r0 * 0.2) * pool, 0.6, 8), Color(BLOOD_RED, 0.8 * fade))
+	# Splats where the drops landed (under the flying bits).
+	for bit in _bits:
+		var dir: Vector2 = bit["dir"]
+		var land: Vector2 = dir * r0 * 2.9 * float(bit["dist"])
+		var t := (t0 - float(bit["delay"]) * 0.3) / 0.32
+		if t < 1.0:
+			continue
+		var spread := _out((t - 1.0) * 3.0)
+		var long := Vector2(r0 * 0.5, r0 * 0.28) * float(bit["r"]) * spread
+		var splat := _blob(Vector2.ZERO, long, float(bit["phase"]), 9)
+		var placed := PackedVector2Array()
+		for q in splat:
+			placed.append(land + q.rotated(dir.angle()))
+		c.draw_colored_polygon(placed, Color(BLOOD, fade))
+		c.draw_circle(land + dir * r0 * 0.75 * spread, r0 * 0.12 * float(bit["r"]), Color(BLOOD, fade))
+		c.draw_circle(land - dir * r0 * 0.1 + dir.orthogonal() * r0 * 0.08, r0 * 0.12 * spread, Color(BLOOD_RED, 0.7 * fade))
+	# Flash and red mist.
+	if t0 < 0.16:
+		var t := t0 / 0.16
+		c.draw_circle(Vector2.ZERO, r0 * lerpf(0.9, 1.6, t), Color(BLOOD_RED, 0.75 * (1.0 - t)))
+		c.draw_circle(Vector2.ZERO, r0 * lerpf(0.5, 0.9, t), Color(1.0, 0.8, 0.75, 0.6 * (1.0 - t)))
+	if t0 < 0.6:
+		var t := t0 / 0.6
+		for k in range(9):
+			var a := TAU * float(k) / 9.0 + 0.4
+			c.draw_circle(Vector2.RIGHT.rotated(a) * r0 * 2.0 * _out(t), r0 * (0.5 - 0.3 * t), Color(BLOOD_RED, 0.4 * (1.0 - t)))
+	# Drops in flight with a short streak behind them.
 	for bit in _bits:
 		for k in range(2):
-			var t := clampf((_age - 0.2 - float(bit["delay"]) - 0.2 * float(k)) / 1.4, 0.0, 1.0)
+			var dir: Vector2 = Vector2(bit["dir"]).rotated(0.3 * float(k))
+			var reach := r0 * 2.9 * float(bit["dist"]) * (1.0 if k == 0 else 0.65)
+			var t := (t0 - float(bit["delay"]) * 0.3) / 0.32
 			if t <= 0.0 or t >= 1.0:
 				continue
-			var p: Vector2 = Vector2(bit["dir"]).rotated(float(k)) * r0 * 0.8 * float(bit["dist"]) + Vector2(sin(t * 6.0 + float(bit["phase"])) * 2.5, -r0 * 2.5 * t)
-			var tw := 0.5 + 0.5 * sin(_age * 18.0 + float(bit["phase"]) * 3.0)
-			var arm := r0 * 0.22 * (1.0 - t) * (0.6 + 0.4 * tw)
-			c.draw_line(p - Vector2(arm, 0), p + Vector2(arm, 0), Color(SOUL_CORE, sin(PI * t)), 1.2)
-			c.draw_line(p - Vector2(0, arm), p + Vector2(0, arm), Color(SOUL_CORE, sin(PI * t)), 1.2)
-			c.draw_circle(p, arm * 0.35, Color(W_EYE, sin(PI * t)))
-	# Fur left on the ground.
-	c.draw_colored_polygon(_blob(Vector2.ZERO, Vector2(r0 * 0.8, r0 * 0.5) * dissolve, 2.4, 9), Color(W_FUR[0], 0.7 * fade))
+			var p := dir * reach * _out(t) + Vector2(0, -sin(PI * t) * reach * 0.3)
+			var back := dir * reach * _out(maxf(t - 0.12, 0.0)) + Vector2(0, -sin(PI * maxf(t - 0.12, 0.0)) * reach * 0.3)
+			c.draw_line(back, p, Color(BLOOD, 0.9), r0 * 0.16)
+			c.draw_circle(p, r0 * 0.11 * float(bit["r"]), BLOOD_RED)
+	# Fur-and-meat chunks: spin out, bounce once, lie there.
+	for index in range(0, _bits.size(), 2):
+		var bit: Dictionary = _bits[index]
+		var dir: Vector2 = Vector2(bit["dir"]).rotated(0.5)
+		var reach := r0 * 2.3 * float(bit["dist"])
+		var fly := 0.38
+		var t := clampf((t0 - float(bit["delay"]) * 0.2) / fly, 0.0, 1.0)
+		var hop := clampf((t0 - float(bit["delay"]) * 0.2 - fly) / 0.2, 0.0, 1.0)
+		var p := dir * (reach * _out(t) + r0 * 0.45 * _out(hop))
+		p.y -= sin(PI * t) * reach * 0.45 + sin(PI * hop) * r0 * 0.35
+		var rot: float = float(bit["rot"]) + float(bit["spin"]) * 2.0 * (minf(t0, fly) + 0.3 * minf(maxf(t0 - fly, 0.0), 0.2))
+		var sz := r0 * 0.4 * float(bit["r"])
+		var chunk := PackedVector2Array()
+		for q in [Vector2(-1.0, -0.7), Vector2(0.4, -1.0), Vector2(1.1, -0.1), Vector2(0.6, 0.9), Vector2(-0.8, 0.7)]:
+			chunk.append(p + (q as Vector2).rotated(rot) * sz)
+		var shadow := PackedVector2Array()
+		for q in chunk:
+			shadow.append(q + Vector2(1.2, 1.6))
+		c.draw_colored_polygon(shadow, Color(0, 0, 0, 0.25 * fade))
+		var fur: Color = W_FUR[1] if index % 4 == 0 else W_FUR[0]
+		c.draw_colored_polygon(chunk, Color(fur, fade))
+		c.draw_circle(p + Vector2(0.45, 0.25).rotated(rot) * sz, sz * 0.55, Color(MEAT, fade))
+		c.draw_circle(p + Vector2(0.55, 0.3).rotated(rot) * sz, sz * 0.28, Color(BLOOD_RED, fade))

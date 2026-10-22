@@ -42,6 +42,7 @@ func _run() -> void:
 	check(not ArtifactManager.grant_artifact(&"goblin_horn"), "horn is unique")
 	ShipLoadout.install_module(0, 0, GUN)
 	ShipLoadout.install_module(0, 1, GUN)
+	ResearchManager.progress.levels["weapon_damage.machine_gun"] = 10
 	check(ArtifactManager.equip_module_artifact(Vector2i(0, 0), &"goblin_horn"), "equip horn")
 	check(ArtifactManager.equip_module_artifact(Vector2i(0, 1), &"goblin_flag"), "equip flag")
 	ProgressionStore.reload_from_disk()

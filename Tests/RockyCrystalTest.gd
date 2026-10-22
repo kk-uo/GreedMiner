@@ -44,6 +44,11 @@ func _run() -> void:
 	field.red_crystal_chance = 0.0
 	field.generate(12345)
 	crystals = field.get_interactables_root().get_node("RockyCrystals")
+	for seed_value in [1, 42, 12345, 98765]:
+		field.generate(seed_value)
+		check(field._deposits.size() >= 2, "Rocky seed %d has at least two crystal deposits" % seed_value)
+	field.generate(12345)
+	crystals = field.get_interactables_root().get_node("RockyCrystals")
 	if crystals.get_child_count() > 0:
 		var ordinary := crystals.get_child(0)
 		check(not ordinary.get("is_red"), "ordinary crystal generated")
@@ -99,6 +104,7 @@ func _run() -> void:
 	check(ArtifactManager.grant_artifact(&"red_crystal"), "grant artifact directly to test existing effects")
 	WeaponUnlockManager.unlock_all_configured_weapons()
 	ShipLoadout.install_module(0, 0, "res://Scenes/Modules/Shield/knockback_module.tscn")
+	ResearchManager.progress.levels["shield_power.knockback_module"] = 10
 	check(ArtifactManager.equip_module_artifact(Vector2i(0, 0), &"red_crystal"), "equip red crystal on knockback")
 	ArtifactManager.reload_progress()
 	check(ArtifactManager.get_module_artifact(Vector2i(0, 0)) == &"red_crystal", "knockback artifact persists")
@@ -108,8 +114,10 @@ func _run() -> void:
 	var knockback := test_ship.get_module_at(0, 0) as KnockbackModule
 	check(knockback != null, "knockback restored on ship")
 	if knockback != null:
+		var researched_damage := knockback.get_effective_damage()
+		var artifact_damage := researched_damage * 1.5
 		ArtifactManager.attach_battle_effects(test_ship)
-		check(is_equal_approx(knockback.get_effective_damage(), 37.5), "equipped knockback damage boosted by 50 percent")
+		check(is_equal_approx(knockback.get_effective_damage(), artifact_damage), "equipped knockback damage boosted by 50 percent")
 		check(is_equal_approx(knockback.get_effective_splash_radius(), 64.0), "artifact does not change splash radius")
 		var victim := load("res://Scenes/Enemies/little_rock.tscn").instantiate() as BasicEnemy
 		victim.max_health = 100.0
@@ -117,9 +125,9 @@ func _run() -> void:
 		victim.global_position = Vector2(6000, 6000)
 		await get_tree().physics_frame
 		knockback._activate(victim, test_ship)
-		check(is_equal_approx(victim.get_current_health(), 62.5), "knockback shockwave deals boosted damage")
+		check(is_equal_approx(victim.get_current_health(), maxf(100.0 - artifact_damage, 0.0)), "knockback shockwave deals boosted damage")
 		ArtifactManager.clear_battle_effects(test_ship)
-		check(is_equal_approx(knockback.get_effective_damage(), 25.0), "knockback effect cleanup restores damage")
+		check(is_equal_approx(knockback.get_effective_damage(), researched_damage), "knockback effect cleanup restores damage")
 	if failures.is_empty():
 		print("ROCKY_CRYSTAL_TEST: PASS")
 		get_tree().quit(0)

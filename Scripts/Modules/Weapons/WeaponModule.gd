@@ -16,19 +16,23 @@ signal projectile_hit(enemy: BasicEnemy, actual_damage: float)
 ## Future weapon scenes can override this value independently.
 @export var power_consumption: int = 1
 
-## Stable ID used by global research and future chip effect providers.
+## Stable ID used by global research and magic-artifact compatibility.
 @export var weapon_type_id: StringName
+
+## Group scans are staggered; a valid locked target is still tracked each frame.
+@export_range(0.0, 1.0, 0.01) var target_search_interval: float = 0.2
+const TARGET_SEARCH_SCHEDULE := preload("res://Scripts/Modules/Weapons/TargetSearchSchedule.gd")
+var _target_search_schedule := TARGET_SEARCH_SCHEDULE.new()
 
 var damage: float:
 	get:
 		return get_damage()
 
-## A battle artifact can provide an instance-local additive fire-rate ratio.
-var artifact_fire_rate_bonus: Callable
-## A battle artifact can provide an instance-local additive attack-range ratio.
-var artifact_range_bonus: Callable
-## Optional per-shot penetration count supplied by an equipped artifact.
-var artifact_projectile_pierces: Callable
+## Multiple equipped artifacts may contribute to the same stat. Provider lists
+## prevent one artifact from overwriting another when all three slots are used.
+var artifact_fire_rate_bonuses: Array[Callable] = []
+var artifact_range_bonuses: Array[Callable] = []
+var artifact_projectile_pierce_bonuses: Array[Callable] = []
 var fire_rate: float:
 	get:
 		return get_fire_rate()
@@ -46,67 +50,92 @@ func get_power_consumption() -> int:
 	return maxi(power_consumption, 0)
 
 
-## Applies permanent research and configured chip modifiers to an untouched
-## base damage value. Effective values never mutate the exported base stats.
+## Applies permanent research to an untouched base damage value. Artifact
+## behavior is supplied by independent runtime effect nodes.
 func get_modified_damage(base_damage: float) -> float:
 	var modifiers: Array[StatModifier] = ResearchManager.get_weapon_stat_modifiers(
 		weapon_type_id,
 		&"damage"
 	)
-	modifiers.append_array(ChipManager.get_stat_modifiers({
-		"stat_id": &"damage",
-		"weapon_type_id": weapon_type_id,
-		"weapon_instance": self,
-		"module_kind": get_chip_module_kind(),
-	}))
 	return StatModifierPipeline.calculate(&"damage", base_damage, modifiers)
 
 
-## Applies chip attack-frequency modifiers without changing stored intervals.
+## Applies equipped artifact attack-frequency modifiers.
 func get_modified_fire_rate(base_fire_rate: float) -> float:
-	var modifiers := ChipManager.get_stat_modifiers({
-		"stat_id": &"fire_rate",
-		"weapon_type_id": weapon_type_id,
-		"weapon_instance": self,
-		"module_kind": get_chip_module_kind(),
-	})
-	if artifact_fire_rate_bonus.is_valid():
+	var modifiers: Array[StatModifier] = []
+	var provider_index := 0
+	for provider in artifact_fire_rate_bonuses.duplicate():
+		if not provider.is_valid():
+			artifact_fire_rate_bonuses.erase(provider)
+			continue
 		var modifier := StatModifier.new()
-		modifier.source_id = &"equipped_magic_artifact"
+		# Each equipped artifact is an independent source. Reusing one source ID
+		# would make StatModifierPipeline intentionally replace the earlier slot.
+		modifier.source_id = StringName("equipped_magic_artifact_%d" % provider_index)
 		modifier.stat_id = &"fire_rate"
-		modifier.base_additive_ratio = maxf(float(artifact_fire_rate_bonus.call()), 0.0)
+		modifier.base_additive_ratio = maxf(float(provider.call()), 0.0)
 		modifiers.append(modifier)
+		provider_index += 1
 	return maxf(StatModifierPipeline.calculate(&"fire_rate", base_fire_rate, modifiers), 0.0)
 
 
-## Applies a universal Range Chip without changing the exported base range.
+## Applies equipped artifact range modifiers without mutating the base range.
 func get_modified_attack_range(base_range: float) -> float:
-	var modifiers := ChipManager.get_stat_modifiers({
-		"stat_id": &"attack_range",
-		"weapon_type_id": weapon_type_id,
-		"weapon_instance": self,
-		"module_kind": get_chip_module_kind(),
-	})
-	if artifact_range_bonus.is_valid():
+	var modifiers: Array[StatModifier] = []
+	var provider_index := 0
+	for provider in artifact_range_bonuses.duplicate():
+		if not provider.is_valid():
+			artifact_range_bonuses.erase(provider)
+			continue
 		var modifier := StatModifier.new()
-		modifier.source_id = &"equipped_magic_artifact_range"
+		modifier.source_id = StringName("equipped_magic_artifact_range_%d" % provider_index)
 		modifier.stat_id = &"attack_range"
-		modifier.base_additive_ratio = maxf(float(artifact_range_bonus.call()), 0.0)
+		modifier.base_additive_ratio = maxf(float(provider.call()), 0.0)
 		modifiers.append(modifier)
+		provider_index += 1
 	return maxf(StatModifierPipeline.calculate(&"attack_range", base_range, modifiers), 0.0)
 
 
-## Interface for future active skills. Skill chips reduce cast time but never
-## cooldown, and the result is clamped so a cast cannot become negative.
+## Reserved interface for future artifact-based active skills.
 func get_modified_skill_cast_time(base_cast_time: float) -> float:
-	var modifiers := ChipManager.get_stat_modifiers({
-		"stat_id": &"skill_cast_time",
-		"weapon_type_id": weapon_type_id,
-		"weapon_instance": self,
-		"module_kind": get_chip_module_kind(),
-		"supports_active_skill": supports_active_skill(),
-	})
-	return maxf(StatModifierPipeline.calculate(&"skill_cast_time", base_cast_time, modifiers), 0.0)
+	return maxf(base_cast_time, 0.0)
+
+
+func add_artifact_fire_rate_bonus(provider: Callable) -> void:
+	if provider.is_valid() and not artifact_fire_rate_bonuses.has(provider):
+		artifact_fire_rate_bonuses.append(provider)
+
+
+func remove_artifact_fire_rate_bonus(provider: Callable) -> void:
+	artifact_fire_rate_bonuses.erase(provider)
+
+
+func add_artifact_range_bonus(provider: Callable) -> void:
+	if provider.is_valid() and not artifact_range_bonuses.has(provider):
+		artifact_range_bonuses.append(provider)
+
+
+func remove_artifact_range_bonus(provider: Callable) -> void:
+	artifact_range_bonuses.erase(provider)
+
+
+func add_artifact_projectile_pierces(provider: Callable) -> void:
+	if provider.is_valid() and not artifact_projectile_pierce_bonuses.has(provider):
+		artifact_projectile_pierce_bonuses.append(provider)
+
+
+func remove_artifact_projectile_pierces(provider: Callable) -> void:
+	artifact_projectile_pierce_bonuses.erase(provider)
+
+
+func get_artifact_projectile_pierces() -> int:
+	var total := 0
+	for provider in artifact_projectile_pierce_bonuses.duplicate():
+		if provider.is_valid():
+			total += maxi(int(provider.call()), 0)
+		else:
+			artifact_projectile_pierce_bonuses.erase(provider)
+	return total
 
 
 ## Returns the damage dealt by one attack.
@@ -156,8 +185,11 @@ func find_nearest_enemy_in_range(
 func keep_or_find_target(
 	current_target: Variant,
 	world_origin: Vector2,
-	maximum_range: float
+	maximum_range: float,
+	delta: float = -1.0
 ) -> BasicEnemy:
+	# Explicit three-argument queries remain immediate for tools and tests.
+	var search_due := delta < 0.0 or _target_search_schedule.is_due(delta, target_search_interval)
 	# A typed enemy variable can temporarily contain a previously freed object.
 	# Accept the reference as Variant so validity is checked before conversion.
 	if is_instance_valid(current_target) and current_target is BasicEnemy:
@@ -170,7 +202,9 @@ func keep_or_find_target(
 		):
 			return enemy
 
-	return find_nearest_enemy_in_range(world_origin, maximum_range)
+	if search_due:
+		return find_nearest_enemy_in_range(world_origin, maximum_range)
+	return null
 
 
 ## Rotates a turret toward a world-space point at a limited angular speed.

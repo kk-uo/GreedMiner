@@ -136,7 +136,7 @@ func _paint() -> void:
 	if hovered:
 		var outline := _band(-w * 0.5 - 10.0, w * 0.5 + 14.0)
 		outline.append(outline[0])
-		_pen.draw_polyline(outline, Palette.ACCENT, 4.0)
+		Palette.draw_hover_outline(_pen, outline, 4.0)
 
 
 func _draw_console(at: Vector2) -> void:

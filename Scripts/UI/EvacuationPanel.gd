@@ -35,6 +35,7 @@ const DOME_LIGHT := Color("FF6078")
 var _click_count: int = 0
 var _completed: bool = false
 var _battle_active: bool = true
+var _external_lock: bool = false
 
 ## 1.0 right after a press, eases back to 0.0 as the dome springs up.
 var _press_amount: float = 0.0
@@ -136,6 +137,20 @@ func set_battle_active(is_active: bool) -> void:
 		_held = false
 	queue_redraw()
 
+## Used by a boss that interrupts a completed evacuation attempt. This does
+## not change the normal ten-press rule once the root is cleared.
+func reset_attempt() -> void:
+	_completed = false
+	_click_count = 0
+	_held = false
+	_idle_time = 0.0
+	queue_redraw()
+
+func set_external_lock(locked: bool) -> void:
+	_external_lock = locked
+	tooltip_text = tr("Send a mining dwarf to cut the roots") if locked else tr("Press %d times to evacuate") % REQUIRED_CLICKS
+	queue_redraw()
+
 
 func get_click_count() -> int:
 	return _click_count
@@ -150,7 +165,7 @@ func _is_pressable() -> bool:
 		var weather := get_tree().get_first_node_in_group("battle_weather_manager") as WeatherManager
 		if weather != null and weather.is_input_frozen():
 			return false
-	return _battle_active and not _completed
+	return _battle_active and not _completed and not _external_lock
 
 
 func _draw() -> void:
@@ -158,7 +173,7 @@ func _draw() -> void:
 	if _shake > 0.0:
 		center += Vector2(sin(_time * 90.0), cos(_time * 77.0)) * _shake
 
-	var disabled := not _battle_active and not _completed
+	var disabled := (not _battle_active or _external_lock) and not _completed
 
 	# No housing plate: the button sits directly on the battlefield,
 	# grounded by the standard hard shadow.
@@ -235,6 +250,9 @@ func _draw_labels(dome_center: Vector2, disabled: bool) -> void:
 	if _completed:
 		big = "GO"
 		small = "LIFT OFF"
+	elif _external_lock:
+		big = "--"
+		small = "ROOTED"
 	elif disabled:
 		big = "--"
 		small = "OFFLINE"

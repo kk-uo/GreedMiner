@@ -5,9 +5,8 @@ extends Control
 ##
 ## List view: power budget plus every installable module, each with a quick
 ## "+" install button. Detail view shows module statistics and, for an
-## installed module, its chip sockets (design A): installed / empty "+" /
-## locked "RESEARCH LV xx". Clicking a socket opens a bottom drawer listing
-## owned chips; gold segments on the stat bars show the chip bonus.
+## installed module, its three magic-artifact sockets: installed / empty "+" /
+## locked "RESEARCH LV xx". Clicking a socket opens the artifact collection.
 ## Every weapon and Shield module instance owns the sockets attached to its cell.
 ## BaseMain owns install/remove while this panel only presents and emits.
 
@@ -48,18 +47,14 @@ var _scroll: ScrollContainer
 ## View the body was last built for (scroll is kept when it stays the same).
 var _last_built_view: String = ""
 
-const ChipVisual := preload("res://Scripts/UI/Chips/ChipVisual.gd")
 const ArtifactVisual := preload("res://Scripts/UI/Artifacts/ArtifactVisual.gd")
 const ScrollKeeper := preload("res://Scripts/UI/ScrollKeeper.gd")
 const StoragePicker := preload("res://Scripts/UI/Loadout/StoragePicker.gd")
 ## Ship artifact slot whose picker is open in the list view (-1 = none).
 var _artifact_picker_slot: int = -1
-## Module artifact picker open in the detail view.
-var _module_artifact_picker_open: bool = false
-
-## Socket whose picker drawer is open, or -1.
-var _picker_slot: int = -1
-## Left-of-screen grid used by all three pickers (chips, ship and module artifacts).
+## Module artifact socket whose picker is open in detail view, or -1.
+var _module_artifact_picker_slot: int = -1
+## Left-of-screen grid used by ship and module artifact pickers.
 var _storage: PanelContainer
 
 var _press_id: StringName = &""
@@ -73,9 +68,9 @@ func _ready() -> void:
 		WeaponUnlockManager.weapon_unlocked.connect(_on_weapon_unlocked)
 	_build_frame()
 	_build_storage()
-	ChipManager.chip_equipment_changed.connect(_on_chip_data_changed.unbind(2))
-	ChipManager.chip_inventory_changed.connect(_on_chip_data_changed.unbind(2))
-	ChipManager.chip_operation_failed.connect(show_message)
+	ArtifactManager.equipment_changed.connect(_on_artifact_data_changed.unbind(2))
+	ArtifactManager.collection_changed.connect(_on_artifact_data_changed.unbind(2))
+	ArtifactManager.artifact_operation_failed.connect(show_message)
 	# Research can unlock SHIP STYLE or artifact slots shown in the list.
 	ResearchManager.research_level_changed.connect(func(_id: StringName, _level: int) -> void:
 		if _view == View.LIST:
@@ -132,7 +127,7 @@ func show_style() -> void:
 
 
 func show_detail(module_id: StringName, installed: bool) -> void:
-	_module_artifact_picker_open = false
+	_module_artifact_picker_slot = -1
 	_view = View.DETAIL
 	_detail_id = module_id
 	_detail_installed = installed
@@ -321,32 +316,55 @@ func _build_artifact_slots() -> void:
 	_body.add_child(spacer)
 
 
-## One artifact socket per installed module (detail view), shown once the
-## player owns an artifact that fits this module.
-func _build_module_artifact_socket(module_id: StringName, cell: Vector2i) -> void:
-	if not ArtifactManager.is_stall_unlocked():
-		return
-	var current := ArtifactManager.get_module_artifact(cell)
-	var options: Array[MagicArtifactDefinition] = []
-	for artifact_id in ArtifactManager.get_owned_artifact_ids():
-		var definition := ArtifactManager.get_definition(artifact_id)
-		if definition.is_compatible_with_module(module_id) and artifact_id != current:
-			options.append(definition)
-	if current.is_empty() and options.is_empty():
-		return
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0.0, 4.0)
-	_body.add_child(spacer)
-	_body.add_child(_label("ARTIFACT · THIS MODULE", 11, Palette.UI_MUTED))
-	var slot := ArtifactSlot.new()
-	slot.setup(ArtifactManager.get_definition(current), true, _module_artifact_picker_open)
-	slot.pressed.connect(func() -> void:
-		var reopen := not _module_artifact_picker_open
-		_reset_pickers()
-		_module_artifact_picker_open = reopen
-		_rebuild()
-	)
-	_body.add_child(slot)
+## Three research-gated artifact sockets occupy the former chip-socket area in
+## the module detail panel. The collection picker may still open beside the
+## panel, but the persistent socket UI belongs here with the module statistics.
+func _build_module_artifact_sockets(cell: Vector2i) -> void:
+	_body.add_child(HSeparator.new())
+	var heading := _label(tr("ARTIFACTS"), 11, Palette.UI_MUTED)
+	_body.add_child(heading)
+
+	var center := CenterContainer.new()
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body.add_child(center)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	center.add_child(row)
+
+	var next_locked_level := 0
+	for slot_index in range(ArtifactManager.MODULE_SLOT_COUNT):
+		var current := ArtifactManager.get_module_artifact(cell, slot_index)
+		var unlocked := ArtifactManager.is_module_artifact_slot_unlocked(cell, slot_index)
+		var unlock_level := ArtifactManager.get_module_artifact_slot_unlock_level(cell, slot_index)
+		var slot := ArtifactSlot.new()
+		slot.setup(ArtifactManager.get_definition(current), unlocked, slot_index == _module_artifact_picker_slot)
+		slot.tooltip_text = (
+			tr("Artifact Slot %d") % (slot_index + 1)
+			if unlocked
+			else tr("Research this module to Level %d") % unlock_level
+		)
+		if unlocked:
+			slot.pressed.connect(func() -> void:
+				var reopen := _module_artifact_picker_slot != slot_index
+				_reset_pickers()
+				if reopen:
+					_module_artifact_picker_slot = slot_index
+				_rebuild()
+			)
+		elif next_locked_level == 0:
+			next_locked_level = unlock_level
+		row.add_child(slot)
+
+	if next_locked_level > 0:
+		var hint := _label(
+			tr("Research this module to Level %d to unlock the next artifact slot.") % next_locked_level,
+			11,
+			Palette.UI_MUTED
+		)
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_body.add_child(hint)
+
 
 
 func _make_card(entry: Dictionary) -> Control:
@@ -524,6 +542,12 @@ func _build_style() -> void:
 	_body.add_child(_label("HULL", 11, Palette.UI_MUTED))
 	for hull_id in ShipHullVisual.HULL_ORDER:
 		_body.add_child(_make_hull_card(hull_id))
+	var thruster_spacer := Control.new()
+	thruster_spacer.custom_minimum_size = Vector2(0.0, 6.0)
+	_body.add_child(thruster_spacer)
+	_body.add_child(_label("THRUSTERS", 11, Palette.UI_MUTED))
+	for thruster_id in ShipHullVisual.THRUSTER_ORDER:
+		_body.add_child(_make_thruster_card(thruster_id))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0.0, 6.0)
 	_body.add_child(spacer)
@@ -533,7 +557,7 @@ func _build_style() -> void:
 	_body.add_child(rotation_row)
 	for degrees in ShipLoadout.ROTATIONS:
 		rotation_row.add_child(_make_rotation_button(degrees))
-	var hint := _label("Color and hull shape mix freely; modules keep their own colors. Rotation also turns the ship's edges in battle. Saved automatically.", 12, Palette.UI_MUTED)
+	var hint := _label("Color, hull and thrusters mix freely; modules keep their own colors. Rotation also turns the ship's edges in battle. Saved automatically.", 12, Palette.UI_MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_footer.add_child(hint)
@@ -659,12 +683,70 @@ func _make_hull_card(hull_id: StringName) -> Control:
 	return card
 
 
+func _make_thruster_card(thruster_id: StringName) -> Control:
+	var selected := thruster_id == ShipLoadout.thruster_id
+	var card := Button.new()
+	card.custom_minimum_size = Vector2(0.0, 72.0)
+	card.focus_mode = Control.FOCUS_NONE
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var normal := Palette.make_panel_style(Palette.UI_PANEL_RAISED, 8)
+	var hover := Palette.make_panel_style(Palette.UI_PANEL_RAISED, 8)
+	hover.set_border_width_all(2)
+	hover.border_color = Palette.UI_MUTED
+	if selected:
+		normal.set_border_width_all(2)
+		normal.border_color = Palette.ACCENT
+		hover.border_color = Palette.ACCENT
+	card.add_theme_stylebox_override("normal", normal)
+	card.add_theme_stylebox_override("hover", hover)
+	card.add_theme_stylebox_override("pressed", hover)
+	card.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	card.pressed.connect(func() -> void:
+		ShipLoadout.set_thruster(thruster_id)
+		ShipLoadout.save()
+		_rebuild()
+	)
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 8.0
+	row.offset_right = -14.0
+	row.add_theme_constant_override("separation", 12)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(row)
+	# Unfolded preview on the current hull; hovering the card fires it.
+	var preview := HullPreview.new()
+	preview.hull_id = ShipLoadout.hull_id
+	preview.thruster_id = thruster_id
+	preview.deploy = 1.0
+	preview.span = 330.0
+	preview.hover_source = card
+	preview.custom_minimum_size = Vector2(64.0, 64.0)
+	preview.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(preview)
+	var name_label := _label(String(ShipHullVisual.THRUSTERS[thruster_id]["name"]).to_upper(), 14, Palette.UI_TEXT)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(name_label)
+	if selected:
+		var tag := _label("IN USE", 10, Palette.ACCENT)
+		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(tag)
+	return card
+
+
 ## Tiny 3x3 hull in the current color scheme for a hull design card.
 class HullPreview:
 	extends Control
 
 	const CELL: float = 64.0
 	var hull_id: StringName = &"classic"
+	## Thruster style to draw (&"" = the saved one), how far it is unfolded,
+	## and the card whose hover makes it fire.
+	var thruster_id: StringName = &""
+	var deploy: float = 0.0
+	var span: float = 260.0
+	var hover_source: Control = null
+	var _thrust: float = 0.0
 	var _geometry: Dictionary = {}
 	var _cells: Array[Vector2i] = []
 
@@ -678,14 +760,19 @@ class HullPreview:
 	func _process(_delta: float) -> void:
 		if not _geometry.is_empty() and ShipHullVisual.is_animated(_geometry):
 			queue_redraw()
+		if hover_source != null:
+			var hovered := hover_source.get_global_rect().has_point(hover_source.get_global_mouse_position())
+			_thrust = move_toward(_thrust, 0.85 if hovered else 0.0, _delta * 3.0)
+			if _thrust > 0.0 or hovered:
+				queue_redraw()
 
 	func _draw() -> void:
 		if _geometry.is_empty():
 			_geometry = ShipHullVisual.build(_cells, CELL, hull_id)
-		var scale: float = size.x / 260.0
+		var scale: float = size.x / span
 		var center := Vector2(CELL * 1.5, CELL * 1.5)
 		draw_set_transform(size * 0.5 - center * scale, 0.0, Vector2.ONE * scale)
-		ShipHullVisual.draw_pods(self, _geometry, 0.0)
+		ShipHullVisual.draw_pods(self, _geometry, _thrust, thruster_id, deploy)
 		ShipHullVisual.draw_hull(self, _geometry, _cells, CELL)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
@@ -775,13 +862,10 @@ func _build_detail() -> void:
 	var stats_label := _label("STATS", 11, Palette.UI_MUTED)
 	stats_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_header.add_child(stats_label)
-	if turret_cell.x >= 0 and not ChipManager.get_module_chips(turret_cell).is_empty():
-		stats_header.add_child(_label("GOLD = FROM CHIPS", 10, Palette.GOLD))
 	for row in _stat_rows(id, stats, category, turret_cell):
 		_body.add_child(row)
 	if turret_cell.x >= 0:
-		_build_chip_sockets(id, turret_cell)
-		_build_module_artifact_socket(id, turret_cell)
+		_build_module_artifact_sockets(turret_cell)
 
 	# Footer actions.
 	if _detail_installed:
@@ -825,15 +909,11 @@ func _stat_rows(id: StringName, stats: Dictionary, category: String, turret_cell
 		"weapon":
 			var damage := float(stats.get("damage", 0.0))
 			var rate := float(stats.get("fire_rate", 0.0))
-			var chip_damage := _chip_damage(id, stats, turret_cell)
-			var chip_rate := _chip_fire_rate(rate, turret_cell)
 			var damage_max := ModuleCatalog.get_stat_max("damage")
 			var rate_max := ModuleCatalog.get_stat_max("fire_rate")
 			var dps_max := ModuleCatalog.get_stat_max("dps")
-			rows.append(StatRow.make("DAMAGE", ModuleCatalog.format_number(damage), damage / damage_max,
-					_bonus_text(chip_damage - damage), (chip_damage - damage) / damage_max))
-			rows.append(StatRow.make("FIRE RATE", "%s / s" % ModuleCatalog.format_number(rate), rate / rate_max,
-					_bonus_text(chip_rate - rate), (chip_rate - rate) / rate_max))
+			rows.append(StatRow.make("DAMAGE", ModuleCatalog.format_number(damage), damage / damage_max))
+			rows.append(StatRow.make("FIRE RATE", "%s / s" % ModuleCatalog.format_number(rate), rate / rate_max))
 			if stats.has("attack_radius"):
 				var radius := float(stats["attack_radius"])
 				rows.append(StatRow.make("RADIUS", ModuleCatalog.format_number(radius), radius / ModuleCatalog.get_stat_max("attack_range")))
@@ -843,9 +923,7 @@ func _stat_rows(id: StringName, stats: Dictionary, category: String, turret_cell
 			if stats.has("aoe_radius"):
 				var aoe := float(stats["aoe_radius"])
 				rows.append(StatRow.make("BLAST RADIUS", ModuleCatalog.format_number(aoe), aoe / ModuleCatalog.get_stat_max("aoe_radius")))
-			var dps_bonus := chip_damage * chip_rate - damage * rate
-			rows.append(StatRow.make("DPS", ModuleCatalog.format_number(damage * rate), damage * rate / dps_max,
-					_bonus_text(dps_bonus), dps_bonus / dps_max))
+			rows.append(StatRow.make("DPS", ModuleCatalog.format_number(damage * rate), damage * rate / dps_max))
 		"energy":
 			rows.append(StatRow.make("POWER", "+%d" % int(stats.get("power_capacity", 0)), 1.0))
 		"mining":
@@ -861,71 +939,17 @@ func _stat_rows(id: StringName, stats: Dictionary, category: String, turret_cell
 
 
 # ==========================================
-# Chip sockets (per turret)
+# Module artifact sockets
 # ==========================================
 
 ## Ship cell of the installed weapon shown in the detail view, else (-1, -1).
 func _detail_turret_cell(category: String) -> Vector2i:
 	if not _detail_installed or not has_slot() or category not in ["weapon", "shield"]:
 		return Vector2i(-1, -1)
-	if ChipManager.get_module_id(Vector2i(_slot_row, _slot_column)) != _detail_id:
+	var entry := ModuleCatalog.find_by_scene(ShipLoadout.get_module(_slot_row, _slot_column))
+	if entry.is_empty() or StringName(entry.get("id", &"")) != _detail_id:
 		return Vector2i(-1, -1)
 	return Vector2i(_slot_row, _slot_column)
-
-
-func _chip_damage(id: StringName, stats: Dictionary, cell: Vector2i) -> float:
-	var damage := float(stats.get("damage", 0.0))
-	if cell.x < 0 or not stats.has("base_damage"):
-		return damage
-	var modifiers := ResearchManager.get_weapon_stat_modifiers(id, &"damage")
-	modifiers.append_array(ChipManager.get_stat_modifiers({"stat_id": &"damage", "weapon_type_id": id, "cell": cell}))
-	return StatModifierPipeline.calculate(&"damage", float(stats["base_damage"]), modifiers)
-
-
-func _chip_fire_rate(rate: float, cell: Vector2i) -> float:
-	if cell.x < 0:
-		return rate
-	var modifiers := ChipManager.get_stat_modifiers({"stat_id": &"fire_rate", "cell": cell})
-	return maxf(StatModifierPipeline.calculate(&"fire_rate", rate, modifiers), 0.0)
-
-
-func _bonus_text(delta: float) -> String:
-	return ("+" + ModuleCatalog.format_number(snappedf(delta, 0.01))) if delta > 0.004 else ""
-
-
-func _build_chip_sockets(weapon_id: StringName, cell: Vector2i) -> void:
-	var is_weapon := ChipManager.get_module_kind(cell) == &"weapon"
-	var maximum := ChipManager.configuration.max_weapon_chip_slots if is_weapon else maxi(int(ModuleCatalog.get_stats(weapon_id).get("max_chip_slots", 3)), 1)
-	var unlocked := ChipManager.get_module_slot_count(cell)
-	var header := HBoxContainer.new()
-	_body.add_child(header)
-	var title := _label("CHIPS · THIS MODULE", 11, Palette.UI_MUTED)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
-	header.add_child(_label("%d / %d" % [ChipManager.get_module_chips(cell).size(), maximum], 11, Palette.UI_MUTED))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 9)
-	_body.add_child(row)
-	for index in range(maximum):
-		var socket := ChipSocket.new()
-		socket.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		socket.slot_index = index
-		if index >= unlocked:
-			var level := ChipManager.get_weapon_slot_unlock_level(weapon_id, index) if is_weapon else ResearchManager.get_shield_bonus_slot_unlock_level(weapon_id, index)
-			socket.locked_text = (tr("RESEARCH\nLV %d") % level) if level > 0 else tr("CHIP LAB\nLOCKED")
-		else:
-			socket.chip_id = ChipManager.get_instance_chip_type(ChipManager.get_module_chip(cell, index))
-			socket.selected = index == _picker_slot
-			socket.pressed.connect(_open_picker.bind(index))
-		row.add_child(socket)
-	if unlocked == 0:
-		var hint_text := "Unlock the Chip Laboratory to use this module socket."
-		if ChipManager.is_chip_laboratory_unlocked():
-			var first_level := ChipManager.get_weapon_slot_unlock_level(weapon_id, 0) if is_weapon else ResearchManager.get_shield_bonus_slot_unlock_level(weapon_id, 0)
-			hint_text = tr("Research this module to Lv %d to open its first chip socket.") % first_level
-		var hint := _label(hint_text, 10, Palette.UI_MUTED)
-		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_body.add_child(hint)
 
 
 func _build_storage() -> void:
@@ -942,17 +966,10 @@ func _process(_delta: float) -> void:
 		_storage.pin_left(height)
 
 
-func _open_picker(slot_index: int) -> void:
-	_reset_pickers()
-	_picker_slot = slot_index
-	_rebuild()
-
-
 ## Forgets which picker is open (without rebuilding).
 func _reset_pickers() -> void:
-	_picker_slot = -1
 	_artifact_picker_slot = -1
-	_module_artifact_picker_open = false
+	_module_artifact_picker_slot = -1
 
 
 func _close_picker() -> void:
@@ -963,7 +980,7 @@ func _close_picker() -> void:
 
 
 func is_picker_open() -> bool:
-	return _picker_slot >= 0 or _artifact_picker_slot >= 0 or _module_artifact_picker_open
+	return _artifact_picker_slot >= 0 or _module_artifact_picker_slot >= 0
 
 
 ## Cells of the open storage picker (exposed for tests).
@@ -977,92 +994,16 @@ func _refresh_storage() -> void:
 		return
 	var was_visible: bool = _storage.visible
 	var shown := false
-	if _picker_slot >= 0:
-		shown = _fill_chip_storage()
-	elif _artifact_picker_slot >= 0 and _view == View.LIST:
+	if _artifact_picker_slot >= 0 and _view == View.LIST:
 		shown = _fill_ship_artifact_storage(_artifact_picker_slot)
-	elif _module_artifact_picker_open and _view == View.DETAIL and _detail_installed:
-		shown = _fill_module_artifact_storage()
+	elif _module_artifact_picker_slot >= 0 and _view == View.DETAIL and _detail_installed:
+		shown = _fill_module_artifact_storage(_module_artifact_picker_slot)
 	if not shown:
 		_reset_pickers()
 	_storage.visible = shown
 	if shown and not was_visible:
 		_storage.modulate.a = 0.0
 		_storage.create_tween().tween_property(_storage, "modulate:a", 1.0, 0.14)
-
-
-func _fill_chip_storage() -> bool:
-	var cell := Vector2i(_slot_row, _slot_column)
-	if _view != View.DETAIL or _detail_turret_cell(String(ModuleCatalog.get_stats(_detail_id).get("category", ""))).x < 0:
-		return false
-	var entries: Array = []
-	var current := ChipManager.get_module_chip(cell, _picker_slot)
-	if not current.is_empty():
-		var current_type := ChipManager.get_instance_chip_type(current)
-		entries.append({
-			"kind": &"remove", "id": current_type, "tag": "REMOVE",
-			"name": "REMOVE " + ChipVisual.get_display_name(current_type),
-			"detail": "", "note": "Back to the Warehouse.", "action": "REMOVE",
-			"callback": _uninstall_from_picker,
-		})
-	# Idle chips first (one cell per chip type with a count), then chips
-	# installed elsewhere (MOVE), then owned chips that cannot go here.
-	var idle_by_type: Dictionary = {}
-	var elsewhere: Array[StringName] = []
-	for instance_id in ChipManager.get_owned_instances():
-		var chip_id := ChipManager.get_instance_chip_type(instance_id)
-		if not ChipManager.is_chip_compatible_with_module(cell, chip_id) or instance_id == current:
-			continue
-		if ChipManager.is_instance_equipped(instance_id):
-			elsewhere.append(instance_id)
-		else:
-			if not idle_by_type.has(chip_id):
-				idle_by_type[chip_id] = []
-			(idle_by_type[chip_id] as Array).append(instance_id)
-	for definition in ChipManager.configuration.chips:
-		if definition == null or not idle_by_type.has(definition.chip_id):
-			continue
-		var copies: Array = idle_by_type[definition.chip_id]
-		entries.append({
-			"kind": &"chip", "id": definition.chip_id, "badge": "×%d" % copies.size(),
-			"name": ChipVisual.get_display_name(definition.chip_id),
-			"detail": ChipVisual.get_effect_text(definition.chip_id),
-			"note": _adapted_chip_note(definition.chip_id, cell), "action": "INSTALL",
-			"callback": _install_from_picker.bind(StringName(copies[0])),
-		})
-	for instance_id in elsewhere:
-		var chip_id := ChipManager.get_instance_chip_type(instance_id)
-		var location := ChipManager.get_instance_location(instance_id)
-		var where := ChipVisual.cell_label(location)
-		if location == cell:
-			where = "SLOT %d" % (ChipManager.get_instance_slot_index(instance_id) + 1)
-		entries.append({
-			"kind": &"chip", "id": chip_id, "tag": where,
-			"name": ChipVisual.get_display_name(chip_id),
-			"detail": ChipVisual.get_effect_text(chip_id),
-			"note": "Installed on %s; moving takes it off there." % where, "action": "MOVE",
-			"callback": _install_from_picker.bind(instance_id),
-		})
-	for definition in ChipManager.configuration.chips:
-		if definition == null or ChipManager.is_chip_compatible_with_module(cell, definition.chip_id):
-			continue
-		var count := ChipManager.get_owned_count(definition.chip_id)
-		if count <= 0:
-			continue
-		entries.append({
-			"kind": &"chip", "id": definition.chip_id, "badge": "×%d" % count, "tag": "BLOCKED",
-			"name": ChipVisual.get_display_name(definition.chip_id),
-			"detail": ChipVisual.get_effect_text(definition.chip_id),
-			"note": "Does not fit this module (no active skill).", "action": "BLOCKED",
-			"enabled": false,
-		})
-	_storage.show_entries(
-		"CHIPS",
-		"%s · SOCKET %d" % [ChipVisual.cell_label(cell), _picker_slot + 1],
-		entries,
-		"No chips yet. Craft them in the LABORATORY (Chip Lab)."
-	)
-	return true
 
 
 func _fill_ship_artifact_storage(slot_index: int) -> bool:
@@ -1087,15 +1028,17 @@ func _fill_ship_artifact_storage(slot_index: int) -> bool:
 	return true
 
 
-func _fill_module_artifact_storage() -> bool:
+func _fill_module_artifact_storage(slot_index: int) -> bool:
 	if not ArtifactManager.is_stall_unlocked() or not has_slot():
 		return false
 	var cell := Vector2i(_slot_row, _slot_column)
+	if not ArtifactManager.is_module_artifact_slot_unlocked(cell, slot_index):
+		return false
 	var entries: Array = []
-	var current := ArtifactManager.get_module_artifact(cell)
+	var current := ArtifactManager.get_module_artifact(cell, slot_index)
 	if not current.is_empty():
 		entries.append(_artifact_remove_entry(current, func() -> void:
-			ArtifactManager.unequip_module_artifact(cell)
+			ArtifactManager.unequip_module_artifact(cell, slot_index)
 			_close_picker()
 		))
 	for artifact_id in ArtifactManager.get_owned_artifact_ids():
@@ -1103,10 +1046,10 @@ func _fill_module_artifact_storage() -> bool:
 		if definition == null or not definition.is_compatible_with_module(_detail_id) or artifact_id == current:
 			continue
 		entries.append(_artifact_entry(definition, func() -> void:
-			ArtifactManager.equip_module_artifact(cell, artifact_id)
+			ArtifactManager.equip_module_artifact(cell, artifact_id, slot_index)
 			_close_picker()
 		))
-	_storage.show_entries("ARTIFACTS", "%s · THIS MODULE" % ChipVisual.cell_label(cell), entries, "No artifact fits this module yet.")
+	_storage.show_entries("ARTIFACTS", "%s · SLOT %d" % [_cell_label(cell), slot_index + 1], entries, "No compatible artifact is currently owned.")
 	return true
 
 
@@ -1136,49 +1079,13 @@ func _artifact_remove_entry(artifact_id: StringName, callback: Callable) -> Dict
 	}
 
 
-func _adapted_chip_note(chip_id: StringName, cell: Vector2i) -> String:
-	var kind := ChipManager.get_module_kind(cell)
-	var stats := ModuleCatalog.get_stats(ChipManager.get_module_id(cell))
-	match chip_id:
-		&"attack_chip":
-			var base := float(stats.get("damage", stats.get("knockback_damage", stats.get("healing_amount", 0.0))))
-			return "%s: %s → %s" % [String(kind).to_upper(), ModuleCatalog.format_number(base), ModuleCatalog.format_number(base + 1.0)]
-		&"attack_speed_chip":
-			if kind == &"knockback":
-				var cooldown := float(stats.get("cooldown", 0.0))
-				return "KNOCKBACK COOLDOWN: %ss → %ss" % [ModuleCatalog.format_number(cooldown), ModuleCatalog.format_number(cooldown / 1.2)]
-			if kind == &"regeneration":
-				var interval := float(stats.get("healing_interval", 0.0))
-				return "HEAL INTERVAL: %ss → %ss" % [ModuleCatalog.format_number(interval), ModuleCatalog.format_number(interval / 1.2)]
-			var fire_rate := float(stats.get("fire_rate", 0.0))
-			return "FIRE RATE: %s → %s" % [ModuleCatalog.format_number(fire_rate), ModuleCatalog.format_number(fire_rate * 1.2)]
-		&"damage_chip":
-			var power := float(stats.get("damage", stats.get("knockback_damage", stats.get("healing_amount", 0.0))))
-			return "%s: %s → %s" % [String(kind).to_upper(), ModuleCatalog.format_number(power), ModuleCatalog.format_number(power * 1.2)]
-		&"range_chip":
-			if kind == &"knockback":
-				var trigger := float(stats.get("trigger_range", 0.0))
-				var splash := float(stats.get("splash_radius", 0.0))
-				return "TRIGGER %s → %s · SPLASH %s → %s" % [ModuleCatalog.format_number(trigger), ModuleCatalog.format_number(trigger * 1.35), ModuleCatalog.format_number(splash), ModuleCatalog.format_number(splash * 1.35)]
-			var reach := float(stats.get("healing_radius", stats.get("attack_radius", stats.get("attack_range", 0.0))))
-			return "%s RANGE: %s → %s" % [String(kind).to_upper(), ModuleCatalog.format_number(reach), ModuleCatalog.format_number(reach * 1.35)]
-	return ""
-
-
-func _install_from_picker(instance_id: StringName) -> void:
-	var slot := _picker_slot
-	if ChipManager.equip_module_chip(Vector2i(_slot_row, _slot_column), slot, instance_id):
-		_close_picker()
-
-
-func _uninstall_from_picker() -> void:
-	ChipManager.unequip_module_chip(Vector2i(_slot_row, _slot_column), _picker_slot)
-	_close_picker()
-
-
-func _on_chip_data_changed() -> void:
+func _on_artifact_data_changed() -> void:
 	if _view == View.DETAIL:
 		_rebuild()
+
+
+func _cell_label(cell: Vector2i) -> String:
+	return "R%d · C%d" % [cell.x + 1, cell.y + 1]
 
 
 # ==========================================
@@ -1373,61 +1280,3 @@ class StatRow extends Control:
 				var end_x := minf(base_width + maxf(track.size.x * bonus_part, 4.0), track.size.x)
 				Palette.draw_rounded_rect(self, Rect2(track.position, Vector2(end_x, 6.0)), 3.0, Palette.GOLD)
 			Palette.draw_rounded_rect(self, Rect2(track.position, Vector2(base_width, 6.0)), 3.0, Palette.UI_TEXT)
-
-
-## One turret chip socket: installed chip / empty "+" / locked.
-class ChipSocket extends Button:
-	const ChipVisual := preload("res://Scripts/UI/Chips/ChipVisual.gd")
-
-	var slot_index: int = 0
-	var chip_id: StringName = &""
-	## Non-empty means locked; shown under the padlock ("RESEARCH\nLV 30").
-	var locked_text: String = ""
-	var selected: bool = false
-
-	func _init() -> void:
-		custom_minimum_size = Vector2(0.0, 92.0)
-		focus_mode = Control.FOCUS_NONE
-		flat = true
-		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
-			add_theme_stylebox_override(state, StyleBoxEmpty.new())
-		mouse_entered.connect(queue_redraw)
-		mouse_exited.connect(queue_redraw)
-
-	func _ready() -> void:
-		disabled = not locked_text.is_empty()
-		mouse_default_cursor_shape = Control.CURSOR_ARROW if disabled else Control.CURSOR_POINTING_HAND
-		tooltip_text = "" if disabled else ("Click to swap or remove" if not chip_id.is_empty() else "Click to install a chip")
-
-	func _draw() -> void:
-		var rect := Rect2(Vector2(1.0, 1.0), size - Vector2(2.0, 2.0))
-		var font := get_theme_default_font()
-		var outline := Palette.rounded_rect_points(rect, 10.0, 3)
-		outline.append(outline[0])
-		if not locked_text.is_empty():
-			Palette.draw_rounded_rect(self, rect, 10.0, Color("1A1512"))
-			for index in range(outline.size() - 1):
-				draw_dashed_line(outline[index], outline[index + 1], Palette.MECH, 1.0, 5.0)
-			var c := Vector2(size.x * 0.5, size.y * 0.36)
-			LaboratoryPanel.draw_lock(self, c, 1.1, Palette.UI_MUTED)
-			var lines := locked_text.split("\n")
-			for line_index in range(lines.size()):
-				draw_string(font, Vector2(0.0, size.y * 0.62 + 12.0 * float(line_index)), lines[line_index], HORIZONTAL_ALIGNMENT_CENTER, size.x, 9, Palette.UI_MUTED)
-			return
-		var hovered := is_hovered()
-		Palette.draw_rounded_rect(self, rect, 10.0, Palette.UI_PANEL_RAISED.lightened(0.05) if hovered else Palette.UI_PANEL_RAISED)
-		draw_polyline(outline, Palette.ACCENT if selected else (Palette.MECH_LIGHT if hovered else Palette.MECH), 2.0 if selected else 1.0)
-		if chip_id.is_empty():
-			var box := Rect2(Vector2(size.x * 0.5 - 17.0, size.y * 0.42 - 17.0), Vector2(34.0, 34.0))
-			var dash := Palette.rounded_rect_points(box, 8.0, 3)
-			dash.append(dash[0])
-			for index in range(dash.size() - 1):
-				draw_dashed_line(dash[index], dash[index + 1], Palette.UI_MUTED, 2.0, 4.0)
-			var c := box.get_center()
-			draw_line(c + Vector2(-7.0, 0.0), c + Vector2(7.0, 0.0), Palette.UI_MUTED, 2.0)
-			draw_line(c + Vector2(0.0, -7.0), c + Vector2(0.0, 7.0), Palette.UI_MUTED, 2.0)
-			draw_string(font, Vector2(0.0, size.y - 10.0), "EMPTY", HORIZONTAL_ALIGNMENT_CENTER, size.x, 9, Palette.UI_MUTED)
-			return
-		ChipVisual.draw_chip(self, chip_id, Vector2(size.x * 0.5, size.y * 0.38), 42.0, 1.0, true)
-		draw_string(font, Vector2(0.0, size.y - 16.0), ChipVisual.get_effect_text(chip_id), HORIZONTAL_ALIGNMENT_CENTER, size.x, 10, ChipVisual.get_color(chip_id))
-		Palette.draw_rounded_rect(self, Rect2(8.0, size.y - 8.0, size.x - 16.0, 3.0), 1.5, Color(ChipVisual.get_color(chip_id), 0.7))

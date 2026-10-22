@@ -6,6 +6,8 @@ extends Control
 const SAFE_STARTING_SCENE: String = "res://Scenes/Base/base_main.tscn"
 
 @export var return_to_base_after_reset: bool = true
+## Combat exposes only the reversible speed control, not progression commands.
+@export var battle_mode: bool = false
 
 @onready var balance_label: Label = %BalanceLabel
 @onready var currency_selector: OptionButton = %CurrencySelector
@@ -18,6 +20,7 @@ const SAFE_STARTING_SCENE: String = "res://Scenes/Base/base_main.tscn"
 @onready var close_button: Button = %CloseButton
 @onready var status_label: Label = %StatusLabel
 @onready var reset_confirmation: ConfirmationDialog = %ResetConfirmation
+@onready var speed_button: Button = %SpeedButton
 
 var _commands := DeveloperCommands.new()
 
@@ -34,6 +37,12 @@ func _ready() -> void:
 	reset_button.pressed.connect(_on_reset_requested)
 	close_button.pressed.connect(close_panel)
 	reset_confirmation.confirmed.connect(_on_reset_confirmed)
+	speed_button.visible = battle_mode
+	speed_button.pressed.connect(_on_speed_pressed)
+	if battle_mode:
+		for item in [balance_label, currency_selector, amount_input, grant_button, unlock_weapons_button, unlock_artifacts_button, unlock_planets_button, reset_button]:
+			item.hide()
+		_refresh_speed_button()
 	if not ResourceManager.stored_ore_changed.is_connected(_on_stored_ore_changed):
 		ResourceManager.stored_ore_changed.connect(_on_stored_ore_changed)
 	_refresh_balance()
@@ -58,7 +67,10 @@ func open_panel() -> void:
 	show()
 	status_label.text = ""
 	_refresh_balance()
-	amount_input.grab_focus()
+	if battle_mode:
+		_refresh_speed_button()
+	if not battle_mode:
+		amount_input.grab_focus()
 
 
 func close_panel() -> void:
@@ -93,6 +105,19 @@ func _on_unlock_artifacts_pressed() -> void:
 
 func _on_unlock_planets_pressed() -> void:
 	_show_result(_commands.unlock_all_planets())
+
+func _on_speed_pressed() -> void:
+	var controller := get_tree().get_first_node_in_group("developer_battle_speed") as DeveloperBattleSpeed
+	if controller == null or not controller.set_speed(2.0 if controller.selected_speed == 1.0 else 1.0):
+		_show_result({"ok": false, "message": "Battle speed is unavailable."})
+		return
+	_refresh_speed_button()
+
+func _refresh_speed_button() -> void:
+	var controller := get_tree().get_first_node_in_group("developer_battle_speed") as DeveloperBattleSpeed
+	if speed_button != null:
+		speed_button.disabled = controller == null or not DeveloperCommands.is_available()
+		speed_button.text = "Battle speed: %.0f×" % (controller.selected_speed if controller != null else 1.0)
 
 
 func _on_reset_confirmed() -> void:

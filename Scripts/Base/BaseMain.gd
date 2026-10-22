@@ -63,7 +63,6 @@ var artifact_tutorial_hint: ArtifactTutorialHint
 
 
 func _ready() -> void:
-	ChipManager.set_equipment_changes_enabled(true)
 	ArtifactManager.set_equipment_changes_enabled(true)
 	_connect_once(ship.cell_selected, _on_ship_cell_selected)
 	_connect_once(ship.cell_deselected, _on_ship_cell_deselected)

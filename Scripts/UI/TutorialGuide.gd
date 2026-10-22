@@ -15,12 +15,11 @@ extends Control
 ##
 ## Second part, merged with the Laboratory's old "POWER FIRST" tip (user
 ## request): it leads to ENERGY MODULE EXPANSION I.
-##   1. LAB_OPEN      — the first time back at the base with ore: arrow on
+##   1. LAB_OPEN      — after base assembly: arrow on
 ##                      the Laboratory (saved "lab_done" once inside).
 ##   2. LAB_RESEARCH  — inside the Laboratory, on every visit until that
 ##                      research is bought: arrow on the ENERGY tab, then on
-##                      the project and its RESEARCH button; while the ore is
-##                      short the caption says how much is missing. Buying it
+##                      the project and its RESEARCH button. Completing it
 ##                      finishes the guide for good.
 ## Progress follows the real loadout (ShipLoadout), so dragging, the "+"
 ## button or the detail page all count. The tutorial only starts for a fresh
@@ -39,10 +38,10 @@ const ENERGY_RESEARCH: StringName = &"energy_install_slot_unlock"
 const TEXT := {
 	Step.OPEN_HANGAR: ["OPEN THE HANGAR", "Click your ship on the landing pad to start building it."],
 	Step.INSTALL_WEAPON: ["INSTALL A WEAPON", "Weapons fire at enemies that approach the ship. Drag the MACHINE GUN onto an empty slot, or select a slot and press +."],
-	Step.INSTALL_MINING: ["INSTALL A MINING MODULE", "Mining modules drill ore during expeditions. Ore pays for research, chips and locating new planets. Scroll down the module list and drag MINING onto an empty slot."],
+	Step.INSTALL_MINING: ["INSTALL A MINING MODULE", "Mining modules drill ore during expeditions. Ore pays for research and locating new planets. Scroll down the module list and drag MINING onto an empty slot."],
 	Step.POWER: ["USE ALL YOUR POWER", "Every module uses Power (the bolt number on its card); the bar shows used / total. Install one more MACHINE GUN to use all of your Power. Research ENERGY in the Laboratory for more."],
 	Step.LAUNCH: ["READY FOR LAUNCH", "Go back to the base (ESC) and open the STAR MAP to choose a planet. Protect the ship, mine ore, then evacuate to bank it."],
-	Step.LAB_OPEN: ["UPGRADE IN THE LABORATORY", "Welcome back! The ore you bring home pays for upgrades. Click the LABORATORY to spend it."],
+	Step.LAB_OPEN: ["UPGRADE IN THE LABORATORY", "Unlock a second battery for free. Open the LABORATORY to research it."],
 	Step.LAB_RESEARCH: ["POWER FIRST", "Open the ENERGY tab: a second battery means more Power for more turrets, and it leads to farther planets."],
 }
 
@@ -70,12 +69,12 @@ static func should_run() -> bool:
 
 
 ## Lab part: base tutorial done, ENERGY MODULE EXPANSION not researched yet,
-## and either back with ore for the first time or already shown once.
+## and either free to research or already shown once.
 static func should_run_lab() -> bool:
 	var data := ProgressionStore.get_section(SAVE_SECTION)
 	if not bool(data.get("done", false)) or _energy_researched():
 		return false
-	return bool(data.get("lab_done", false)) or ResourceManager.stored_ore > 0.0
+	return bool(data.get("lab_done", false)) or ResearchManager.get_upgrade_cost(ENERGY_RESEARCH) == 0 or ResourceManager.stored_ore > 0.0
 
 
 static func _energy_researched() -> bool:
@@ -165,6 +164,31 @@ func _on_research_level_changed(research_id: StringName, _level: int) -> void:
 		finish()
 
 
+## Keeps the name tag up on the facility the arrow points at (the hangar
+## shows tags only on hover otherwise).
+func _pin_tags() -> void:
+	var hangar := base.get("hangar") as Node
+	if hangar == null:
+		return
+	var pins: Array[StringName] = []
+	match step:
+		Step.OPEN_HANGAR, Step.POWER:
+			pins = [AsteroidHangar.HOTSPOT_HANGAR]
+		Step.LAUNCH:
+			pins = [AsteroidHangar.HOTSPOT_STAR_MAP]
+		Step.LAB_OPEN:
+			pins = [AsteroidHangar.HOTSPOT_LAB]
+	if hangar.get("pinned_tags") != pins:
+		hangar.set("pinned_tags", pins)
+
+
+func _exit_tree() -> void:
+	if base != null and is_instance_valid(base):
+		var hangar := base.get("hangar") as Node
+		if hangar != null and is_instance_valid(hangar):
+			hangar.set("pinned_tags", [] as Array[StringName])
+
+
 ## Marks the tutorial as finished and removes it.
 func finish() -> void:
 	var lab := _is_lab_step()
@@ -245,6 +269,7 @@ func _update_target() -> void:
 		_caption.offset_bottom = 14.0 if at_top else -22.0
 	if _is_lab_step():
 		_keep_above_laboratory()
+	_pin_tags()
 	match step:
 		Step.OPEN_HANGAR:
 			if state == &"OVERVIEW":
@@ -278,6 +303,13 @@ func _point_at_world(world: Vector2, world_radius: float, direction: Vector2) ->
 	var screen := get_viewport().get_canvas_transform() * world
 	var zoom := get_viewport().get_canvas_transform().get_scale().x
 	_set_target(_screen_to_local(screen), world_radius * zoom / _ui_scale(), direction)
+
+
+## A round UI target given in screen coordinates.
+func _point_at_circle(global_center: Vector2, global_radius: float, direction: Vector2) -> void:
+	var center := _screen_to_local(global_center)
+	var radius := _screen_to_local(global_center + Vector2(global_radius, 0.0)).x - center.x
+	_set_target(center, radius, direction)
 
 
 func _point_at_card(module_id: StringName) -> void:
@@ -356,24 +388,21 @@ func _find_card(root: Node, module_id: StringName) -> Control:
 
 
 func _draw() -> void:
-	var pulse := 0.5 + 0.5 * sin(_time * 4.0)
 	if _extra_rect.size != Vector2.ZERO:
-		var outline := Palette.rounded_rect_points(_extra_rect.grow(4.0 + 3.0 * pulse), 10.0)
-		outline.append(outline[0])
-		draw_polyline(outline, Color(Palette.ACCENT, 0.4 + 0.4 * pulse), 2.5)
+		GUIDE_ARROW.draw_lock(self, _extra_rect, _time)
 	if _scroll_hint:
 		GUIDE_ARROW.draw_scroll_hint(self, _scroll_at, tr("SCROLL DOWN") if _scroll_down else tr("SCROLL UP"), _time, _scroll_down)
 	if not _has_target:
 		return
-	var bob := sin(_time * 5.0) * 7.0
+	var bob := sin(_time * TAU * 1.2) * 4.0
+	var reach := _target_radius
 	if _target_radius > 0.0:
-		draw_arc(_target, _target_radius + 6.0 * pulse, 0.0, TAU, 64, Color(Palette.ACCENT, 0.35 + 0.4 * pulse), 3.0)
+		GUIDE_ARROW.draw_lock_circle(self, _target, _target_radius, _time)
+		reach += 12.0
 	elif _highlight_rect.size != Vector2.ZERO:
-		var outline := Palette.rounded_rect_points(_highlight_rect.grow(4.0 + 3.0 * pulse), 10.0)
-		outline.append(outline[0])
-		draw_polyline(outline, Color(Palette.ACCENT, 0.5 + 0.4 * pulse), 3.0)
-	# Arrow sits just outside the target, pointing along _arrow_dir.
-	var tip := _target - _arrow_dir * (_target_radius + 10.0 + bob)
+		GUIDE_ARROW.draw_lock(self, _highlight_rect, _time)
+	# Marker sits just outside the target (and its brackets), pointing along _arrow_dir.
+	var tip := _target - _arrow_dir * (reach + 10.0 + bob)
 	_draw_arrow(tip, _arrow_dir)
 
 
@@ -457,7 +486,12 @@ func _guide_energy() -> void:
 		if rail != null:
 			for button in rail.get_children():
 				if button.get("category_id") == &"energy" and (button as Control).is_visible_in_tree():
-					_point_at_rect((button as Control).get_global_rect(), Vector2.RIGHT)
+					# Lock onto the round icon (the button also holds the label below it).
+					# (LaboratoryPanel.CategoryButton: icon centre y 30, radius 25.)
+					var tab_rect := (button as Control).get_global_rect()
+					var k := tab_rect.size.x / maxf((button as Control).size.x, 1.0)
+					var icon_center := tab_rect.position + Vector2(tab_rect.size.x * 0.5, 30.0 * k)
+					_point_at_circle(icon_center, 27.0 * k, Vector2.UP)
 		return
 	var tree_view := lab_panel.get("_research_tree_view") as Control
 	if not is_instance_valid(tree_view):
@@ -466,14 +500,15 @@ func _guide_energy() -> void:
 	if not _energy_selected:
 		_energy_selected = true
 		tree_view.call("select_node", ENERGY_RESEARCH)
-	if ore < cost:
+	if cost > 0 and ore < cost:
 		_set_lab_text("POWER FIRST", tr("ENERGY MODULE EXPANSION costs %d ore - you have %d. Bring more ore home from your next expedition, then research it here.") % [cost, ore])
 	else:
 		_set_lab_text("RESEARCH ENERGY MODULE EXPANSION", tr("Press RESEARCH: a second battery means more Power for more turrets, and it leads to farther planets."))
 	if tree_view.get("selected_id") == ENERGY_RESEARCH:
 		var button := tree_view.get("research_button") as Control
 		if button != null and button.is_visible_in_tree():
-			_point_at_rect(button.get_global_rect(), Vector2.RIGHT)
+			# From above: the cost sits just left of the button.
+			_point_at_rect(button.get_global_rect(), Vector2.DOWN)
 	else:
 		# The player picked another project: point back at ours on the tree.
 		var canvas := tree_view.get("_canvas") as Control

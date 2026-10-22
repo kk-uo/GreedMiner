@@ -1,6 +1,6 @@
 extends Node
 
-## First Rock Titan defeat cinematic (user pick: finisher B + V1). The moment
+## First Rock Titan defeat cinematic (user pick: finisher B + V1; input is ignored until SKIP_DELAY s after the title appears). The moment
 ## the titan falls: the battle ends (waves stop, other enemies crumble, the
 ## titan does not split), its rubble stays on the ground, every dwarf runs
 ## out of the ship and starts mining it, and the camera slowly pulls back
@@ -17,6 +17,8 @@ const ZOOM_OUT_TIME: float = 7.0
 const SPACE_AT: float = 6.4
 const SPACE_FADE: float = 1.4
 const TITLE_AT: float = 9.0
+## Clicks only return to the base this long after the title appears.
+const SKIP_DELAY: float = 2.0
 const IDLE_HINT: float = 6.0
 const ART := preload("res://Scripts/Mining/DwarfMinerArt.gd")
 const BASE_SCENE_PATH := "res://Scenes/Base/base_main.tscn"
@@ -168,7 +170,7 @@ func _process(_delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if _leaving or _elapsed() < TITLE_AT:
+	if _leaving or _elapsed() < TITLE_AT + SKIP_DELAY:
 		return
 	var pressed := (event is InputEventMouseButton and (event as InputEventMouseButton).pressed) or (event is InputEventKey and (event as InputEventKey).pressed)
 	if not pressed:

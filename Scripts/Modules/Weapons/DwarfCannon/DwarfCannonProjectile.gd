@@ -7,6 +7,7 @@ extends Area2D
 @export var damage: float = 20.0
 @export var explosion_radius: float = 20.0
 @export var maximum_lifetime: float = 2.0
+@export var debug_hit_logging: bool = false
 
 var direction: Vector2 = Vector2.RIGHT
 var source_weapon: WeaponModule
@@ -146,5 +147,6 @@ func _explode_at(impact_position: Vector2, direct_target: BasicEnemy) -> bool:
 			source_weapon.projectile_hit.emit(enemy, maxf(before - enemy.get_current_health(), 0.0))
 
 	FlatBurst.spawn(get_parent(), impact_position, explosion_radius + 10.0, Palette.SHOT)
-	print("Cannonball exploded! Enemies hit: ", damaged_enemy_ids.size())
+	if debug_hit_logging:
+		print("Cannonball exploded! Enemies hit: ", damaged_enemy_ids.size())
 	return not is_instance_valid(direct_target) or direct_target.is_dying()

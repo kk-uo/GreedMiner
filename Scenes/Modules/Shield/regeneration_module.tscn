@@ -6,8 +6,6 @@
 script = ExtResource("1_regeneration")
 power_consumption = 1
 max_hp_bonus = 50.0
-chip_slot_count = 0
-max_chip_slots = 3
 healing_amount = 1.0
 healing_interval = 1.0
 healing_radius = 128.0

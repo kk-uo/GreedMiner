@@ -21,6 +21,7 @@ var direction: Vector2 = Vector2.RIGHT
 # Damage dealt when the projectile hits an enemy.
 # The MachineGun assigns its own damage when firing.
 var damage: float = 5.0
+@export var debug_hit_logging: bool = false
 var source_weapon: WeaponModule
 var _hit: bool = false
 var _ghost: RefCounted
@@ -99,8 +100,8 @@ func _on_area_entered(area: Area2D) -> void:
 		if is_instance_valid(source_weapon) and is_instance_valid(enemy):
 			source_weapon.projectile_hit.emit(enemy, maxf(before - enemy.get_current_health(), 0.0))
 
-		# Print a debug message.
-		print("Projectile hit enemy! Damage: %s" % damage)
+		if debug_hit_logging:
+			print("Projectile hit enemy! Damage: %s" % damage)
 
 		# A kill replenishes one penetration before this impact consumes it.
 		if _ghost == null or not _ghost.continue_after_hit(not is_instance_valid(enemy) or enemy.is_dying()):
