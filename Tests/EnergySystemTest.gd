@@ -173,6 +173,28 @@ func _run() -> void:
 	_expect_equal(restored_ship.total_expansion_capacity, 0, "restored expansion capacity remains zero")
 
 	restored_ship.queue_free()
+	await get_tree().process_frame
+
+	# Older saves can be overloaded after a balance or research change. Removing
+	# consumers must remain possible even before the profile becomes valid.
+	ShipLoadout.installed_modules.clear()
+	ShipLoadout.install_module(1, 1, ENERGY_SCENE.resource_path)
+	ShipLoadout.install_module(0, 0, CHAINSAW_SCENE.resource_path)
+	ShipLoadout.install_module(0, 1, CHAINSAW_SCENE.resource_path)
+	ShipLoadout.install_module(0, 2, MINING_SCENE.resource_path)
+	ShipLoadout.install_module(1, 0, MACHINE_GUN_SCENE.resource_path)
+	var overloaded_ship := SHIP_SCENE.instantiate() as Ship
+	overloaded_ship.assembly_mode = true
+	add_child(overloaded_ship)
+	await get_tree().process_frame
+	_expect_equal(overloaded_ship.total_power_consumption, 7, "legacy overload starts at seven power")
+	_expect_equal(overloaded_ship.total_power_capacity, 5, "legacy overload keeps five power capacity")
+	_expect_true(overloaded_ship.remove_module(1, 0), "removal can reduce an existing power deficit")
+	_expect_equal(overloaded_ship.total_power_consumption, 6, "first removal may leave a smaller deficit")
+	_expect_true(overloaded_ship.remove_module(0, 0), "another removal can clear the remaining deficit")
+	_expect_equal(overloaded_ship.total_power_consumption, 4, "loadout returns below power capacity")
+	_expect_false(overloaded_ship.remove_module(1, 1), "final Energy Module remains protected during recovery")
+	overloaded_ship.queue_free()
 	ShipLoadout.installed_modules.clear()
 	WeaponUnlockManager.unlocked_weapon_ids = _saved_weapon_unlocks
 	await get_tree().process_frame

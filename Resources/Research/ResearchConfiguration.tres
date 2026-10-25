@@ -21,6 +21,13 @@ display_name = "Weapons"
 description = "Global damage research for each weapon type."
 implemented = true
 
+[sub_resource type="Resource" id="Category_FusionWeapon"]
+script = ExtResource("1_category")
+category_id = &"fusion_weapon"
+display_name = "Fusion Weapons"
+description = "Independent Level 1-30 research for synthesized weapons."
+implemented = true
+
 [sub_resource type="Resource" id="Category_Mining"]
 script = ExtResource("1_category")
 category_id = &"mining"
@@ -261,6 +268,214 @@ milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_Flamethro
 unlocked_by_default = false
 implemented = true
 
+[sub_resource type="Resource" id="Cost_FusionWeapon"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 200
+linear_cost_coefficient = 200
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_FusionWeapon"]
+script = ExtResource("3_damage_effect")
+
+[sub_resource type="Resource" id="Milestone_FusionWeapon_Level10"]
+script = ExtResource("6_milestone")
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks 1 Weapon Artifact Slot"
+
+[sub_resource type="Resource" id="Milestone_FusionWeapon_Level20"]
+script = ExtResource("6_milestone")
+target_level = 20
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Artifact Slot 2"
+
+[sub_resource type="Resource" id="Milestone_FusionWeapon_Level30"]
+script = ExtResource("6_milestone")
+target_level = 30
+weapon_chip_slots_unlocked = 1
+display_text = "Unlocks Weapon Artifact Slot 3"
+
+[sub_resource type="Resource" id="Definition_ScatterMachineGun"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.scatter_machine_gun"
+category_id = &"fusion_weapon"
+display_name = "Scatter Machine Gun Damage"
+description = "Each level adds 20% of the original Scatter Machine Gun base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"scatter_machine_gun"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_KnockbackMachineGun"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.knockback_machine_gun"
+category_id = &"fusion_weapon"
+display_name = "Knockback Machine Gun Damage"
+description = "Each level adds 20% of the original Knockback Machine Gun base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"knockback_machine_gun"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_LaserMachineGun"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.laser_machine_gun"
+category_id = &"fusion_weapon"
+display_name = "Laser Machine Gun Damage"
+description = "Each level adds 20% of the original Laser Machine Gun base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"laser_machine_gun"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_SawbladeMachineGun"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.sawblade_machine_gun"
+category_id = &"fusion_weapon"
+display_name = "Sawblade Machine Gun Damage"
+description = "Each level adds 20% of the original Sawblade Machine Gun base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"sawblade_machine_gun"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_FlameMachineGun"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.flame_machine_gun"
+category_id = &"fusion_weapon"
+display_name = "Flame Machine Gun Damage"
+description = "Each level adds 20% of the original Flame Machine Gun base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"flame_machine_gun"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_LaserChainsaw"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.laser_chainsaw"
+category_id = &"fusion_weapon"
+display_name = "Laser Chainsaw Damage"
+description = "Each level adds 20% of the original Laser Chainsaw base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"laser_chainsaw"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_HeavyLaser"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.heavy_laser"
+category_id = &"fusion_weapon"
+display_name = "Heavy Laser Damage"
+description = "Each level adds 20% of the original Heavy Laser base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"heavy_laser"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_AutomaticCannon"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.automatic_cannon"
+category_id = &"fusion_weapon"
+display_name = "Automatic Cannon Damage"
+description = "Each level adds 20% of the original Automatic Cannon base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"automatic_cannon"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_SiegeCannon"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.siege_cannon"
+category_id = &"fusion_weapon"
+display_name = "Siege Cannon Damage"
+description = "Each level adds 20% of the original Siege Cannon base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"siege_cannon"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_KnockbackCannon"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.knockback_cannon"
+category_id = &"fusion_weapon"
+display_name = "Long-Range Knockback Cannon Damage"
+description = "Each level adds 20% of the original Long-Range Knockback Cannon base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"knockback_cannon"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_FlameCannon"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.flame_cannon"
+category_id = &"fusion_weapon"
+display_name = "Flame Cannon Damage"
+description = "Each level adds 20% of the original Flame Cannon base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"flame_cannon"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_KnockbackLaser"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.knockback_laser"
+category_id = &"fusion_weapon"
+display_name = "Knockback Laser Damage"
+description = "Each level adds 20% of the original Knockback Laser impact damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"knockback_laser"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
+[sub_resource type="Resource" id="Definition_FlameLaser"]
+script = ExtResource("4_definition")
+research_id = &"weapon_damage.flame_laser"
+category_id = &"fusion_weapon"
+display_name = "Flame Laser Damage"
+description = "Each level adds 20% of the original Flame Laser base damage."
+max_level = 30
+cost_configuration = SubResource("Cost_FusionWeapon")
+target_id = &"flame_laser"
+effect = SubResource("Effect_FusionWeapon")
+milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_FusionWeapon_Level10"), SubResource("Milestone_FusionWeapon_Level20"), SubResource("Milestone_FusionWeapon_Level30")])
+unlocked_by_default = false
+implemented = true
+
 [sub_resource type="Resource" id="Cost_KnockbackResearch"]
 script = ExtResource("2_cost")
 base_upgrade_cost = 200
@@ -401,9 +616,25 @@ base_upgrade_cost = 500
 linear_cost_coefficient = 0
 quadratic_cost_coefficient = 0
 
+[sub_resource type="Resource" id="ShipCost750"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 750
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipCost1000"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 1000
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
 [sub_resource type="Resource" id="ShipHpEffect"]
 script = ExtResource("9_ship_effect")
 max_hp_bonus = 50.0
+
+[sub_resource type="Resource" id="ShipHp10Effect"]
+script = ExtResource("9_ship_effect")
+max_hp_bonus = 10.0
 
 [sub_resource type="Resource" id="ShipRegenEffect"]
 script = ExtResource("9_ship_effect")
@@ -555,12 +786,6 @@ base_upgrade_cost = 250
 linear_cost_coefficient = 0
 quadratic_cost_coefficient = 0
 
-[sub_resource type="Resource" id="ShipCost200"]
-script = ExtResource("2_cost")
-base_upgrade_cost = 200
-linear_cost_coefficient = 0
-quadratic_cost_coefficient = 0
-
 [sub_resource type="Resource" id="ShipAirEffect"]
 script = ExtResource("9_ship_effect")
 unlocked_planet_ids = Array[StringName]([&"frozen_planet", &"volcanic_planet"])
@@ -572,6 +797,10 @@ base_power_bonus = 1
 [sub_resource type="Resource" id="ShipStyleEffect"]
 script = ExtResource("9_ship_effect")
 unlocks_ship_style = true
+
+[sub_resource type="Resource" id="ShipManualAimEffect"]
+script = ExtResource("9_ship_effect")
+unlocks_manual_turret_control = true
 
 [sub_resource type="Resource" id="ShipAir"]
 script = ExtResource("4_definition")
@@ -591,7 +820,7 @@ category_id = &"ship"
 display_name = "Built-in Power Cell"
 description = "The ship itself supplies +1 Power, no Energy Module needed."
 starting_level = 0
-cost_configuration = SubResource("ShipCost200")
+cost_configuration = SubResource("ShipCost500")
 effect = SubResource("ShipPowerEffect")
 implemented = true
 
@@ -606,8 +835,41 @@ cost_configuration = SubResource("ShipCost500")
 effect = SubResource("ShipStyleEffect")
 implemented = true
 
+[sub_resource type="Resource" id="ShipHp2"]
+script = ExtResource("4_definition")
+research_id = &"ship_max_hp_2"
+category_id = &"ship"
+display_name = "Ship HP +10 II"
+description = "Permanently increases maximum ship HP by another 10."
+starting_level = 0
+cost_configuration = SubResource("ShipCost500")
+effect = SubResource("ShipHp10Effect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipHp3"]
+script = ExtResource("4_definition")
+research_id = &"ship_max_hp_3"
+category_id = &"ship"
+display_name = "Ship HP +10 III"
+description = "Permanently increases maximum ship HP by another 10."
+starting_level = 0
+cost_configuration = SubResource("ShipCost750")
+effect = SubResource("ShipHp10Effect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipManualAim"]
+script = ExtResource("4_definition")
+research_id = &"ship_manual_turret_control"
+category_id = &"ship"
+display_name = "Manual Turret Control"
+description = "Click a turret during battle to aim it toward the mouse. Click it again, right-click or press Esc to return to automatic fire."
+starting_level = 0
+cost_configuration = SubResource("ShipCost1000")
+effect = SubResource("ShipManualAimEffect")
+implemented = true
+
 [resource]
 script = ExtResource("5_configuration")
-categories = Array[ExtResource("1_category")]([SubResource("Category_Weapon"), SubResource("Category_Mining"), SubResource("Category_Shield"), SubResource("Category_Energy"), SubResource("Category_Ship"), SubResource("Category_WeaponSkills"), SubResource("Category_Chips")])
-definitions = Array[ExtResource("4_definition")]([SubResource("Definition_MachineGun"), SubResource("Definition_DwarfCannon"), SubResource("Definition_Laser"), SubResource("Definition_Chainsaw"), SubResource("Definition_Flamethrower"), SubResource("Definition_KnockbackResearch"), SubResource("Definition_RegenerationResearch"), SubResource("Definition_EnergyCore"), SubResource("Definition_EnergyRange"), SubResource("Definition_EnergyInstallSlot"), SubResource("Definition_EnergySlotSupport"), SubResource("Definition_EnergyShielded"), SubResource("Definition_EnergyRange2"), SubResource("Definition_MiningInstallSlot"), SubResource("ShipHp"), SubResource("ShipRegen"), SubResource("ShipMagic"), SubResource("ShipAir"), SubResource("ShipPower"), SubResource("ShipStyle")])
+categories = Array[ExtResource("1_category")]([SubResource("Category_Weapon"), SubResource("Category_FusionWeapon"), SubResource("Category_Mining"), SubResource("Category_Shield"), SubResource("Category_Energy"), SubResource("Category_Ship"), SubResource("Category_WeaponSkills"), SubResource("Category_Chips")])
+definitions = Array[ExtResource("4_definition")]([SubResource("Definition_MachineGun"), SubResource("Definition_DwarfCannon"), SubResource("Definition_Laser"), SubResource("Definition_Chainsaw"), SubResource("Definition_Flamethrower"), SubResource("Definition_ScatterMachineGun"), SubResource("Definition_KnockbackMachineGun"), SubResource("Definition_LaserMachineGun"), SubResource("Definition_SawbladeMachineGun"), SubResource("Definition_FlameMachineGun"), SubResource("Definition_LaserChainsaw"), SubResource("Definition_HeavyLaser"), SubResource("Definition_AutomaticCannon"), SubResource("Definition_SiegeCannon"), SubResource("Definition_KnockbackCannon"), SubResource("Definition_FlameCannon"), SubResource("Definition_KnockbackLaser"), SubResource("Definition_FlameLaser"), SubResource("Definition_KnockbackResearch"), SubResource("Definition_RegenerationResearch"), SubResource("Definition_EnergyCore"), SubResource("Definition_EnergyRange"), SubResource("Definition_EnergyInstallSlot"), SubResource("Definition_EnergySlotSupport"), SubResource("Definition_EnergyShielded"), SubResource("Definition_EnergyRange2"), SubResource("Definition_MiningInstallSlot"), SubResource("ShipHp"), SubResource("ShipRegen"), SubResource("ShipMagic"), SubResource("ShipAir"), SubResource("ShipPower"), SubResource("ShipStyle"), SubResource("ShipHp2"), SubResource("ShipHp3"), SubResource("ShipManualAim")])
 trees = Array[ExtResource("10_tree_script")]([ExtResource("11_energy_tree"), ExtResource("12_mining_tree"), ExtResource("13_ship_tree")])

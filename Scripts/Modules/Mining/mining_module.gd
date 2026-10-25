@@ -96,7 +96,7 @@ func _on_mining_timer_timeout() -> void:
 	if not mining_enabled:
 		return
 
-	ResourceManager.add_mission_ore(mining_rate + ResearchManager.get_mining_output_bonus() * $MiningTimer.wait_time)
+	ResourceManager.add_mission_ore(mining_rate + ResearchManager.get_mining_output_bonus() * $MiningTimer.wait_time, &"drill")
 
 
 ## Whether this module is currently producing ore.

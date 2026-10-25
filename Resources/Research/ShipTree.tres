@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ResearchTreeDefinition" load_steps=9 format=3]
+[gd_resource type="Resource" script_class="ResearchTreeDefinition" load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="1"]
 [ext_resource type="Script" path="res://Scripts/Research/ResearchTreeNode.gd" id="2"]
@@ -38,6 +38,24 @@ tree_category = &"ship"
 prerequisite_ids = Array[StringName]([&"ship_auto_regeneration_1"])
 visual_position = Vector2(30, 460)
 
+[sub_resource type="Resource" id="Hp2"]
+script = ExtResource("2")
+research_id = &"ship_max_hp_2"
+display_name = "Ship HP +10 II"
+description = "Permanently increases maximum ship HP by 10."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_air_conditioning_1"])
+visual_position = Vector2(30, 680)
+
+[sub_resource type="Resource" id="Hp3"]
+script = ExtResource("2")
+research_id = &"ship_max_hp_3"
+display_name = "Ship HP +10 III"
+description = "Permanently increases maximum ship HP by 10."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_max_hp_2"])
+visual_position = Vector2(30, 900)
+
 [sub_resource type="Resource" id="Power"]
 script = ExtResource("2")
 research_id = &"ship_power_1"
@@ -56,8 +74,17 @@ tree_category = &"ship"
 prerequisite_ids = Array[StringName]([&"ship_magic_slot_1"])
 visual_position = Vector2(530, 460)
 
+[sub_resource type="Resource" id="ManualAim"]
+script = ExtResource("2")
+research_id = &"ship_manual_turret_control"
+display_name = "Manual Turret Control"
+description = "Click a turret during battle to aim and fire toward the mouse. Click it again, right-click or press Esc to return to automatic fire."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_power_1", &"ship_style_unlock"])
+visual_position = Vector2(430, 680)
+
 [resource]
 script = ExtResource("1")
 tree_id = &"ship"
 display_name = "Ship Research"
-nodes = Array[ExtResource("2")]([SubResource("Hp"), SubResource("Regen"), SubResource("Magic"), SubResource("Air"), SubResource("Power"), SubResource("Style")])
+nodes = Array[ExtResource("2")]([SubResource("Hp"), SubResource("Regen"), SubResource("Magic"), SubResource("Air"), SubResource("Hp2"), SubResource("Hp3"), SubResource("Power"), SubResource("Style"), SubResource("ManualAim")])

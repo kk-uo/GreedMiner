@@ -352,7 +352,7 @@ func _execute_spawn_request(request: WaveSpawnRequest, wave: WaveDefinition, for
 	var forest_suppressed := false
 	if spawned.size() != request.spawn_count and wave_config.planet_id == &"tree_planet" and request.entry.enemy_id in [&"treant", &"big_treant"]:
 		var forest_field := get_node_or_null("../Battlefield") as Battlefield
-		forest_suppressed = forest_field != null and is_instance_valid(forest_field.forest_terrain) and not forest_field.forest_terrain.has_spawn_trees()
+		forest_suppressed = forest_field != null and is_instance_valid(forest_field.forest_terrain) and (forest_field.forest_terrain.rings_own_treants or not forest_field.forest_terrain.has_spawn_trees())
 	if spawned.size() != request.spawn_count and not forest_suppressed:
 		push_error("WaveManager: Spawned %d of %d '%s' requests in wave %d." % [spawned.size(), request.spawn_count, request.entry.enemy_id, wave.wave_number])
 	for enemy in spawned:

@@ -29,6 +29,7 @@ const AIM_EPSILON_RADIANS: float = 0.001
 @onready var _turret: Node2D = $Turret
 @onready var _muzzle: Marker2D = $Turret/Muzzle
 @onready var _beam: Line2D = $Turret/Muzzle/Beam
+@onready var _sound: WeaponSound = $Sound
 
 ## The enemy locked by the laser until it dies or leaves range.
 var current_target: BasicEnemy = null
@@ -45,17 +46,9 @@ func get_fire_rate() -> float:
 	return get_modified_fire_rate(1.0 / attack_interval)
 
 
-## Range bonuses (Range Chip, Demon Prism) also widen the beam, both visually
-## and for hits, at BEAM_WIDTH_RANGE_FACTOR times the range bonus
-## (+35% range -> +350% width).
-const BEAM_WIDTH_RANGE_FACTOR: float = 10.0
-
-
 func get_effective_beam_width() -> float:
-	if attack_range <= 0.0:
-		return beam_width
-	var range_bonus := get_modified_attack_range(attack_range) / attack_range - 1.0
-	return beam_width * maxf(1.0 + range_bonus * BEAM_WIDTH_RANGE_FACTOR, 0.1)
+	# Targeting range and beam collision/model width are independent stats.
+	return get_modified_projectile_range(beam_width)
 
 
 func _ready() -> void:
@@ -71,20 +64,28 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_update_beam_length()
-	current_target = keep_or_find_target(
-		current_target,
-		_muzzle.global_position,
-		get_modified_attack_range(attack_range),
-		delta
-	)
-
-	if not is_instance_valid(current_target):
-		_deactivate_beam()
-		return
+	var aim_position: Vector2
+	if is_manual_control_active():
+		current_target = null
+		aim_position = get_manual_aim_world_position()
+		if not has_valid_manual_aim(_turret.global_position):
+			_deactivate_beam(false)
+			return
+	else:
+		current_target = keep_or_find_target(
+			current_target,
+			_muzzle.global_position,
+			get_modified_attack_range(attack_range),
+			delta
+		)
+		if not is_instance_valid(current_target):
+			_deactivate_beam()
+			return
+		aim_position = current_target.get_target_point(global_position)
 
 	rotate_turret_toward(
 		_turret,
-		current_target.get_target_point(global_position),
+		aim_position,
 		rotation_speed,
 		delta
 	)
@@ -96,16 +97,21 @@ func _physics_process(delta: float) -> void:
 
 	if get_aim_error(
 		_turret,
-		current_target.get_target_point(global_position)
+		aim_position
 	) > allowed_error:
-		_deactivate_beam()
+		# Keep the valid target while turning. Target acquisition is deliberately
+		# throttled, so releasing it here would make the turret rotate only once
+		# per search interval instead of once per physics frame.
+		_deactivate_beam(false)
 		return
 
 	_beam.show()
 
 	var effective_fire_rate := get_fire_rate()
 	if effective_fire_rate <= 0.0:
+		_sound.set_active(false)
 		return
+	_sound.set_active(true)
 	var effective_interval := 1.0 / effective_fire_rate
 
 	_damage_cooldown -= delta
@@ -168,7 +174,10 @@ func _update_beam_length() -> void:
 
 
 ## Hides the beam and prevents stored cooldown from causing delayed damage.
-func _deactivate_beam() -> void:
-	current_target = null
+## A valid target remains locked while the turret is merely turning toward it.
+func _deactivate_beam(release_target: bool = true) -> void:
+	if release_target:
+		current_target = null
 	_damage_cooldown = 0.0
 	_beam.hide()
+	_sound.set_active(false)

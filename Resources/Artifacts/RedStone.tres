@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/WeaponStatArtifactEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"red_stone"
+display_name = "Red Stone"
+rarity = "Common"
+description = "The equipped turret deals 10% more damage."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon", &"laser", &"chainsaw", &"flamethrower"])
+acquisition_source = "Rocky Planet mining salvage chest"
+source_planet_id = &"rocky_planet"
+source_name = "Mining salvage chest"
+mining_chest_reward = true
+mining_chest_planet_ids = Array[StringName]([&"rocky_planet"])
+effect_script = ExtResource("2")
+effect_parameters = {"damage_multiplier": 1.1}

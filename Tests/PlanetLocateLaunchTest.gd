@@ -98,6 +98,11 @@ func _test_requirements() -> void:
 	_expect_true(PlanetSelect.evaluate_launch_requirements(frozen, _profile(1), 500.0).can_locate, "500 Ore can locate Frozen after both researches")
 	_expect_false(PlanetSelect.evaluate_launch_requirements(volcanic, _profile(1), 999.0).can_locate, "999 Ore cannot locate Volcanic")
 	_expect_true(PlanetSelect.evaluate_launch_requirements(volcanic, _profile(1), 1000.0).can_locate, "1000 Ore can locate Volcanic")
+	var visible_planets := PlanetSelect.get_visible_planets()
+	_expect_equal(visible_planets.size(), PlanetSelect.PLANETS.size() - 1, "only Volcanic is hidden from the star map")
+	_expect_false(visible_planets.any(func(planet: Dictionary) -> bool: return StringName(planet.get("id", &"")) == &"volcanic_planet"), "Volcanic is absent from the visible carousel")
+	_expect_equal(PlanetSelect.get_planet_index(&"volcanic_planet"), 3, "Volcanic remains in the complete dependency registry")
+	_expect_equal(PlanetSelect.get_visible_planet_index(&"volcanic_planet"), 0, "a hidden previous destination safely falls back to Rocky")
 
 
 func _test_locate_transaction_and_persistence() -> void:
@@ -148,6 +153,8 @@ func _test_planet_select_flow() -> void:
 	add_child(selector)
 	await get_tree().process_frame
 	_expect_equal(selector.selected_index, 1, "star map reopens on the last deployed planet")
+	_expect_true(selector.planet_layer.get_node_or_null("Planet_volcanic_planet") == null, "star map creates no Volcanic visual")
+	_expect_equal(selector.planet_layer.get_child_count(), PlanetSelect.get_visible_planets().size(), "carousel contains only visible planets")
 	_expect_equal(PlanetSelect.get_planet_index(&"volcanic_planet"), 3, "planet IDs resolve to carousel indexes")
 	_expect_equal(PlanetSelect.get_planet_index(&"removed_planet"), 0, "unknown planet IDs fall back to Rocky")
 	selector.selected_index = 2

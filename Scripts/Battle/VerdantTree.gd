@@ -120,7 +120,7 @@ func _fell() -> void:
 	set_deferred("monitorable", false)
 	collision_layer = 0
 	remove_from_group(GROUP)
-	ResourceManager.add_mission_ore(ore)
+	ResourceManager.add_mission_ore(ore, &"tree")
 	RewardPopup.spawn(get_parent(), global_position, ore)
 	felled.emit(global_position, ore)
 

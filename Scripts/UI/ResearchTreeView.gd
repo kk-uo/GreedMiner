@@ -390,6 +390,10 @@ static func node_info(node: ResearchTreeNode) -> Dictionary:
 			info["glyph"] = &"style"
 			info["stat_icon"] = &"style"
 			info["stat"] = "SHIP STYLE"
+		elif ship_effect.unlocks_manual_turret_control:
+			info["glyph"] = &"target"
+			info["stat_icon"] = &"plus"
+			info["stat"] = "MANUAL AIM"
 		elif ship_effect.power_bonus > 0:
 			info["glyph"] = &"energy"
 			info["stat_icon"] = &"energy"
@@ -527,6 +531,11 @@ static func draw_glyph(canvas: CanvasItem, center: Vector2, scale: float, glyph:
 			canvas.draw_circle(p.call(-3.5, 2.5), 4.6 * scale, color)
 			canvas.draw_circle(p.call(3.5, 2.5), 4.6 * scale, Color(color, 0.75))
 			canvas.draw_circle(p.call(0.0, -3.5), 4.6 * scale, Color(color, 0.5))
+		&"target":
+			canvas.draw_arc(center, 7.0 * scale, 0.0, TAU, 20, color, 1.7 * scale)
+			canvas.draw_line(p.call(-10.0, 0.0), p.call(-4.0, 0.0), color, 1.7 * scale)
+			canvas.draw_line(p.call(4.0, 0.0), p.call(10.0, 0.0), color, 1.7 * scale)
+			canvas.draw_circle(center, 1.8 * scale, color)
 		&"planet":
 			# A planet with a ring and a small dotted route toward it.
 			canvas.draw_circle(p.call(2.5, -1.5), 5.5 * scale, color)

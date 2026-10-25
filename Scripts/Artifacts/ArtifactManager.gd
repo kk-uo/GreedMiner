@@ -67,8 +67,12 @@ func reload_progress() -> void:
 	tutorial_completed = bool(data.get("tutorial_completed", false))
 	tutorial_pending = bool(data.get("tutorial_pending", false)) and not tutorial_completed
 	first_artifact_id = StringName(String(data.get("first_artifact_id", "")))
+	if not first_artifact_id.is_empty() and not owned_artifact_ids.has(String(first_artifact_id)):
+		first_artifact_id = &""
 	if first_artifact_id.is_empty() and not owned_artifact_ids.is_empty():
 		first_artifact_id = StringName(String(owned_artifact_ids.keys()[0]))
+	if owned_artifact_ids.is_empty():
+		tutorial_pending = false
 
 	var raw_order: Variant = data.get("acquired_order", [])
 	if raw_order is Array:
@@ -316,7 +320,7 @@ func get_module_artifact_slot_count(cell: Vector2i) -> int:
 	var entry := ModuleCatalog.find_by_scene(ShipLoadout.get_module(cell.x, cell.y))
 	if entry.is_empty():
 		return 0
-	var module_id := StringName(entry.get("id", &""))
+	var module_id := StringName(entry.get("research_source_id", entry.get("id", &"")))
 	match StringName(entry.get("group", &"")):
 		&"weapon":
 			return mini(ResearchManager.get_weapon_artifact_slot_count(module_id), MODULE_SLOT_COUNT)
@@ -331,7 +335,7 @@ func get_module_artifact_slot_unlock_level(cell: Vector2i, slot_index: int) -> i
 	var entry := ModuleCatalog.find_by_scene(ShipLoadout.get_module(cell.x, cell.y))
 	if entry.is_empty():
 		return 0
-	var module_id := StringName(entry.get("id", &""))
+	var module_id := StringName(entry.get("research_source_id", entry.get("id", &"")))
 	if StringName(entry.get("group", &"")) == &"weapon":
 		return ResearchManager.get_weapon_artifact_slot_unlock_level(module_id, slot_index)
 	if StringName(entry.get("group", &"")) == &"shield":
@@ -343,12 +347,18 @@ func is_module_artifact_slot_unlocked(cell: Vector2i, slot_index: int) -> bool:
 	return slot_index >= 0 and slot_index < get_module_artifact_slot_count(cell)
 
 
+## Shared compatibility query for loadout UI and equipment commands. Fusion
+## weapons inherit compatible artifact families from their recipe ingredients.
+func is_module_artifact_compatible(cell: Vector2i, artifact_id: StringName) -> bool:
+	return _is_valid_module_assignment(cell, artifact_id)
+
+
 func equip_module_artifact(cell: Vector2i, artifact_id: StringName, slot_index: int = 0) -> bool:
 	if not equipment_changes_enabled:
 		return _fail("Magic artifacts can only be changed at the base.")
 	if not is_module_artifact_slot_unlocked(cell, slot_index):
 		return _fail("Research is required to unlock this module artifact slot.")
-	if not _is_valid_module_assignment(cell, artifact_id):
+	if not is_module_artifact_compatible(cell, artifact_id):
 		return _fail("Artifact is missing or incompatible with this module instance.")
 	var previous_ship := ship_slots.duplicate()
 	var previous_modules := module_slots.duplicate(true)
@@ -515,7 +525,17 @@ func _is_valid_module_assignment(cell: Vector2i, artifact_id: StringName) -> boo
 		return false
 	var entry := ModuleCatalog.find_by_scene(ShipLoadout.get_module(cell.x, cell.y))
 	var module_id := StringName(entry.get("id", &"")) if not entry.is_empty() else &""
-	return definition.is_compatible_with_module(module_id)
+	if definition.is_compatible_with_module(module_id):
+		return true
+	# A fusion weapon accepts artifacts compatible with either ingredient.
+	# Beam-only recipes explicitly reject projectile/explosion artifacts whose
+	# effects would otherwise be a silent no-op.
+	if artifact_id in entry.get("artifact_incompatible_ids", []):
+		return false
+	for compatible_id in entry.get("artifact_compatibility_ids", []):
+		if definition.is_compatible_with_module(StringName(compatible_id)):
+			return true
+	return false
 
 
 func _on_ship_cell_changed(cell: Vector2i, old_path: String, new_path: String) -> void:

@@ -55,6 +55,11 @@ const SHIP_DRAG_THRESHOLD: float = 8.0
 var _press_cell := Vector2i(-1, -1)
 var _press_position := Vector2.ZERO
 var _ship_drag_cell := Vector2i(-1, -1)
+var _ship_drag_module: ShipModule
+var _ship_drag_original_z_index: int = 0
+var _fusion_in_progress: bool = false
+var _fusion_indicator: FusionProgressIndicator
+var _fusion_tween: Tween
 ## Warehouse modal (built in code, see _build_warehouse). It opens from the
 ## vault door hotspot in the asteroid's bottom-right wall.
 var warehouse_panel: Control
@@ -155,6 +160,9 @@ func _get_installed_id(row: int, column: int) -> StringName:
 
 ## Installs (or replaces) the module in the selected cell. Ship validates power.
 func _on_install_requested(module_id: StringName) -> void:
+	if _fusion_in_progress:
+		_show_toast("Weapon Fusion is already in progress.", NOTICE_TIME)
+		return
 	if not ShipLoadout.is_valid_cell(_selected_row, _selected_column):
 		return
 	var notice := get_module_notice(module_id)
@@ -202,6 +210,9 @@ func get_module_notice(module_id: StringName) -> String:
 
 
 func _on_remove_requested() -> void:
+	if _fusion_in_progress:
+		_show_toast("Weapon Fusion is already in progress.", NOTICE_TIME)
+		return
 	if not ShipLoadout.is_valid_cell(_selected_row, _selected_column):
 		return
 	if ship.remove_module(_selected_row, _selected_column):
@@ -214,7 +225,7 @@ func _on_remove_requested() -> void:
 # ==========================================
 
 func _on_drag_started(module_id: StringName) -> void:
-	if _view_state != ViewState.ASSEMBLY:
+	if _view_state != ViewState.ASSEMBLY or _fusion_in_progress:
 		return
 	_cancel_drag()
 	_drag_id = module_id
@@ -242,7 +253,7 @@ func _input(event: InputEvent) -> void:
 ## Right-clicking an occupied ship cell removes its module through the same
 ## validated path as the loadout panel's Remove button.
 func _handle_ship_remove_input(event: InputEvent) -> bool:
-	if _view_state != ViewState.ASSEMBLY:
+	if _view_state != ViewState.ASSEMBLY or _fusion_in_progress:
 		return false
 	var button := event as InputEventMouseButton
 	if (
@@ -285,7 +296,7 @@ func _finish_drag() -> void:
 ## Installs module_id into a ship cell as if it had been dropped there.
 ## Returns false when the cell is invalid or the install was rejected.
 func drop_module_on_cell(module_id: StringName, cell: Vector2i) -> bool:
-	if not ShipLoadout.is_valid_cell(cell.x, cell.y):
+	if _fusion_in_progress or not ShipLoadout.is_valid_cell(cell.x, cell.y):
 		return false
 	# Select the slot, then install exactly like the "+" button does.
 	ship.select_cell(cell.x, cell.y)
@@ -314,7 +325,7 @@ func _cancel_drag() -> void:
 ## on another slot to move it there (swapping with whatever is there). A plain
 ## click still just selects the slot (Ship handles that).
 func _handle_ship_drag_input(event: InputEvent) -> void:
-	if _view_state != ViewState.ASSEMBLY:
+	if _view_state != ViewState.ASSEMBLY or _fusion_in_progress:
 		_cancel_ship_drag()
 		return
 	var button := event as InputEventMouseButton
@@ -349,20 +360,49 @@ func _begin_ship_drag(cell: Vector2i) -> void:
 	var module_id := _get_installed_id(cell.x, cell.y)
 	if module_id == &"":
 		return
-	_ship_drag_cell = cell
-	_press_cell = Vector2i(-1, -1)
-	_drag_ghost = _make_drag_ghost(module_id)
-	ui_root.add_child(_drag_ghost)
 	var module := ship.get_module_at(cell.x, cell.y)
-	if module != null:
-		module.modulate.a = 0.35
+	if module == null:
+		return
+	_ship_drag_cell = cell
+	_ship_drag_module = module
+	_ship_drag_original_z_index = module.z_index
+	module.z_index = maxi(module.z_index, 9)
+	_press_cell = Vector2i(-1, -1)
 
 
-func _update_ship_drag(world_position: Vector2, screen_position: Vector2) -> void:
-	if _drag_ghost != null:
-		_drag_ghost.position = ui_root.screen_to_ui(screen_position) - Vector2(32.0, 32.0)
+func _update_ship_drag(world_position: Vector2, _screen_position: Vector2) -> void:
+	if is_instance_valid(_ship_drag_module):
+		_ship_drag_module.position = ship.installed_modules.to_local(world_position)
 	var cell := ship.get_cell_at_global(world_position)
+	# Fusion is an overlap interaction: as soon as the dragged module enters a
+	# compatible occupied cell, consume the drag and start the timed fuse.
+	# The player does not need to release the mouse over the target.
+	if _try_start_fusion_overlap(cell):
+		return
 	_drop_marker.show_cell(cell if cell != _ship_drag_cell else Vector2i(-1, -1), cell.x >= 0)
+
+
+func _try_start_fusion_overlap(target: Vector2i) -> bool:
+	var source := _ship_drag_cell
+	if (
+		_fusion_in_progress
+		or not ShipLoadout.is_valid_cell(source.x, source.y)
+		or not ShipLoadout.is_valid_cell(target.x, target.y)
+		or source == target
+		or not ShipLoadout.has_module(target.x, target.y)
+	):
+		return false
+	var recipe := WeaponFusionRegistry.find_recipe(
+		_get_installed_id(source.x, source.y),
+		_get_installed_id(target.x, target.y)
+	)
+	if recipe.is_empty() or not WeaponFusionRegistry.is_unlocked():
+		return false
+	_cancel_ship_drag(false)
+	if _start_weapon_fusion(source, target, recipe):
+		return true
+	_restore_ship_module_position(source)
+	return false
 
 
 ## World position of a mouse event (independent of the OS cursor).
@@ -373,15 +413,28 @@ func _event_world_position(event: InputEventMouse) -> Vector2:
 func _finish_ship_drag(world_position: Vector2) -> void:
 	var source := _ship_drag_cell
 	var target := ship.get_cell_at_global(world_position)
-	_cancel_ship_drag()
-	move_module_to_cell(source, target)
+	var should_move := ShipLoadout.is_valid_cell(target.x, target.y) and target != source
+	_cancel_ship_drag(not should_move)
+	if should_move and not move_module_to_cell(source, target):
+		_restore_ship_module_position(source)
 
 
 ## Moves the module in source to target (swapping if target is occupied) as if
 ## it had been dragged there. Returns false when nothing changed.
 func move_module_to_cell(source: Vector2i, target: Vector2i) -> bool:
-	if not ShipLoadout.is_valid_cell(target.x, target.y) or source == target:
+	if _fusion_in_progress or not ShipLoadout.is_valid_cell(target.x, target.y) or source == target:
 		return false
+	if ShipLoadout.has_module(target.x, target.y):
+		var source_id := _get_installed_id(source.x, source.y)
+		var target_id := _get_installed_id(target.x, target.y)
+		var recipe := WeaponFusionRegistry.find_recipe(source_id, target_id)
+		if not recipe.is_empty():
+			if not WeaponFusionRegistry.is_unlocked():
+				var requirement := WeaponFusionRegistry.get_unlock_requirement()
+				_show_toast(requirement, NOTICE_TIME)
+				loadout_panel.show_message(requirement)
+			else:
+				return _start_weapon_fusion(source, target, recipe)
 	if not ship.swap_modules(source.x, source.y, target.x, target.y):
 		return false
 	ShipLoadout.save()
@@ -389,18 +442,71 @@ func move_module_to_cell(source: Vector2i, target: Vector2i) -> bool:
 	return true
 
 
-func _cancel_ship_drag() -> void:
-	if _ship_drag_cell.x >= 0:
-		var module := ship.get_module_at(_ship_drag_cell.x, _ship_drag_cell.y)
-		if module != null:
-			module.modulate.a = 1.0
+func _start_weapon_fusion(source: Vector2i, target: Vector2i, recipe: Dictionary) -> bool:
+	var result_scene := load(String(recipe.get("scene", ""))) as PackedScene
+	if result_scene == null:
+		_restore_ship_module_position(source)
+		_show_toast("Fusion result is unavailable.", NOTICE_TIME)
+		return false
+	_fusion_in_progress = true
+	ship.cell_input_enabled = false
+	_fusion_indicator = FusionProgressIndicator.new()
+	_fusion_indicator.label_text = tr("FUSING  ·  %s") % tr(String(recipe.get("display_name", "WEAPON")))
+	_fusion_indicator.position = ship.get_cell_center(target.x, target.y)
+	ship.add_child(_fusion_indicator)
+	var source_path := ShipLoadout.get_module(source.x, source.y)
+	var target_path := ShipLoadout.get_module(target.x, target.y)
+	_fusion_tween = create_tween()
+	_fusion_tween.set_trans(Tween.TRANS_LINEAR)
+	_fusion_tween.tween_property(_fusion_indicator, "progress", 1.0, float(recipe.get("duration", WeaponFusionRegistry.FUSION_DURATION_SECONDS)))
+	_fusion_tween.tween_callback(func() -> void:
+		var unchanged := (
+			ShipLoadout.get_module(source.x, source.y) == source_path
+			and ShipLoadout.get_module(target.x, target.y) == target_path
+		)
+		var completed := unchanged and ship.fuse_modules(source, target, result_scene)
+		if completed:
+			ShipLoadout.save()
+			ship.select_cell(target.x, target.y)
+			loadout_panel.set_slot(target.x, target.y, StringName(recipe.get("result_id", &"")))
+			_show_toast(tr("FUSION COMPLETE  ·  %s") % tr(String(recipe.get("display_name", "WEAPON"))), NOTICE_TIME)
+		else:
+			_restore_ship_module_position(source)
+			_show_toast(ship.last_module_error if not ship.last_module_error.is_empty() else "Fusion canceled.", NOTICE_TIME)
+		_finish_weapon_fusion()
+	)
+	return true
+
+
+func _finish_weapon_fusion() -> void:
+	_fusion_in_progress = false
+	if is_instance_valid(_fusion_indicator):
+		_fusion_indicator.queue_free()
+	_fusion_indicator = null
+	_fusion_tween = null
+	ship.cell_input_enabled = _view_state == ViewState.ASSEMBLY
+
+
+func _cancel_ship_drag(restore_position: bool = true) -> void:
+	if is_instance_valid(_ship_drag_module):
+		_ship_drag_module.z_index = _ship_drag_original_z_index
+		if restore_position and _ship_drag_cell.x >= 0:
+			_ship_drag_module.position = ship.get_cell_center(_ship_drag_cell.x, _ship_drag_cell.y)
 	_ship_drag_cell = Vector2i(-1, -1)
+	_ship_drag_module = null
+	_ship_drag_original_z_index = 0
 	_press_cell = Vector2i(-1, -1)
 	if _drag_ghost != null and _drag_id == &"":
 		_drag_ghost.queue_free()
 		_drag_ghost = null
 	if _drop_marker != null and _drag_id == &"":
 		_drop_marker.show_cell(Vector2i(-1, -1), false)
+
+
+func _restore_ship_module_position(cell: Vector2i) -> void:
+	var module := ship.get_module_at(cell.x, cell.y)
+	if module != null:
+		module.position = ship.get_cell_center(cell.x, cell.y)
 
 
 ## Whether dropping module_id on cell fits the power budget (Ship still validates).

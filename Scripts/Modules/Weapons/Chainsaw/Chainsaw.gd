@@ -17,6 +17,7 @@ extends WeaponModule
 
 @onready var _attack_area: Area2D = $AttackArea
 @onready var _attack_shape: CollisionShape2D = $AttackArea/CollisionShape2D
+@onready var _sound: WeaponSound = $Sound
 
 var _attack_cooldown: float = 0.0
 var _blade_rotation: float = 0.0
@@ -63,6 +64,7 @@ func _physics_process(delta: float) -> void:
 	var effective_fire_rate := get_fire_rate()
 	if assembly_mode or effective_fire_rate <= 0.0:
 		_attack_cooldown = 0.0
+		_sound.stop_sound()
 		return
 	var effective_interval := 1.0 / effective_fire_rate
 
@@ -103,12 +105,15 @@ func fire() -> void:
 
 		damaged_enemy_ids[enemy_id] = true
 		enemy.take_damage(get_damage(), false, true, self)
+	if not damaged_enemy_ids.is_empty():
+		_sound.sustain_for(0.2)
 
 
 func _exit_tree() -> void:
 	# Prevent any further ticks as soon as the module leaves the scene tree.
 	set_physics_process(false)
 	_attack_cooldown = 0.0
+	_sound.stop_sound()
 
 
 ## Draws a compact industrial saw blade centered in one 64x64 cell.

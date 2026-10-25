@@ -41,10 +41,10 @@ func grant_resource_from_text(currency_id: StringName, amount_text: String) -> D
 	if current_balance < 0.0 or float(amount) > float(MAX_SAFE_WHOLE_RESOURCE_BALANCE) - current_balance:
 		return _failure("Amount would exceed the safe resource limit.")
 	if amount == 0:
-		return _success("Granted 0 Ore.")
+		return _success("Granted 0 Ore.", "Granted %d Ore.", [0])
 	if not ResourceManager.add_stored_ore(float(amount)):
 		return _failure("Could not save the resource grant.")
-	return _success("Granted %d Ore." % amount)
+	return _success("Granted %d Ore." % amount, "Granted %d Ore.", [amount])
 
 
 ## Unlocks every weapon known by WeaponUnlockManager without completing or
@@ -63,7 +63,7 @@ func unlock_all_weapons() -> Dictionary:
 	var newly_unlocked := WeaponUnlockManager.unlock_all_configured_weapons()
 	if newly_unlocked.size() != locked_before:
 		return _failure("Could not save all weapon unlocks.")
-	return _success("Unlocked %d weapons." % newly_unlocked.size())
+	return _success("Unlocked %d weapons." % newly_unlocked.size(), "Unlocked %d weapons.", [newly_unlocked.size()])
 
 
 ## Grants every registered magic artifact through ArtifactManager so ownership,
@@ -85,9 +85,9 @@ func unlock_all_artifacts() -> Dictionary:
 		if definition == null or ArtifactManager.owns_artifact(definition.artifact_id):
 			continue
 		if not ArtifactManager.grant_artifact(definition.artifact_id):
-			return _failure("Artifact unlock stopped after %d item(s)." % granted)
+			return _failure("Artifact unlock stopped after %d item(s)." % granted, "Artifact unlock stopped after %d item(s).", [granted])
 		granted += 1
-	return _success("Unlocked %d magic artifact(s)." % granted)
+	return _success("Unlocked %d magic artifact(s)." % granted, "Unlocked %d magic artifact(s).", [granted])
 
 
 ## Makes every destination in the planet carousel deployable without marking
@@ -109,19 +109,35 @@ func unlock_all_planets() -> Dictionary:
 			if ResearchManager.is_research_completed(research_id):
 				continue
 			if not ResearchManager.complete_research_for_development(research_id):
-				return _failure("Could not complete access research: %s." % research_id)
+				return _failure("Could not complete access research: %s." % research_id, "Could not complete access research: %s.", [research_id])
 			completed_access_research += 1
 
 		var locate_cost := int(planet.get("locate_cost", 0))
 		if not WeaponUnlockManager.is_planet_located(planet_id, locate_cost):
 			# The manager persists the location and sends the normal signal.
 			if not WeaponUnlockManager.locate_planet_for_development(planet_id):
-				return _failure("Could not locate planet: %s." % planet_id)
+				return _failure("Could not locate planet: %s." % planet_id, "Could not locate planet: %s.", [planet_id])
 			newly_located += 1
 
 	if newly_located == 0 and completed_access_research == 0:
 		return _success("All planets are already available.")
-	return _success("Unlocked %d planet location(s) and completed %d access research(es)." % [newly_located, completed_access_research])
+	return _success(
+		"Unlocked %d planet location(s) and completed %d access research(es)." % [newly_located, completed_access_research],
+		"Unlocked %d planet location(s) and completed %d access research(es).",
+		[newly_located, completed_access_research]
+	)
+
+
+## Unlocks the fusion interaction only. It deliberately does not mark the
+## Graveyard Planet complete, level base weapons, or level fusion weapons.
+func unlock_weapon_fusion() -> Dictionary:
+	if not is_available():
+		return _failure("Developer Mode is disabled.")
+	if WeaponFusionRegistry.is_developer_unlocked():
+		return _success("Weapon Fusion is already unlocked.")
+	if not WeaponFusionRegistry.unlock_for_development():
+		return _failure("Could not save the Weapon Fusion unlock.")
+	return _success("Weapon Fusion unlocked. Fusion weapons still start at Level 1.")
 
 
 ## Clears the versioned player save and asks each existing manager to rebuild
@@ -158,9 +174,19 @@ func _parse_non_negative_integer(text: String) -> Dictionary:
 	return {"ok": true, "value": value}
 
 
-func _success(message: String) -> Dictionary:
-	return {"ok": true, "message": message}
+func _success(message: String, message_key: String = "", message_args: Array = []) -> Dictionary:
+	return {
+		"ok": true,
+		"message": message,
+		"message_key": message if message_key.is_empty() else message_key,
+		"message_args": message_args,
+	}
 
 
-func _failure(message: String) -> Dictionary:
-	return {"ok": false, "message": message}
+func _failure(message: String, message_key: String = "", message_args: Array = []) -> Dictionary:
+	return {
+		"ok": false,
+		"message": message,
+		"message_key": message if message_key.is_empty() else message_key,
+		"message_args": message_args,
+	}

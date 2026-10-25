@@ -152,6 +152,7 @@ func _perform_death_effect() -> void:
 	# Defeating the Frozen Planet boss puts a trophy snowman in the base.
 	if enemy_id == &"mega_monster":
 		BASE_TROPHIES.grant(&"snowman")
+		ArtifactManager.grant_artifact(&"frost_breath")
 	if split_scene == null or get_parent() == null:
 		return
 	var center := global_position

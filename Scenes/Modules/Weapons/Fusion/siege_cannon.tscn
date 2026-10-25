@@ -1,0 +1,24 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Modules/Fusion/FusionWeapon.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Modules/Fusion/FusionTurretVisual.gd" id="2"]
+[ext_resource type="PackedScene" path="res://Scenes/Modules/Weapons/Fusion/fusion_projectile.tscn" id="3"]
+
+[node name="SiegeCannon" type="Node2D"]
+script = ExtResource("1")
+weapon_type_id = &"siege_cannon"
+power_consumption = 3
+visual_kind = 5
+basic_damage = 120.0
+attack_interval = 5.0
+attack_range = 1000.0
+projectile_range = 6.0
+projectile_speed = 800.0
+aoe_radius = 80.0
+rotation_speed = 200.0
+projectile_scene = ExtResource("3")
+
+[node name="Turret" type="Node2D" parent="."]
+script = ExtResource("2")
+[node name="Muzzle" type="Marker2D" parent="Turret"]
+position = Vector2(26, 0)

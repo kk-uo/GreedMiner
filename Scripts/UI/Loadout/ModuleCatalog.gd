@@ -17,6 +17,48 @@ const ENTRIES: Array[Dictionary] = [
 		"scene": "res://Scenes/Modules/Weapons/Chainsaw/chainsaw.tscn"},
 	{"id": &"flamethrower", "name": "Flamethrower", "group": &"weapon",
 		"scene": "res://Scenes/Modules/Weapons/Flamethrower/flamethrower.tscn"},
+	{"id": &"scatter_machine_gun", "name": "Scatter Machine Gun", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/scatter_machine_gun.tscn", "fusion_only": true,
+		"research_source_id": &"scatter_machine_gun", "artifact_compatibility_ids": [&"machine_gun"]},
+	{"id": &"knockback_machine_gun", "name": "Knockback Machine Gun", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/knockback_machine_gun.tscn", "fusion_only": true,
+		"research_source_id": &"knockback_machine_gun", "artifact_compatibility_ids": [&"machine_gun", &"knockback_module"]},
+	{"id": &"laser_machine_gun", "name": "Laser Machine Gun", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/laser_machine_gun.tscn", "fusion_only": true,
+		"research_source_id": &"laser_machine_gun", "artifact_compatibility_ids": [&"machine_gun", &"laser"]},
+	{"id": &"sawblade_machine_gun", "name": "Sawblade Machine Gun", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/sawblade_machine_gun.tscn", "fusion_only": true,
+		"research_source_id": &"sawblade_machine_gun", "artifact_compatibility_ids": [&"machine_gun", &"chainsaw"]},
+	{"id": &"flame_machine_gun", "name": "Flame Machine Gun", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/flame_machine_gun.tscn", "fusion_only": true,
+		"research_source_id": &"flame_machine_gun", "artifact_compatibility_ids": [&"machine_gun", &"flamethrower"]},
+	{"id": &"laser_chainsaw", "name": "Laser Chainsaw", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/laser_chainsaw.tscn", "fusion_only": true,
+		"research_source_id": &"laser_chainsaw", "artifact_compatibility_ids": [&"chainsaw", &"laser"]},
+	{"id": &"heavy_laser", "name": "Heavy Laser", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/heavy_laser.tscn", "fusion_only": true,
+		"research_source_id": &"heavy_laser", "artifact_compatibility_ids": [&"laser", &"dwarf_cannon"],
+		"artifact_incompatible_ids": [&"angry_stone", &"ghost_bullet", &"red_crystal", &"true_ice"]},
+	{"id": &"automatic_cannon", "name": "Automatic Cannon", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/automatic_cannon.tscn", "fusion_only": true,
+		"research_source_id": &"automatic_cannon", "artifact_compatibility_ids": [&"dwarf_cannon", &"machine_gun"]},
+	{"id": &"siege_cannon", "name": "Siege Cannon", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/siege_cannon.tscn", "fusion_only": true,
+		"research_source_id": &"siege_cannon", "artifact_compatibility_ids": [&"dwarf_cannon"]},
+	{"id": &"knockback_cannon", "name": "Long-Range Knockback Cannon", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/knockback_cannon.tscn", "fusion_only": true,
+		"research_source_id": &"knockback_cannon", "artifact_compatibility_ids": [&"dwarf_cannon", &"knockback_module"]},
+	{"id": &"flame_cannon", "name": "Flame Cannon", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/flame_cannon.tscn", "fusion_only": true,
+		"research_source_id": &"flame_cannon", "artifact_compatibility_ids": [&"dwarf_cannon", &"flamethrower"]},
+	{"id": &"knockback_laser", "name": "Knockback Laser", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/knockback_laser.tscn", "fusion_only": true,
+		"research_source_id": &"knockback_laser", "artifact_compatibility_ids": [&"laser", &"knockback_module"],
+		"artifact_incompatible_ids": [&"ghost_bullet", &"red_crystal"]},
+	{"id": &"flame_laser", "name": "Flame Laser", "group": &"weapon",
+		"scene": "res://Scenes/Modules/Weapons/Fusion/flame_laser.tscn", "fusion_only": true,
+		"research_source_id": &"flame_laser", "artifact_compatibility_ids": [&"laser", &"flamethrower"],
+		"artifact_incompatible_ids": [&"angry_stone", &"ghost_bullet", &"red_crystal", &"true_ice"]},
 	{"id": &"energy_module", "name": "Energy", "group": &"system",
 		"scene": "res://Scenes/Modules/Energy/energy_module.tscn"},
 	{"id": &"mining_module", "name": "Mining", "group": &"system",
@@ -78,12 +120,16 @@ static func is_weapon(id: StringName) -> bool:
 ## Weapons and any module with an unlock definition (e.g. shields) are gated by
 ## WeaponUnlockManager; other systems are always available.
 static func is_module_unlocked(id: StringName) -> bool:
+	if WeaponFusionRegistry.is_fused_module(id):
+		return WeaponFusionRegistry.is_unlocked()
 	if is_weapon(id) or WeaponUnlockManager.get_definition(id) != null:
 		return WeaponUnlockManager.is_weapon_unlocked(id)
 	return true
 
 
 static func get_unlock_requirement(id: StringName) -> String:
+	if WeaponFusionRegistry.is_fused_module(id):
+		return WeaponFusionRegistry.get_unlock_requirement()
 	if is_weapon(id) or WeaponUnlockManager.get_definition(id) != null:
 		return WeaponUnlockManager.get_unlock_requirement(id)
 	return ""
@@ -111,7 +157,7 @@ static func get_stats(id: StringName) -> Dictionary:
 				stats["base_damage"] = float(weapon.get("basic_damage"))
 			stats["damage"] = weapon.get_damage()
 			stats["fire_rate"] = weapon.get_fire_rate()
-			for key in ["attack_range", "attack_radius", "aoe_radius"]:
+			for key in ["attack_range", "projectile_range", "attack_radius", "aoe_radius"]:
 				if key in weapon:
 					stats[key] = float(weapon.get(key))
 		if "mining_rate" in ship_module:
@@ -138,6 +184,8 @@ static func get_base_weapon_damage(id: StringName) -> float:
 static func get_stat_max(key: String) -> float:
 	var best := 0.0
 	for entry in ENTRIES:
+		if bool(entry.get("fusion_only", false)):
+			continue
 		var stats := get_stats(entry["id"])
 		var value := float(stats.get(key, 0.0))
 		if key == "dps":

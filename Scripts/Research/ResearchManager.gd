@@ -12,6 +12,7 @@ const DEFAULT_CONFIGURATION: ResearchConfiguration = preload(
 )
 const SAVE_SECTION: StringName = &"research"
 const WEAPON_CATEGORY_ID: StringName = &"weapon"
+const FUSION_WEAPON_CATEGORY_ID: StringName = &"fusion_weapon"
 const SHIELD_CATEGORY_ID: StringName = &"shield"
 
 var configuration: ResearchConfiguration = DEFAULT_CONFIGURATION
@@ -86,7 +87,7 @@ func is_unlocked(research_id: StringName) -> bool:
 	# older save versions so research cannot precede the corresponding module.
 	if (
 		(
-			definition.category_id == WEAPON_CATEGORY_ID
+			_is_weapon_research_category(definition.category_id)
 			and definition.effect is WeaponDamageResearchEffect
 		)
 		or (
@@ -94,6 +95,8 @@ func is_unlocked(research_id: StringName) -> bool:
 			and definition.effect is ModuleStatResearchEffect
 		)
 	):
+		if WeaponFusionRegistry.is_fused_module(definition.target_id):
+			return WeaponFusionRegistry.is_unlocked()
 		return WeaponUnlockManager.is_weapon_unlocked(definition.target_id)
 	return bool(progress.unlocked.get(String(research_id), definition.unlocked_by_default))
 
@@ -278,6 +281,14 @@ func is_ship_style_unlocked() -> bool:
 	return false
 
 
+## Battle presentation uses this instead of checking any equipped artifact.
+func is_manual_turret_control_unlocked() -> bool:
+	for effect in get_ship_research_effects():
+		if effect.unlocks_manual_turret_control:
+			return true
+	return false
+
+
 ## Extra grid-expansion capacity each Energy Module supplies from research.
 ## Interface only: nothing turns this capacity into slots yet.
 func get_energy_module_expansion_bonus() -> int:
@@ -320,7 +331,7 @@ func get_weapon_stat_modifiers(
 			definition == null
 			or not definition.enabled
 			or not definition.implemented
-			or definition.category_id != WEAPON_CATEGORY_ID
+			or not _is_weapon_research_category(definition.category_id)
 			or definition.target_id != weapon_type_id
 			or definition.effect == null
 		):
@@ -420,7 +431,7 @@ func get_weapon_research_definition(weapon_type_id: StringName) -> ResearchDefin
 			definition != null
 			and definition.enabled
 			and definition.implemented
-			and definition.category_id == WEAPON_CATEGORY_ID
+			and _is_weapon_research_category(definition.category_id)
 			and definition.target_id == weapon_type_id
 			and definition.effect is WeaponDamageResearchEffect
 		):
@@ -477,7 +488,7 @@ func is_chip_laboratory_unlocked() -> bool:
 			definition != null
 			and definition.enabled
 			and definition.implemented
-			and definition.category_id == WEAPON_CATEGORY_ID
+			and _is_weapon_research_category(definition.category_id)
 			and definition.effect is WeaponDamageResearchEffect
 			and get_level(definition.research_id)
 				>= configuration.chip_laboratory_unlock_level
@@ -540,7 +551,7 @@ func unlock_research(research_id: StringName) -> bool:
 		return false
 	# Weapon unlocks must use WeaponUnlockManager planet progression.
 	if (
-		definition.category_id == WEAPON_CATEGORY_ID
+		_is_weapon_research_category(definition.category_id)
 		and definition.effect is WeaponDamageResearchEffect
 	):
 		return false
@@ -548,6 +559,10 @@ func unlock_research(research_id: StringName) -> bool:
 	save_progress()
 	research_unlocked.emit(research_id)
 	return true
+
+
+func _is_weapon_research_category(category_id: StringName) -> bool:
+	return category_id == WEAPON_CATEGORY_ID or category_id == FUSION_WEAPON_CATEGORY_ID
 
 
 ## Completes a non-combat research entry without spending resources. This is

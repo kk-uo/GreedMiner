@@ -24,6 +24,28 @@ func _ready() -> void:
 		errors.append("Drawn chip effect was not translated")
 	if TranslationServer.translate("GET READY  %d") % 3 != "准备  3":
 		errors.append("Dynamic mining QTE text was not translated")
+	if TranslationServer.translate("Unlock All Magic Artifacts") != "解锁全部魔法道具":
+		errors.append("Developer action labels were not translated")
+	if TranslationServer.translate("Granted %d Ore.") % 1000 != "已发放 1000 矿石。":
+		errors.append("Developer result messages were not translated")
+	if TranslationServer.translate("Battle speed: %.0f×") % 2.0 != "战斗速度：2×":
+		errors.append("Developer battle speed was not translated")
+	var developer_panel := preload("res://Scenes/UI/developer_panel.tscn").instantiate() as DeveloperPanel
+	add_child(developer_panel)
+	await get_tree().process_frame
+	if developer_panel.get_node("%UnlockWeaponsButton").text != "解锁全部武器":
+		errors.append("Developer scene controls did not auto-translate")
+	if developer_panel.get_node("%AmountInput").placeholder_text != "输入非负整数":
+		errors.append("Developer amount placeholder did not auto-translate")
+	developer_panel._show_result({
+		"ok": true,
+		"message": "Granted 1000 Ore.",
+		"message_key": "Granted %d Ore.",
+		"message_args": [1000],
+	})
+	if developer_panel.get_node("%StatusLabel").text != "已发放 1000 矿石。":
+		errors.append("Developer runtime result did not use its translation key")
+	developer_panel.queue_free()
 	var theme := load("res://Resources/UI/greedminer_theme.tres") as Theme
 	var font: Font = theme.default_font if theme != null else null
 	if font == null or not font.has_char(0x8bbe):

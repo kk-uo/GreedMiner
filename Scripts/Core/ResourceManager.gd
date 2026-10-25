@@ -2,6 +2,8 @@ extends Node
 
 ## Emitted whenever the current mission's ore amount changes.
 signal mission_ore_changed(amount: float)
+## Every mission ore gain with its source (result board statistics).
+signal mission_ore_added(amount: float, source: StringName)
 
 ## Emitted when successfully evacuated ore is added to base storage.
 signal stored_ore_changed(amount: float)
@@ -35,13 +37,15 @@ func reload_persistent_resources() -> void:
 	stored_ore_changed.emit(stored_ore)
 
 
-## Adds ore collected by mining modules.
-func add_mission_ore(amount: float) -> void:
+## Adds ore collected during the mission. `source` only labels the result
+## board (BattleStats.SOURCE_NAMES); it never changes the amount.
+func add_mission_ore(amount: float, source: StringName = &"other") -> void:
 	if amount <= 0.0:
 		return
 
 	mission_ore += amount
 	mission_ore_changed.emit(mission_ore)
+	mission_ore_added.emit(amount, source)
 	if debug_ore_logging:
 		print("Mission Ore: ", mission_ore)
 

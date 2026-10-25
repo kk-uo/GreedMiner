@@ -18,10 +18,16 @@ static var landing_pending_at_base: bool = false
 @export var play_landing_on_ready: bool = false
 @export var landing_duration: float = 1.3
 @export var takeoff_duration: float = 1.1
+## Replace these streams in the Inspector without changing launch behavior.
+@export var takeoff_sound: AudioStream = preload("res://Assets/Audio/Ship/takeoff.wav")
+@export var landing_sound: AudioStream = preload("res://Assets/Audio/Ship/landing.wav")
+@export var touchdown_sound: AudioStream = preload("res://Assets/Audio/Ship/touchdown.wav")
+@export_range(-40.0, 0.0, 0.5) var sound_volume_db: float = -8.0
 
 var ship: Ship
 var fx: ThrusterFX
 var _busy: bool = false
+var _sound_player: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -29,6 +35,10 @@ func _ready() -> void:
 	if ship == null:
 		push_warning("ShipLaunchController: ship not found at %s" % ship_path)
 		return
+	_sound_player = AudioStreamPlayer.new()
+	_sound_player.name = "ShipSound"
+	_sound_player.volume_db = sound_volume_db
+	add_child(_sound_player)
 	fx = ThrusterFX.new()
 	fx.name = "ThrusterFX"
 	fx.ship = ship
@@ -56,6 +66,7 @@ func play_landing() -> void:
 	if ship == null:
 		return
 	_busy = true
+	_play_sound(landing_sound)
 	ship.visual_altitude = 1.0
 	ship.thruster_power = 1.0
 	ship.thruster_deploy = 1.0
@@ -69,6 +80,7 @@ func play_landing() -> void:
 	await descend.finished
 
 	# Touchdown: a last flare, a burst of puffs, a short shake, engines off.
+	_play_sound(touchdown_sound)
 	ship.thruster_power = 1.0
 	if fx != null and fx.is_inside_tree():
 		fx.burst(6)
@@ -94,6 +106,7 @@ func play_takeoff() -> void:
 	unfold.tween_property(ship, "thruster_deploy", 1.0, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	await unfold.finished
 	var ignite := create_tween()
+	_play_sound(takeoff_sound)
 	ignite.tween_property(ship, "thruster_power", 0.75, 0.35)
 	_shake(3.0, 0.45)
 	await ignite.finished
@@ -106,6 +119,14 @@ func play_takeoff() -> void:
 	await climb.finished
 	_busy = false
 	sequence_finished.emit()
+
+
+func _play_sound(sound: AudioStream) -> void:
+	if _sound_player == null or sound == null:
+		return
+	_sound_player.stop()
+	_sound_player.stream = sound
+	_sound_player.play()
 
 
 func _shake(strength: float, duration: float) -> void:

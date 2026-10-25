@@ -3,6 +3,9 @@ extends ShipModule
 
 ## Emitted only for a direct projectile impact, never for splash or beams.
 signal projectile_hit(enemy: BasicEnemy, actual_damage: float)
+## Emitted for a kill credited to this weapon, including its projectile splash
+## and persistent fire. Artifact damage intentionally cannot emit it again.
+signal enemy_defeated(death_position: Vector2, defeated_max_health: float)
 
 ## Base class for weapon modules installed on the ship.
 ##
@@ -31,8 +34,17 @@ var damage: float:
 ## Multiple equipped artifacts may contribute to the same stat. Provider lists
 ## prevent one artifact from overwriting another when all three slots are used.
 var artifact_fire_rate_bonuses: Array[Callable] = []
+var artifact_damage_multipliers: Array[Callable] = []
+## Flat additions to the untouched weapon base; research scales this value.
+var artifact_base_damage_bonuses: Array[Callable] = []
 var artifact_range_bonuses: Array[Callable] = []
+var artifact_flat_range_bonuses: Array[Callable] = []
+var artifact_projectile_range_bonuses: Array[Callable] = []
 var artifact_projectile_pierce_bonuses: Array[Callable] = []
+## Runtime-only manual aim state. Artifacts may opt a turret into this mode,
+## while each weapon keeps ownership of its normal firing cadence and damage.
+var _manual_control_active: bool = false
+var _manual_aim_world_position: Vector2 = Vector2.ZERO
 var fire_rate: float:
 	get:
 		return get_fire_rate()
@@ -53,11 +65,28 @@ func get_power_consumption() -> int:
 ## Applies permanent research to an untouched base damage value. Artifact
 ## behavior is supplied by independent runtime effect nodes.
 func get_modified_damage(base_damage: float) -> float:
+	var effective_base := base_damage
+	for provider in artifact_base_damage_bonuses.duplicate():
+		if not provider.is_valid():
+			artifact_base_damage_bonuses.erase(provider)
+			continue
+		effective_base += float(provider.call())
 	var modifiers: Array[StatModifier] = ResearchManager.get_weapon_stat_modifiers(
 		weapon_type_id,
 		&"damage"
 	)
-	return StatModifierPipeline.calculate(&"damage", base_damage, modifiers)
+	var provider_index := 0
+	for provider in artifact_damage_multipliers.duplicate():
+		if not provider.is_valid():
+			artifact_damage_multipliers.erase(provider)
+			continue
+		var modifier := StatModifier.new()
+		modifier.source_id = StringName("equipped_ship_artifact_damage_%d" % provider_index)
+		modifier.stat_id = &"damage"
+		modifier.final_multiplier = maxf(float(provider.call()), 0.0)
+		modifiers.append(modifier)
+		provider_index += 1
+	return StatModifierPipeline.calculate(&"damage", effective_base, modifiers)
 
 
 ## Applies equipped artifact attack-frequency modifiers.
@@ -93,7 +122,36 @@ func get_modified_attack_range(base_range: float) -> float:
 		modifier.base_additive_ratio = maxf(float(provider.call()), 0.0)
 		modifiers.append(modifier)
 		provider_index += 1
+	for provider in artifact_flat_range_bonuses.duplicate():
+		if not provider.is_valid():
+			artifact_flat_range_bonuses.erase(provider)
+			continue
+		var modifier := StatModifier.new()
+		modifier.source_id = StringName("equipped_magic_artifact_flat_range_%d" % provider_index)
+		modifier.stat_id = &"attack_range"
+		modifier.flat_bonus = maxf(float(provider.call()), 0.0)
+		modifiers.append(modifier)
+		provider_index += 1
 	return maxf(StatModifierPipeline.calculate(&"attack_range", base_range, modifiers), 0.0)
+
+
+## Applies projectile-size modifiers independently from targeting range.
+## Projectile range is the projectile's visual and collision radius/width; it
+## never controls how far a projectile travels through the world.
+func get_modified_projectile_range(base_range: float) -> float:
+	var modifiers: Array[StatModifier] = []
+	var provider_index := 0
+	for provider in artifact_projectile_range_bonuses.duplicate():
+		if not provider.is_valid():
+			artifact_projectile_range_bonuses.erase(provider)
+			continue
+		var modifier := StatModifier.new()
+		modifier.source_id = StringName("equipped_magic_artifact_projectile_range_%d" % provider_index)
+		modifier.stat_id = &"projectile_range"
+		modifier.base_additive_ratio = maxf(float(provider.call()), 0.0)
+		modifiers.append(modifier)
+		provider_index += 1
+	return maxf(StatModifierPipeline.calculate(&"projectile_range", base_range, modifiers), 0.0)
 
 
 ## Reserved interface for future artifact-based active skills.
@@ -104,6 +162,24 @@ func get_modified_skill_cast_time(base_cast_time: float) -> float:
 func add_artifact_fire_rate_bonus(provider: Callable) -> void:
 	if provider.is_valid() and not artifact_fire_rate_bonuses.has(provider):
 		artifact_fire_rate_bonuses.append(provider)
+
+
+func add_artifact_damage_multiplier(provider: Callable) -> void:
+	if provider.is_valid() and not artifact_damage_multipliers.has(provider):
+		artifact_damage_multipliers.append(provider)
+
+
+func add_artifact_base_damage_bonus(provider: Callable) -> void:
+	if provider.is_valid() and not artifact_base_damage_bonuses.has(provider):
+		artifact_base_damage_bonuses.append(provider)
+
+
+func remove_artifact_base_damage_bonus(provider: Callable) -> void:
+	artifact_base_damage_bonuses.erase(provider)
+
+
+func remove_artifact_damage_multiplier(provider: Callable) -> void:
+	artifact_damage_multipliers.erase(provider)
 
 
 func remove_artifact_fire_rate_bonus(provider: Callable) -> void:
@@ -117,6 +193,24 @@ func add_artifact_range_bonus(provider: Callable) -> void:
 
 func remove_artifact_range_bonus(provider: Callable) -> void:
 	artifact_range_bonuses.erase(provider)
+
+
+func add_artifact_flat_range_bonus(provider: Callable) -> void:
+	if provider.is_valid() and not artifact_flat_range_bonuses.has(provider):
+		artifact_flat_range_bonuses.append(provider)
+
+
+func remove_artifact_flat_range_bonus(provider: Callable) -> void:
+	artifact_flat_range_bonuses.erase(provider)
+
+
+func add_artifact_projectile_range_bonus(provider: Callable) -> void:
+	if provider.is_valid() and not artifact_projectile_range_bonuses.has(provider):
+		artifact_projectile_range_bonuses.append(provider)
+
+
+func remove_artifact_projectile_range_bonus(provider: Callable) -> void:
+	artifact_projectile_range_bonuses.erase(provider)
 
 
 func add_artifact_projectile_pierces(provider: Callable) -> void:
@@ -136,6 +230,30 @@ func get_artifact_projectile_pierces() -> int:
 		else:
 			artifact_projectile_pierce_bonuses.erase(provider)
 	return total
+
+
+## Enables or disables player-directed aiming for this weapon instance.
+## This state is never saved and is cleared with battle artifact effects.
+func set_manual_control_active(active: bool) -> void:
+	_manual_control_active = active and not assembly_mode
+	if _manual_control_active:
+		_manual_aim_world_position = get_global_mouse_position()
+
+
+func is_manual_control_active() -> bool:
+	return _manual_control_active and not assembly_mode
+
+
+func set_manual_aim_world_position(world_position: Vector2) -> void:
+	_manual_aim_world_position = world_position
+
+
+func get_manual_aim_world_position() -> Vector2:
+	return _manual_aim_world_position
+
+
+func has_valid_manual_aim(origin: Vector2) -> bool:
+	return is_manual_control_active() and origin.distance_squared_to(_manual_aim_world_position) > 1.0
 
 
 ## Returns the damage dealt by one attack.

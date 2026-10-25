@@ -19,7 +19,9 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	ProgressionStore.set_save_path_for_testing(TEST_SAVE_PATH)
+	var temp_dir := OS.get_environment("TMPDIR")
+	var test_save_path := temp_dir.path_join("greedminer_drag_swap_test.json") if not temp_dir.is_empty() else TEST_SAVE_PATH
+	ProgressionStore.set_save_path_for_testing(test_save_path)
 	ShipLoadout.installed_modules.clear()
 	ShipLoadout.install_module(0, 0, GUN)
 	ShipLoadout.install_module(0, 2, LASER)
@@ -30,6 +32,16 @@ func _run() -> void:
 	base._enter_assembly()
 	await get_tree().create_timer(0.9).timeout
 	var power_before: int = ship.total_power_consumption
+	var original_gun := ship.get_module_at(0, 0)
+	base._begin_ship_drag(Vector2i(0, 0))
+	_expect_true(base._drag_ghost == null, "ship drag does not substitute a UI icon")
+	var dragged_local: Vector2 = ship.get_cell_center(0, 0) + Vector2(24.0, 15.0)
+	var dragged_world: Vector2 = ship.installed_modules.to_global(dragged_local)
+	base._update_ship_drag(dragged_world, _cell_screen(Vector2i(0, 0)))
+	_expect_true(original_gun.position.distance_to(dragged_local) < 0.5, "the installed turret itself follows the cursor")
+	_expect_true(ship.get_module_at(0, 0) == original_gun, "loadout ownership stays in the source slot until release")
+	base._cancel_ship_drag()
+	_expect_true(original_gun.position.distance_to(ship.get_cell_center(0, 0)) < 0.5, "cancelling returns the turret to its source cell")
 
 	# Real mouse drag: gun (0,0) onto laser (0,2) → swap.
 	var gun_node := ship.get_module_at(0, 0)
@@ -86,7 +98,7 @@ func _run() -> void:
 	ShipLoadout.installed_modules.clear()
 	# Keep the isolated path active until this test process exits. Switching back
 	# can overwrite the player's real progression during shutdown or reloads.
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SAVE_PATH))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(test_save_path))
 	await get_tree().process_frame
 	if _failures.is_empty():
 		print("SHIP_DRAG_SWAP_TEST: PASS")

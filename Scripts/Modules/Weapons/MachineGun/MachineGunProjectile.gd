@@ -14,6 +14,12 @@ extends Area2D
 # Movement speed in pixels per second.
 @export var speed: float = 400.0
 
+# Collision radius and visual-size source assigned by MachineGun.
+var projectile_range: float = 4.0:
+	set(value):
+		projectile_range = maxf(value, 0.1)
+		_apply_projectile_range()
+
 # Direction in which the projectile travels.
 # Default direction is right (1, 0).
 var direction: Vector2 = Vector2.RIGHT
@@ -43,6 +49,20 @@ func _ready() -> void:
 	# This signal is triggered when another
 	# Area2D enters this projectile's collision area.
 	area_entered.connect(_on_area_entered)
+	_apply_projectile_range()
+
+
+func _apply_projectile_range() -> void:
+	if not is_node_ready():
+		return
+	var collision := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision != null:
+		collision.scale = Vector2.ONE * (projectile_range / 4.0)
+	queue_redraw()
+
+
+func get_projectile_visual_scale() -> float:
+	return projectile_range / 4.0
 
 
 # ==========================================
@@ -50,12 +70,13 @@ func _ready() -> void:
 # ==========================================
 
 func _draw() -> void:
+	var visual_scale := get_projectile_visual_scale()
 	# Ghost Bullet: a translucent spirit-shot instead (presentation).
 	if _ghost != null:
-		GHOST_SHOT_ART.draw(self, direction, _ghost_time, 3.0, float(get_instance_id() % 97))
+		GHOST_SHOT_ART.draw(self, direction, _ghost_time, 3.0 * visual_scale, float(get_instance_id() % 97))
 		return
 	# Style A: a short warm capsule aligned with its flight direction.
-	draw_set_transform(Vector2.ZERO, direction.angle(), Vector2.ONE)
+	draw_set_transform(Vector2.ZERO, direction.angle(), Vector2.ONE * visual_scale)
 	draw_rect(Rect2(-5.0, -2.5, 10.0, 5.0), Palette.SHOT)
 	draw_circle(Vector2(-5.0, 0.0), 2.5, Palette.SHOT)
 	draw_circle(Vector2(5.0, 0.0), 2.5, Palette.SHOT_CORE)

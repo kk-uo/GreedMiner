@@ -118,6 +118,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Unlock All Planets"
 
+[node name="UnlockFusionButton" type="Button" parent="Center/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Unlock Weapon Fusion"
+
 [node name="ResetButton" type="Button" parent="Center/Panel/Content"]
 unique_name_in_owner = true
 layout_mode = 2

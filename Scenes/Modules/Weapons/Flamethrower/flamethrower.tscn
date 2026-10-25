@@ -1,13 +1,16 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Modules/Weapons/Flamethrower/Flamethrower.gd" id="1"]
 [ext_resource type="PackedScene" path="res://Scenes/Modules/Weapons/Flamethrower/flamethrower_projectile.tscn" id="2"]
 [ext_resource type="Script" path="res://Scripts/Modules/Weapons/Flamethrower/FlamethrowerVisual.gd" id="3"]
+[ext_resource type="Script" path="res://Scripts/Audio/WeaponSound.gd" id="4_sound"]
+[ext_resource type="AudioStream" path="res://Assets/Audio/Weapons/flamethrower_loop.wav" id="5_audio"]
 
 [node name="Flamethrower" type="Node2D"]
 script = ExtResource("1")
 power_consumption = 2
 weapon_type_id = &"flamethrower"
+projectile_range = 15.0
 projectile_scene = ExtResource("2")
 
 [node name="Turret" type="Node2D" parent="."]
@@ -15,3 +18,9 @@ script = ExtResource("3")
 
 [node name="Muzzle" type="Marker2D" parent="Turret"]
 position = Vector2(30, 0)
+
+[node name="Sound" type="AudioStreamPlayer2D" parent="."]
+script = ExtResource("4_sound")
+stream = ExtResource("5_audio")
+volume_db = -24.0
+continuous = true

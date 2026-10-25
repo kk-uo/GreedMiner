@@ -10,6 +10,7 @@ const DWARF_CANNON_SCENE: PackedScene = preload("res://Scenes/Modules/Weapons/Dw
 
 var _failures: Array[String] = []
 var _original_research_configuration: ResearchConfiguration
+var _test_save_path: String = TEST_SAVE_PATH
 
 
 func _ready() -> void:
@@ -18,8 +19,11 @@ func _ready() -> void:
 
 func _run() -> void:
 	_original_research_configuration = ResearchManager.configuration
+	var temp_dir := OS.get_environment("TMPDIR")
+	if not temp_dir.is_empty():
+		_test_save_path = temp_dir.path_join("greedminer_progression_test.json")
 	_remove_test_save()
-	ProgressionStore.set_save_path_for_testing(TEST_SAVE_PATH)
+	ProgressionStore.set_save_path_for_testing(_test_save_path)
 	ResourceManager.reload_persistent_resources()
 	ResearchManager.reload_progress()
 
@@ -40,8 +44,8 @@ func _run() -> void:
 
 
 func _test_categories_and_costs() -> void:
-	var expected_ids := [&"weapon", &"mining", &"shield", &"energy", &"ship", &"weapon_skills", &"chips"]
-	_expect_equal(ResearchManager.get_categories().size(), 7, "seven research categories exist")
+	var expected_ids := [&"weapon", &"fusion_weapon", &"mining", &"shield", &"energy", &"ship", &"weapon_skills", &"chips"]
+	_expect_equal(ResearchManager.get_categories().size(), 8, "eight research categories exist")
 	for category_id in expected_ids:
 		_expect_true(ResearchManager.configuration.get_category(category_id) != null, "category exists: %s" % category_id)
 	_expect_false(ResearchManager.configuration.get_category(&"chips").enabled, "retired chip category is disabled")
@@ -139,7 +143,9 @@ func _test_laboratory_ui() -> void:
 	await get_tree().process_frame
 	var panel := base.get_node("BaseUI/UIRoot/LaboratoryPanel") as LaboratoryPanel
 	panel.open_panel()
-	_expect_equal(panel.category_buttons.get_child_count(), 6, "Laboratory hides the retired chip category")
+	_expect_equal(panel.category_buttons.get_child_count(), 7, "Laboratory shows Fusion Weapons and hides the retired chip category")
+	panel._select_category(&"fusion_weapon")
+	_expect_equal(panel._cards.size(), WeaponFusionRegistry.RECIPES.size(), "Fusion Weapons page contains one project per recipe")
 	WeaponUnlockManager.unlocked_weapon_ids["machine_gun"] = true
 	ResearchManager.progress.levels["weapon_damage.machine_gun"] = 9
 	panel._select_category(&"weapon")
@@ -207,8 +213,8 @@ func _cleanup() -> void:
 
 
 func _remove_test_save() -> void:
-	var absolute_path := ProjectSettings.globalize_path(TEST_SAVE_PATH)
-	if FileAccess.file_exists(TEST_SAVE_PATH):
+	var absolute_path := ProjectSettings.globalize_path(_test_save_path)
+	if FileAccess.file_exists(_test_save_path):
 		DirAccess.remove_absolute(absolute_path)
 
 

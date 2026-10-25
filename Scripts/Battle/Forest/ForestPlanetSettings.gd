@@ -9,6 +9,11 @@ extends Resource
 @export_range(0.0, 1000.0, 1.0) var empty_radius: float = 200.0
 @export_range(0.0, 600.0, 1.0) var sparse_ring_width: float = 200.0
 @export_range(0.0, 1.0, 0.01) var sparse_ring_density: float = 0.06
+## Treant rings (user design): wave N raises every standing tree of rings
+## 1..N; one ring = one tree row (0 = tree_spacing).
+@export_range(0.0, 400.0, 1.0) var ring_width: float = 0.0
+## Seconds a ring takes to rise (a sweep round the clearing).
+@export_range(0.1, 6.0, 0.1) var ring_raise_duration: float = 1.6
 @export_range(10.0, 600.0, 1.0) var storm_interval: float = 90.0
 @export_range(0.0, 30.0, 0.5) var storm_warning_duration: float = 6.0
 @export_range(1.0, 60.0, 0.5) var storm_duration: float = 12.0

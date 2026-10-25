@@ -2,8 +2,11 @@ extends Node2D
 
 ## A short beat between the end of a battle and the result panel, so the
 ## screen does not jump straight to it (BattleMain awaits play()):
-## - victory: the game slows down for a moment, a cream ring sweeps out from
-##   the ship and the world settles; ~1.6 s.
+## - victory (~4 s after a boss's killing blow): the boss finisher's bullet
+##   time plays out first (or a short slow-motion of our own when no boss
+##   finisher runs), then a "PLANET CLEARED" banner drops across the screen
+##   while a cream ring sweeps out from the ship and the last ore flies
+##   home into the hull; the banner fades and the result board follows.
 ## - defeat:  slow motion, a chain of blasts round the hull, the camera
 ##   shakes, the ship darkens and smokes; ~2.2 s.
 ## Uses real time (ignores Engine.time_scale) and always restores the time
@@ -11,6 +14,11 @@ extends Node2D
 ## ship's centre. Load with preload(); no class_name on purpose.
 
 const VICTORY_TIME: float = 1.6
+## Banner + ore flight after the slow motion (user: "wait a few seconds").
+const BANNER_TIME: float = 2.1
+const FINISHER_WAIT_MAX: float = 2.2
+const BOSS_FINISHER := preload("res://Scripts/VFX/BossFinisher.gd")
+const ORE_MOTES: int = 18
 const DEFEAT_TIME: float = 2.2
 const SLOW_SCALE: float = 0.35
 const RING := Color("FBF3E4")
@@ -27,14 +35,20 @@ var _camera: Camera2D = null
 var _camera_offset := Vector2.ZERO
 var _smoke: Array = []
 var _reach: float = 120.0
+## Banner subtitle (planet name) for the victory beat.
+var subtitle: String = ""
+var _motes: Array = []
+var _banner_age: float = -1.0
+var _banner: CanvasLayer
 
 
 ## Plays the beat for `outcome` (&"victory" / &"defeat") at the ship and
 ## returns when the result panel may show.
-static func play(parent: Node, battle_ship: Node2D, outcome: StringName) -> void:
+static func play(parent: Node, battle_ship: Node2D, outcome: StringName, banner_subtitle: String = "") -> void:
 	var beat: Node2D = load("res://Scripts/VFX/BattleEndBeat.gd").new()
 	beat.kind = outcome
 	beat.ship = battle_ship
+	beat.subtitle = banner_subtitle
 	beat.z_index = 30
 	parent.add_child(beat)
 	await beat.finished
@@ -53,7 +67,9 @@ func _ready() -> void:
 		if _camera != null:
 			_camera_offset = _camera.offset
 	_active = self
-	Engine.time_scale = SLOW_SCALE
+	# A boss finisher already owns the bullet time; do not fight it.
+	if kind == &"defeat" or not is_instance_valid(BOSS_FINISHER._active):
+		Engine.time_scale = SLOW_SCALE
 	if kind == &"defeat":
 		_defeat_sequence()
 	else:
@@ -73,10 +89,82 @@ func _wait(seconds: float) -> void:
 
 
 func _victory_sequence() -> void:
-	await _wait(0.55)
-	_ease_time_back(0.4)
-	await _wait(VICTORY_TIME - 0.55)
+	if is_instance_valid(BOSS_FINISHER._active):
+		var waited := 0.0
+		while is_instance_valid(BOSS_FINISHER._active) and waited < FINISHER_WAIT_MAX:
+			await _wait(0.05)
+			waited += 0.05
+		Engine.time_scale = 1.0
+		await _wait(0.15)
+	else:
+		await _wait(0.55)
+		_ease_time_back(0.4)
+		await _wait(0.5)
+	_start_banner()
+	await _wait(BANNER_TIME)
 	_finish()
+
+
+## Screen-space banner plus the ore motes flying home (world space).
+func _start_banner() -> void:
+	_age = 0.0
+	_banner_age = 0.0
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for i in range(ORE_MOTES):
+		var from := Vector2.RIGHT.rotated(rng.randf() * TAU) * rng.randf_range(_reach * 1.6, _reach * 4.2)
+		var side := from.orthogonal().normalized() * rng.randf_range(-0.35, 0.35) * from.length()
+		_motes.append({"from": from, "ctrl": from * 0.45 + side, "t0": 0.15 + i * 0.045, "dur": rng.randf_range(0.55, 0.8), "rot": rng.randf() * TAU, "blue": rng.randf() < 0.2})
+	_banner = CanvasLayer.new()
+	_banner.layer = 22
+	add_child(_banner)
+	var view := BannerView.new()
+	view.beat = self
+	view.title = tr("PLANET CLEARED")
+	view.subtitle = subtitle
+	view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner.add_child(view)
+
+
+class BannerView extends Control:
+	var beat: Node
+	var title: String = ""
+	var subtitle: String = ""
+
+	func _process(_delta: float) -> void:
+		queue_redraw()
+
+	func _draw() -> void:
+		var age: float = beat.get("_banner_age")
+		if age < 0.0:
+			return
+		var total: float = 2.1
+		var grow := clampf(age / 0.22, 0.0, 1.0)
+		grow = 1.0 - pow(1.0 - grow, 3.0)
+		var fade := clampf((total - age) / 0.35, 0.0, 1.0)
+		var mid := size * 0.5
+		var h := 150.0 * grow
+		var band := Rect2(0, mid.y - h * 0.5, size.x, h)
+		draw_rect(band, Color(0.11, 0.09, 0.08, 0.78 * fade))
+		draw_rect(Rect2(0, band.position.y, size.x, 4), Color(Palette.ACCENT, fade))
+		draw_rect(Rect2(0, band.end.y - 4, size.x, 4), Color(Palette.ACCENT, fade))
+		if grow < 0.6:
+			return
+		var font := get_theme_default_font()
+		var slide := clampf((age - 0.12) / 0.3, 0.0, 1.0)
+		slide = 1.0 - pow(1.0 - slide, 3.0)
+		var a := fade * slide
+		var x := (1.0 - slide) * -80.0
+		draw_string(font, Vector2(x, mid.y + 12), title, HORIZONTAL_ALIGNMENT_CENTER, size.x, 64, Color(Palette.UI_TEXT, a))
+		if subtitle != "":
+			draw_string(font, Vector2(-x, mid.y + 56), subtitle, HORIZONTAL_ALIGNMENT_CENTER, size.x, 24, Color(Palette.ACCENT_LIGHT, a))
+		# Two small ore crystals flank the title.
+		var tw := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 64).x
+		if a < 0.05:
+			return
+		for side in [-1.0, 1.0]:
+			Palette.draw_crystal(self, Vector2(mid.x + side * (tw * 0.5 + 46.0) + x, mid.y), 1.3 * a)
 
 
 func _defeat_sequence() -> void:
@@ -114,7 +202,10 @@ func _finish() -> void:
 
 
 func _process(_delta: float) -> void:
-	_age += get_process_delta_time() / maxf(Engine.time_scale, 0.01)
+	var real := get_process_delta_time() / maxf(Engine.time_scale, 0.01)
+	_age += real
+	if _banner_age >= 0.0:
+		_banner_age += real
 	if kind == &"defeat" and _camera != null and is_instance_valid(_camera):
 		var shake := 9.0 * clampf(1.0 - _age / 1.6, 0.0, 1.0)
 		_camera.offset = _camera_offset + Vector2(sin(_age * 71.0), cos(_age * 53.0)) * shake
@@ -123,6 +214,21 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	if kind == &"victory":
+		if _banner_age < 0.0:
+			return
+		for mote in _motes:
+			var t := clampf((_banner_age - float(mote["t0"])) / float(mote["dur"]), 0.0, 1.0)
+			if t <= 0.0 or t >= 1.0:
+				if t >= 1.0 and _banner_age - float(mote["t0"]) - float(mote["dur"]) < 0.18:
+					var k := (_banner_age - float(mote["t0"]) - float(mote["dur"])) / 0.18
+					draw_arc(Vector2.ZERO, _reach * (0.35 + 0.25 * k), 0.0, TAU, 32, Color(Palette.GOLD, 0.35 * (1.0 - k)), 3.0)
+				continue
+			var e := t * t
+			var from: Vector2 = mote["from"]
+			var ctrl: Vector2 = mote["ctrl"]
+			var p := from.lerp(ctrl, e).lerp(ctrl.lerp(Vector2.ZERO, e), e)
+			draw_line(p, p + (p - from.lerp(ctrl, maxf(e - 0.08, 0.0))).limit_length(30.0) * -0.6, Color(Palette.GOLD_LIGHT, 0.5), 3.0)
+			Palette.draw_crystal(self, p, 0.9 * (1.0 - 0.4 * e), float(mote["rot"]) + t * 3.0, not bool(mote["blue"]))
 		for ring in range(2):
 			var t := clampf((_age - 0.15 * float(ring)) / 0.9, 0.0, 1.0)
 			if t > 0.0 and t < 1.0:

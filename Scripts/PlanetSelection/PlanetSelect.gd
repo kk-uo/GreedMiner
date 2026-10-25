@@ -39,6 +39,9 @@ const PLANETS: Array[Dictionary] = [
 		"id": &"volcanic_planet",
 		"name": "VOLCANIC PLANET",
 		"description": "An unstable volcanic world.",
+		# Keep every gameplay/progression dependency registered while temporarily
+		# removing this destination from the player-facing star-map carousel.
+		"hidden_from_star_map": true,
 		# Lava Planet uses this existing Volcanic Planet identity. Its eleventh
 		# wave intentionally stops at the reserved future-boss integration point.
 		"unlocked": true,
@@ -90,6 +93,7 @@ const CAROUSEL_DURATION: float = 0.42
 
 var selected_index: int = 0
 var _planet_visuals: Array[PlanetVisual] = []
+var _star_map_planets: Array[Dictionary] = []
 var _carousel_tween: Tween
 var _transitioning: bool = false
 var _background_time: float = 0.0
@@ -97,8 +101,10 @@ var _background_time: float = 0.0
 
 func _ready() -> void:
 	# Reopen the star map on the destination the player most recently deployed
-	# to. Merely browsing the carousel does not change this expedition state.
-	selected_index = get_planet_index(ResourceManager.current_expedition_planet_id)
+	# to. Hidden destinations safely fall back to Rocky without changing the
+	# saved expedition ID or any completion/location data.
+	_star_map_planets = get_visible_planets()
+	selected_index = get_visible_planet_index(ResourceManager.current_expedition_planet_id)
 	_build_planet_visuals()
 	_connect_once(left_button.pressed, _on_left_pressed)
 	_connect_once(right_button.pressed, _on_right_pressed)
@@ -117,6 +123,24 @@ func _ready() -> void:
 static func get_planet_index(planet_id: StringName) -> int:
 	for planet_index in range(PLANETS.size()):
 		if StringName(PLANETS[planet_index].get("id", &"")) == planet_id:
+			return planet_index
+	return 0
+
+
+## Player-facing list only. PLANETS remains the complete registry used by
+## progression, developer commands, research dependencies, and tests.
+static func get_visible_planets() -> Array[Dictionary]:
+	var visible_planets: Array[Dictionary] = []
+	for planet in PLANETS:
+		if not bool(planet.get("hidden_from_star_map", false)):
+			visible_planets.append(planet)
+	return visible_planets
+
+
+static func get_visible_planet_index(planet_id: StringName) -> int:
+	var visible_planets := get_visible_planets()
+	for planet_index in range(visible_planets.size()):
+		if StringName(visible_planets[planet_index].get("id", &"")) == planet_id:
 			return planet_index
 	return 0
 
@@ -180,11 +204,11 @@ func _build_planet_visuals() -> void:
 		child.queue_free()
 	_planet_visuals.clear()
 
-	for planet_index in range(PLANETS.size()):
+	for planet_index in range(_star_map_planets.size()):
 		var visual := PlanetVisual.new()
-		visual.name = "Planet_%s" % PLANETS[planet_index]["id"]
-		visual.configure(PLANETS[planet_index], planet_index)
-		visual.uncharted = not is_planet_located(PLANETS[planet_index])
+		visual.name = "Planet_%s" % _star_map_planets[planet_index]["id"]
+		visual.configure(_star_map_planets[planet_index], planet_index)
+		visual.uncharted = not is_planet_located(_star_map_planets[planet_index])
 		visual.pressed.connect(_on_planet_pressed)
 		planet_layer.add_child(visual)
 		_planet_visuals.append(visual)
@@ -196,11 +220,11 @@ func _connect_once(source_signal: Signal, callback: Callable) -> void:
 
 
 func _on_left_pressed() -> void:
-	_select_planet(posmod(selected_index - 1, PLANETS.size()))
+	_select_planet(posmod(selected_index - 1, _star_map_planets.size()))
 
 
 func _on_right_pressed() -> void:
-	_select_planet(posmod(selected_index + 1, PLANETS.size()))
+	_select_planet(posmod(selected_index + 1, _star_map_planets.size()))
 
 
 func _on_planet_pressed(planet_index: int) -> void:
@@ -211,7 +235,7 @@ func _select_planet(planet_index: int) -> void:
 	if _transitioning or planet_index == selected_index:
 		return
 
-	selected_index = clampi(planet_index, 0, PLANETS.size() - 1)
+	selected_index = clampi(planet_index, 0, _star_map_planets.size() - 1)
 	_update_planet_information()
 	_layout_planets(true)
 
@@ -262,7 +286,7 @@ func _layout_planets(animated: bool = true) -> void:
 
 
 func _update_planet_information() -> void:
-	var planet := PLANETS[selected_index]
+	var planet := _star_map_planets[selected_index]
 	var profile := ShipEnergySystem.calculate_loadout_profile(ShipLoadout.installed_modules)
 	var launch_status := evaluate_launch_requirements(planet, profile, ResourceManager.stored_ore)
 	var is_unlocked := bool(launch_status.unlocked)
@@ -361,9 +385,9 @@ func _get_deploy_button_text(status: Dictionary) -> String:
 
 func _build_position_indicator() -> String:
 	var indicator := ""
-	for planet_index in range(PLANETS.size()):
+	for planet_index in range(_star_map_planets.size()):
 		indicator += "◆" if planet_index == selected_index else "◇"
-		if planet_index < PLANETS.size() - 1:
+		if planet_index < _star_map_planets.size() - 1:
 			indicator += "   "
 	return indicator
 
@@ -381,7 +405,7 @@ func _on_back_pressed() -> void:
 
 
 func _on_deploy_pressed() -> void:
-	var selected_planet := PLANETS[selected_index]
+	var selected_planet := _star_map_planets[selected_index]
 	var profile := ShipEnergySystem.calculate_loadout_profile(ShipLoadout.installed_modules)
 	var launch_status := evaluate_launch_requirements(selected_planet, profile, ResourceManager.stored_ore)
 	# First press on an uncharted planet buys its coordinates.
@@ -403,7 +427,7 @@ func _on_deploy_pressed() -> void:
 
 ## Spends ore to pinpoint the selected planet and plays the lock-on reticle.
 func locate_selected_planet() -> bool:
-	var planet := PLANETS[selected_index]
+	var planet := _star_map_planets[selected_index]
 	var profile := ShipEnergySystem.calculate_loadout_profile(ShipLoadout.installed_modules)
 	var status := evaluate_launch_requirements(planet, profile, ResourceManager.stored_ore)
 	if not bool(status.can_locate):

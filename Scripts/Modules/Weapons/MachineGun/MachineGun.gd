@@ -21,6 +21,9 @@ extends WeaponModule
 ## Maximum targeting distance in pixels.
 @export var attack_range: float = 200.0
 
+## Bullet visual and collision radius in pixels. This does not affect travel.
+@export var projectile_range: float = 4.0
+
 ## Maximum rotation speed in degrees per second.
 @export var rotation_speed: float = 360.0
 
@@ -51,6 +54,7 @@ extends WeaponModule
 
 ## Projectile spawn point.
 @onready var _muzzle: Marker2D = $Turret/Muzzle
+@onready var _sound: WeaponSound = $Sound
 
 
 # ==========================================
@@ -139,6 +143,11 @@ func _process(delta: float) -> void:
 		_fire_timer = 0.0
 		return
 
+	if is_manual_control_active():
+		current_target = null
+		_process_manual_control(delta)
+		return
+
 	# Keep firing at the current enemy before selecting the next nearest one.
 	current_target = keep_or_find_target(
 		current_target,
@@ -168,6 +177,23 @@ func _process(delta: float) -> void:
 		return
 
 	# Fire when the weapon is ready and properly aimed.
+	if _fire_timer <= 0.0:
+		fire()
+		_fire_timer = 1.0 / effective_fire_rate
+
+
+func _process_manual_control(delta: float) -> void:
+	var aim_position := get_manual_aim_world_position()
+	if not has_valid_manual_aim(_turret.global_position):
+		_fire_timer = 0.0
+		return
+	rotate_turret_toward(_turret, aim_position, rotation_speed, delta)
+	var effective_fire_rate := get_fire_rate()
+	if effective_fire_rate <= 0.0:
+		return
+	_fire_timer = maxf(_fire_timer - delta, 0.0)
+	if get_aim_error(_turret, aim_position) > deg_to_rad(aim_tolerance):
+		return
 	if _fire_timer <= 0.0:
 		fire()
 		_fire_timer = 1.0 / effective_fire_rate
@@ -209,3 +235,5 @@ func fire() -> void:
 	if artifact_pierces > 0:
 		projectile.enable_ghost_piercing(artifact_pierces)
 	projectile.speed = projectile_speed
+	projectile.projectile_range = get_modified_projectile_range(projectile_range)
+	_sound.play_shot()

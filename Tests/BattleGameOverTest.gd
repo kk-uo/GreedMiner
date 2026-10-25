@@ -48,6 +48,7 @@ func _run() -> void:
 
 	_expect_true(weapon != null, "installed weapon instance is available")
 	_expect_false(game_over_panel.visible, "Game Over panel starts hidden")
+	_expect_true(battle.get_node_or_null("ResultLayer") == null, "result board starts absent")
 	_expect_true(ship.are_weapon_attacks_enabled(), "weapons begin battle enabled")
 
 	ship.take_damage(ship.max_hp)
@@ -55,11 +56,16 @@ func _run() -> void:
 
 	_expect_equal(ship.current_hp, 0.0, "ship reaches zero health")
 	# A short end beat (slow motion, blasts) plays before the panel.
-	_expect_false(game_over_panel.visible, "Game Over panel waits for the end beat")
+	_expect_true(battle.get_node_or_null("ResultLayer") == null, "result board waits for the end beat")
 	_expect_true(Engine.time_scale < 1.0, "the end beat slows the game down")
 	await get_tree().create_timer(2.6, true, false, true).timeout
 	_expect_true(is_equal_approx(Engine.time_scale, 1.0), "time scale is restored after the beat")
-	_expect_true(game_over_panel.visible, "Game Over panel appears after destruction")
+	# The result board (Claude, sync 52) replaces the old panel on screen; the
+	# GameOverPanel stays hidden as the holder of the Return to Base logic.
+	var board := battle.get_node_or_null("ResultLayer/ResultBoard") as ResultBoard
+	_expect_true(board != null and board.is_visible_in_tree(), "result board appears after destruction")
+	_expect_true(board != null and not board.is_victory(), "result board shows the defeat variant")
+	_expect_true(board != null and board.return_requested.is_connected(Callable(battle, "_on_return_to_base_pressed")), "result board returns through the Game Over handler")
 	_expect_false(return_button.disabled, "Return to Base button remains clickable")
 	_expect_false(ship.are_weapon_attacks_enabled(), "ship disables all weapon attacks")
 	_expect_true(weapon != null and weapon.assembly_mode, "installed weapon enters inactive mode")

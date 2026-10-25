@@ -172,6 +172,24 @@ func swap_cells(cell_a: Vector2i, cell_b: Vector2i) -> void:
 	cells_swapped.emit(cell_a, cell_b)
 
 
+## Consumes two installed modules and stores one fusion result in target.
+## Two cell_changed signals deliberately release both modules' artifacts.
+func fuse_cells(source: Vector2i, target: Vector2i, result_scene_path: String) -> void:
+	if (
+		source == target
+		or not is_valid_cell(source.x, source.y)
+		or not is_valid_cell(target.x, target.y)
+		or result_scene_path.is_empty()
+	):
+		return
+	var source_path := String(installed_modules.get(source, ""))
+	var target_path := String(installed_modules.get(target, ""))
+	installed_modules.erase(source)
+	installed_modules[target] = result_scene_path
+	cell_changed.emit(source, source_path, "")
+	cell_changed.emit(target, target_path, result_scene_path)
+
+
 # ==========================================
 # Module Queries
 # ==========================================

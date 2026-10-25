@@ -7,7 +7,9 @@ extends RefCounted
 ## Load with preload(); no class_name on purpose.
 
 static func isolate(test_name: String) -> void:
-	ProgressionStore.set_save_path_for_testing("user://test_%s.json" % test_name)
+	var temp_dir := OS.get_environment("TMPDIR")
+	var test_path := temp_dir.path_join("greedminer_test_%s.json" % test_name) if not temp_dir.is_empty() else "user://test_%s.json" % test_name
+	ProgressionStore.set_save_path_for_testing(test_path)
 	ProgressionStore.reset_all_progress()
 	WeaponUnlockManager.reload_progress()
 	ShipLoadout.load_saved()

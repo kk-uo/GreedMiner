@@ -837,3 +837,99 @@ back." Gameplay changes - please review:
   reservations). TREE_PLANET_INTEGRATION.md has a new section.
 - Pre-existing failures unchanged (ForestPlanetTest mining module /
   dispatch, BloodMoonCombat, VolcanicWaveSystem).
+
+## 48. Fusion weapon art (Claude, user picks from the design canvas)
+
+Presentation only; recipes, combat values and scenes unchanged.
+- New Scripts/Modules/Fusion/FusionArt.gd (class_name FusionArt): base,
+  turret, beam, projectile and wave art per weapon_type_id. Picks: scatter A
+  (bigger flared muzzles), knockback MG B (one barrel + gyroscope core),
+  laser MG B (bigger finned barrel), sawblade MG A + single launcher barrel,
+  flame MG B (gatling), laser chainsaw A (laser-edged disc), heavy laser A
+  (moved back, double calibre), automatic cannon C (revolver), siege cannon
+  C (mortar), knockback cannon B (gravity orb, bigger calibre), flame cannon
+  A, knockback laser A (slit emitter), flame laser A (fins glow with the
+  ramp, read from FlameLaser._doublings).
+- FusionWeapon._draw: the fused octagon base with an element-coloured seam.
+- FusionTurretVisual: draws the turret, sets Turret/Muzzle.position.x to
+  FusionArt.muzzle_x(id) at _ready (barrel tips moved out), makes the Beam
+  Line2D transparent (self_modulate.a = 0) and draws a styled beam from its
+  points/width/visibility instead. Fire flash from the weapon's _cooldown.
+- FusionProjectile._draw / FusionKnockbackWave._draw use FusionArt.
+- Font subset regenerated (FontCoverageTest missing 30 new characters).
+- Suite on the synced copy has other failures not from this change
+  (AngryStone, ChipSystemV2 `_open_picker`, DeveloperMode, UniversalChip
+  Healing, StoneAndFrost writes to /private/tmp, ForestPlanet, BloodMoon,
+  VolcanicWave).
+
+## 49 · 新魔法道具图标（Claude，2026-10-24）
+
+- `Scripts/UI/Artifacts/ArtifactVisual.gd`：给 8 个新道具补了手绘图标（之前都回落到 `_gem`），都支持 silhouette 模式：
+  - black_stone 黑石卵 + 紫色符文；red_stone 红石卵 + 金色符文（共用 `_pebble`）
+  - frost_breath 冰蓝吐息云 + 雪花；true_ice 六棱冰晶
+  - goblin_glove 绿皮指向手套 + 黄铜指扣；goblin_scope 黄铜望远镜 + 皮带
+  - snow_monster_eyeball 冰蓝虹膜血丝眼球 + 霜边；necronomicon 骷髅封面黑书 + 绿眼
+- 只加了 `draw_icon` 的 match 分支和静态绘制函数，没动数据和逻辑。
+
+## 50 · 融合武器音效（Claude，2026-10-24）
+
+- 新增 `tools/generate_fusion_sfx.mjs`（与 generate_weapon_sfx.mjs 同配方，可复现）→ `Assets/Audio/Weapons/Fusion/*.wav`（13 个 + .import）。
+- `FusionWeapon.gd`：`SOUNDS` 表按 weapon_type_id 配置 [文件, 是否循环, volume_db, max_polyphony]；`_ready` 里 `_build_sound()` 代码生成 `Sound`（WeaponSound）子节点，**13 个 .tscn 没改**。`fire()` 开头调 `_play_attack_sound()`：子弹/冲击波每次齐射播一次，光束每 tick `sustain_for(0.15)`。
+- `FlameLaser.gd`：`fire()` 里同样调 `_play_attack_sound()`，并按 `_doublings` 抬高音调（每次翻倍 +7%，最多 8 级）。
+- 新武器若要声音：往 `SOUNDS` 加一行即可；没配的 id 不建 Sound 节点。
+- Fusion 相关测试都过；WeaponFusionSystemTest 的 4 个 Dwarf Cannon install 失败是改动前就有的。
+
+## 51 · UI 点击音效（Claude，2026-10-24）
+
+- 用户选了方案 B「soft pop」。`tools/generate_ui_sfx.mjs` → `Assets/Audio/UI/click_pop.wav`。
+- 新 autoload **`UiClickSound`**（`Scripts/Audio/UiClickSound.gd`，`project.godot` 的 [autoload] 末尾加了一行）：
+  - `_input` 里左键按下时取 `gui_get_hovered_control()`，往上最多 4 层：启用的 `BaseButton`，或 `mouse_default_cursor_shape == CURSOR_POINTING_HAND` 的自定义控件 → 播放。禁用按钮、普通面板不响。
+  - 焦点在按钮上按 `ui_accept` 也会响；暂停时照常响；40 ms 防抖，±3% 音高随机。
+  - **自定义可点击控件想要点击声，只要把鼠标指针设成 pointing hand 就行**；想临时静音可设 `UiClickSound.enabled = false`。
+- 新测试 `Tests/UiClickSoundTest`。
+
+## 52 · 结算界面「开采战报」+ 打完 BOSS 后的延迟（Claude，2026-10-24）
+
+用户选了方案 C（木板公告栏），但不要“通缉”——矮人是入侵去挖矿的，所以主题改成「开采战报」。
+
+**流程**
+- 打完 BOSS：`BossFinisher` 的子弹时间先播完（`BattleEndBeat` 不再抢 `Engine.time_scale`），然后屏幕中央「行星肃清 / 星球名」横幅 + 残留矿石飞回飞船（约 2.1 s），横幅淡出后才出结算板。从击杀到结算约 4 s。没有 BOSS 终结技时用原来的短慢镜头。
+- 失败：原来的爆炸节拍（2.2 s）后出同一块板的失败版（「开采中止」，合计划掉 + 「未带回」章）。撤离仍是直接起飞，不出板。岩石星球的 RockyFinale 不变。
+
+**新文件**
+- `Scripts/Battle/BattleStats.gd`（class_name BattleStats）：BattleMain 每局建一个（节点名 `BattleStats`），`freeze()` 于战斗结束。记录 `kills`（enemy_id → name/scene/boss/count，来自 `BasicEnemy.died`）、`weapon_kills`（来自 `WeaponModule.enemy_defeated`，按 weapon_type_id）、`ore_by_source`、`artifacts`（`ArtifactManager.artifact_granted`，freeze 后仍记录）、`elapsed_seconds`（真实时间）。只读展示数据，不存档。
+- `Scripts/UI/Result/ResultBoard.gd`（class_name ResultBoard）：代码构建，1600×900 舞台缩放适配；`setup(dict)`、`signal return_requested`、`skip_animation()`、`is_victory()`、`get_return_button()`。点击任意处跳过动画。敌人卡片用 `EnemyPortrait`（实例化敌人场景后移出所有组、关碰撞、停处理，同 ModuleIcon 思路）。奖励卡：新武器（蓝图）+ 新魔法物品（`ArtifactVisual.draw_icon`），最多 3 张 +N。左下便签：最佳武器。
+- `Assets/Audio/UI/stamp_thud.wav`（`tools/generate_ui_sfx.mjs` 新增，click_pop 不变）。
+
+**接口改动（请注意）**
+- `ResourceManager.add_mission_ore(amount, source := &"other")` 新增可选 `source`，并新增 `signal mission_ore_added(amount, source)`。只用于结算板分类，**不影响数值**。已改调用点：mining_module `&"drill"`、DwarfMiner `&"dwarf"`、MiningQteEvent `&"chest"`（SalvageDiscoveryEvent）/`&"qte"`、VerdantTree `&"tree"`、BattleMain 水晶 `&"crystal"`、BasicEnemy 击杀奖励 `&"bounty"`。新的加矿点请传 source（标签见 `BattleStats.SOURCE_NAMES`）。
+- BattleMain：`GameOverPanel` / `CompletionPanel` 不再 show()，保留为逻辑载体（按钮、UnlockLabel 文本照旧设置，WeaponUnlockSystemTest 不受影响）；`_show_result_board()` 在 `ResultLayer`（CanvasLayer 25）下加 `ResultBoard`，返回按钮走原来的 `_on_completion_return_to_base_pressed` / `_on_return_to_base_pressed`。
+- `BattleEndBeat.play(parent, ship, outcome, banner_subtitle := "")` 多了可选参数。
+
+**测试**
+- 新 `Tests/ResultBoardTest`（统计计数 + 胜利流程出板）。
+- 改 `Tests/BattleGameOverTest`：原“GameOverPanel.visible”断言改为检查 `ResultLayer/ResultBoard` 出现、是失败版、返回信号连到 `_on_return_to_base_pressed`。
+- 全量：其余失败均为改动前已有。另：`FlameLaserTest` 的 “combined power cost is three” 失败是 flame_laser.tscn 的 power_consumption 被改成 4 了（不是这次改动），请确认哪个是对的。
+- 新增中文翻译 + 重新生成了字体子集。
+
+## 53 · 树木星球：一圈一圈拔地而起 + 树人 = 会走的树（Claude，2026-10-25）
+
+用户反馈：树人数量不对、没按周围一圈出、树人出来后原地的树还在（密林里树冠盖住了坑）、树和树人长得不一样。新设计（用户确认）：
+
+**玩法**
+- 树按离空地的距离分圈：`ForestTree.ring`（1 = 空地边缘那一排 + 空地里稀疏的树，往外每排 +1；圈宽 `ForestPlanetSettings.ring_width`，0 = tree_spacing）。
+- **第 N 波开始时，第 1..N 圈所有还站着的树一起变成树人**（第 N 圈 + 被暴雨长回来的内圈树）。一棵树 = 一个树人 = 一个坑，同一帧发生。约 1.6 s 内绕空地扫一圈依次起身（`ring_raise_duration`）。
+- 当前地图每圈约 62–114 棵（累计：62/124/203/273/353/443/542/646/748/864）。**数量比原配置（4–11 个/波）多得多，请评估数值**（树人血量/伤害/奖励，或 ring_width 加宽 / 只取部分）。
+- 波次配置里的 treant / big_treant 条目**不再生成**（EnemySpawner 直接 free，WaveManager 的报错抑制改为 `rings_own_treants or not has_spawn_trees()`）；big_treant 的 spawn_count 仍有用：该波起身的树里最大的 N 棵变成大树人。仙子、BOSS 照旧走配置。
+- 起身期间用 `set_pending_external_spawns(&"forest_rings", n)` 挡住清波。暴雨逻辑不变（只把坑长回树）。矮人挖掉的树永久不再出现；起身扫到前被挖掉的树不出树人。
+
+**新文件 / 接口**
+- `Scripts/Battle/Forest/ForestRingRaise.gd`（class_name ForestRingRaise）：BattleMain 在森林星球创建（节点 `ForestRings`），监听 `wave_started`。`raise_rings(n) -> int`、`flush()`、`stop()`、`get_pending_count()`、`raised_by_wave`、`total_raised`。树人带 meta `forest_crown`（radius/seed/giant）和 `spawn_origin = &"forest_ring"`。
+- `ForestTerrain`: `ring_width`、`rings_own_treants`（默认 true；改 false 恢复旧的单棵随机逻辑）、`take_ring_trees(n)`（只预约，`ForestTree.reserved`）、`count_ring_trees(n)`、`get_center()`。`ForestTree`: `ring`、`reserved`、`get_crown_seed()`；`is_standing()` 现在也排除 reserved。
+- `ForestEnemy.emerge_duration` 默认 0.8 → 1.1（起身演出：先在原地颤 → 睁眼、树根拔出 → 开走）。
+
+**画面**
+- 树人改成“会走的树”：直接用它原来那棵树的树冠（同 seed/半径，与 ForestTreeChunks 完全一致），下面 4 条树根腿交替迈步，树冠上 5 只发光眼睛（2 大 1 小 2 微，会眨眼），受击整棵闪白。大树人起身时树冠胀大 1.4 倍。`ForestVisual.build_tree_crown()` / `draw_walking_tree()`；旧的 `draw_treant()` 保留未删。
+- 同等数量树人下帧率与旧画法基本相同。
+
+**测试**：`ForestWaveRuntimeTest` 按圈重写（第 1 波 = 第 1 圈全部 + 1 仙子，一树一坑一树人，暴雨长回，第 2 波 = 第 2 圈 + 长回的内圈）。ForestPlanetTest 的 mining module / dispatch 失败是之前就有的；GoblinGloveTest（缺 .gd）、ResearchTreeSystemTest 失败是 Codex 进行中的改动。

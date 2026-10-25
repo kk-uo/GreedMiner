@@ -120,7 +120,7 @@ func _claim_reward(amount: float) -> float:
 func _pay(amount: float) -> void:
 	if amount <= 0.0:
 		return
-	ResourceManager.add_mission_ore(amount)
+	ResourceManager.add_mission_ore(amount, &"chest" if self is SalvageDiscoveryEvent else &"qte")
 	paid_total += amount
 
 

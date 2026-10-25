@@ -9,6 +9,12 @@ extends Area2D
 @export var maximum_lifetime: float = 2.0
 @export var debug_hit_logging: bool = false
 
+## Collision radius and visual-size source assigned by DwarfCannon.
+var projectile_range: float = 6.0:
+	set(value):
+		projectile_range = maxf(value, 0.1)
+		_apply_projectile_range()
+
 var direction: Vector2 = Vector2.RIGHT
 var source_weapon: WeaponModule
 var _direct_target: BasicEnemy
@@ -29,19 +35,34 @@ func _ready() -> void:
 	var callback := Callable(self, "_on_area_entered")
 	if not area_entered.is_connected(callback):
 		area_entered.connect(callback)
+	_apply_projectile_range()
 	queue_redraw()
 
 
+func _apply_projectile_range() -> void:
+	if not is_node_ready():
+		return
+	var collision := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision != null:
+		collision.scale = Vector2.ONE * (projectile_range / 6.0)
+	queue_redraw()
+
+
+func get_projectile_visual_scale() -> float:
+	return projectile_range / 6.0
+
+
 func _draw() -> void:
+	var visual_scale := get_projectile_visual_scale()
 	# Ghost Bullet: a translucent spirit-shell instead (presentation).
 	if _ghost != null:
 		if not _has_exploded:
-			GHOST_SHOT_ART.draw(self, direction, _ghost_time, 6.0, float(get_instance_id() % 97))
+			GHOST_SHOT_ART.draw(self, direction, _ghost_time, 6.0 * visual_scale, float(get_instance_id() % 97))
 		return
 	# Style A: heavy shell with a hot core and its own hard shadow.
-	draw_circle(Palette.SHADOW_OFFSET * 0.6, 6.5, Palette.SHADOW_COLOR)
-	draw_circle(Vector2.ZERO, 6.5, Palette.ACCENT)
-	draw_circle(Vector2(-1.5, -1.5), 3.0, Palette.SHOT_CORE)
+	draw_circle(Palette.SHADOW_OFFSET * 0.6 * visual_scale, 6.5 * visual_scale, Palette.SHADOW_COLOR)
+	draw_circle(Vector2.ZERO, 6.5 * visual_scale, Palette.ACCENT)
+	draw_circle(Vector2(-1.5, -1.5) * visual_scale, 3.0 * visual_scale, Palette.SHOT_CORE)
 
 
 func _physics_process(delta: float) -> void:

@@ -25,6 +25,7 @@ func _run() -> void:
 	_test_unlock_all_weapons()
 	_test_unlock_all_artifacts()
 	_test_unlock_all_planets()
+	_test_unlock_weapon_fusion()
 	await _test_confirmation_and_complete_reset()
 	_test_disabled_guard()
 	_cleanup()
@@ -143,6 +144,22 @@ func _test_unlock_all_planets() -> void:
 	_expect_true(String(result.get("message", "")).contains("already"), "repeat planet unlock reports existing state")
 
 
+func _test_unlock_weapon_fusion() -> void:
+	var commands := DeveloperCommands.new()
+	_expect_false(WeaponFusionRegistry.is_unlocked(), "fusion starts locked without its normal requirements")
+	var result := commands.unlock_weapon_fusion()
+	_expect_true(bool(result.get("ok", false)), "developer command unlocks Weapon Fusion")
+	_expect_true(WeaponFusionRegistry.is_unlocked(), "developer fusion override becomes active")
+	_expect_equal(ResearchManager.get_weapon_research_level(&"scatter_machine_gun"), 1, "fusion research still starts at Level 1")
+	_expect_false(WeaponUnlockManager.has_completed_planet(WeaponFusionRegistry.REQUIRED_PLANET), "developer fusion unlock does not clear Graveyard")
+
+	ProgressionStore.reload_from_disk()
+	_expect_true(WeaponFusionRegistry.is_unlocked(), "developer fusion unlock persists")
+	result = commands.unlock_weapon_fusion()
+	_expect_true(bool(result.get("ok", false)), "repeat fusion unlock is harmless")
+	_expect_true(String(result.get("message", "")).contains("already"), "repeat fusion unlock reports existing state")
+
+
 func _test_confirmation_and_complete_reset() -> void:
 	_seed_all_progression()
 	var panel := PANEL_SCENE.instantiate() as DeveloperPanel
@@ -175,7 +192,7 @@ func _test_confirmation_and_complete_reset() -> void:
 	_expect_true(WeaponUnlockManager.is_weapon_unlocked(&"machine_gun"), "reset restores starting Machine Gun unlock")
 	_expect_false(WeaponUnlockManager.is_weapon_unlocked(&"dwarf_cannon"), "reset locks progression weapons")
 	_expect_true(WeaponUnlockManager.completed_planet_ids.is_empty(), "reset clears planet completions")
-	for section in [&"resources", &"loadout", &"research", &"chips", &"magic_artifacts"]:
+	for section in [&"resources", &"loadout", &"research", &"chips", &"magic_artifacts", &"weapon_fusion"]:
 		_expect_true(ProgressionStore.get_section(section).is_empty(), "reset removes persisted %s section" % section)
 	# The starting Machine Gun is immediately migrated into a fresh unlock section.
 	_expect_false(ProgressionStore.get_section(&"weapon_unlocks").is_empty(), "reset persists starting weapon defaults")
@@ -206,6 +223,9 @@ func _test_disabled_guard() -> void:
 	_expect_false(WeaponUnlockManager.is_planet_located(&"frozen_planet", 500), "blocked planet unlock preserves locations")
 	_expect_false(WeaponUnlockManager.locate_planet_for_development(&"frozen_planet"), "disabled guard blocks direct developer planet location")
 	_expect_false(ResearchManager.complete_research_for_development(&"energy_range_1"), "disabled guard blocks direct developer research completion")
+	result = commands.unlock_weapon_fusion()
+	_expect_false(bool(result.get("ok", false)), "disabled guard blocks Weapon Fusion unlock")
+	_expect_false(WeaponFusionRegistry.unlock_for_development(), "disabled guard blocks direct fusion unlock")
 
 	var panel := PANEL_SCENE.instantiate() as DeveloperPanel
 	add_child(panel)

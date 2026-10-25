@@ -60,12 +60,16 @@ const EXPEDITION_CONFIGS: Dictionary = {
 
 var _battle_ended: bool = false
 const DWARF_MINING_CONTROLLER := preload("res://Scripts/Mining/DwarfMiningController.gd")
+const MANUAL_TURRET_CONTROLLER := preload("res://Scripts/Battle/ManualTurretController.gd")
 var _dwarf_mining: Node2D
+var _manual_turret_controller: Node2D
 const FOREST_STORMS := preload("res://Scripts/Battle/Forest/ForestStormController.gd")
 const FOREST_SETTINGS: ForestPlanetSettings = preload("res://Resources/Forest/ForestPlanetSettings.tres")
 const FOREST_ROOT := preload("res://Scripts/Battle/Forest/ForestRoot.gd")
 const STRANDED_DWARF := preload("res://Scripts/Battle/Forest/StrandedDwarfMarker.gd")
 var _forest_storms: ForestStormController
+## Wave N raises rings 1..N of trees as treants (user design).
+var _forest_rings: ForestRingRaise
 var _forest_boss: ForestBoss
 var _forest_root: ForestRoot
 
@@ -83,6 +87,10 @@ const SHIP_FROST_VISUAL := preload("res://Scripts/VFX/ShipFrostVisual.gd")
 const DAMAGE_VIGNETTE := preload("res://Scripts/UI/DamageVignette.gd")
 ## Short slow-motion beat before the result panels (no instant jump).
 const BATTLE_END_BEAT := preload("res://Scripts/VFX/BattleEndBeat.gd")
+## Per-battle tallies and the end-of-battle result board (user pick C).
+const RESULT_BOARD := preload("res://Scripts/UI/Result/ResultBoard.gd")
+var _stats: BattleStats
+var _result_board: Control
 var _frost_visual: Node2D
 
 func _update_frost_visual(frozen: bool) -> void:
@@ -131,6 +139,14 @@ func _open_developer_panel() -> void:
 	$BattleUI/UIRoot/SettingsMenu.close_menu()
 	$BattleUI/UIRoot/DeveloperPanel.open_panel()
 
+
+func _disable_manual_turret_control() -> void:
+	if not is_instance_valid(_manual_turret_controller):
+		return
+	_manual_turret_controller.call("deactivate_manual_control")
+	_manual_turret_controller.set_process(false)
+	_manual_turret_controller.set_process_unhandled_input(false)
+
 func _ready() -> void:
 	$BattleUI/UIRoot/SettingsMenu.developer_mode_requested.connect(_open_developer_panel)
 	LanguageManager.language_changed.connect(_on_language_changed)
@@ -159,6 +175,14 @@ func _ready() -> void:
 		_forest_storms.maximum_respawns_per_frame = FOREST_SETTINGS.maximum_respawns_per_frame
 		add_child(_forest_storms)
 		move_child(_forest_storms, $BattleUI.get_index())
+		_forest_rings = ForestRingRaise.new()
+		_forest_rings.name = "ForestRings"
+		_forest_rings.terrain = battlefield.forest_terrain
+		_forest_rings.wave_manager = wave_manager
+		_forest_rings.enemies = $Enemies
+		_forest_rings.ship = ship
+		_forest_rings.raise_duration = FOREST_SETTINGS.ring_raise_duration
+		add_child(_forest_rings)
 		$Enemies.child_entered_tree.connect(_on_forest_enemy_entered)
 	if battlefield.planet_theme == &"volcanic" and not battlefield.get_lava_emerge_points().is_empty():
 		var emergence: Node = LAVA_EMERGENCE.new()
@@ -171,11 +195,19 @@ func _ready() -> void:
 		add_child(emergence)
 	battlefield.crystal_broken.connect(_on_crystal_broken)
 	ArtifactManager.attach_battle_effects(ship)
+	if ResearchManager.is_manual_turret_control_unlocked():
+		_manual_turret_controller = MANUAL_TURRET_CONTROLLER.new() as Node2D
+		_manual_turret_controller.name = "ManualTurretController"
+		_manual_turret_controller.call("configure", ship)
+		ship.add_child(_manual_turret_controller)
 	_range_indicator = TURRET_RANGE_INDICATOR.new()
 	_range_indicator.name = "TurretRangeIndicator"
 	add_child(_range_indicator)
 	game_over_panel.hide()
 	completion_panel.hide()
+	_stats = BattleStats.new()
+	_stats.name = "BattleStats"
+	add_child(_stats)
 
 	if EVACUATION_TIP.should_watch():
 		_evacuation_tip = EVACUATION_TIP.new()
@@ -294,6 +326,8 @@ func _on_forest_boss_died(_enemy_id: StringName, _position: Vector2) -> void:
 func _stop_forest_storms() -> void:
 	if is_instance_valid(_forest_storms):
 		_forest_storms.stop_storms()
+	if is_instance_valid(_forest_rings):
+		_forest_rings.stop()
 
 func _show_stranded_dwarves() -> void:
 	var ship_center := ship.to_global(Ship.SHIP_SIZE * 0.5)
@@ -352,6 +386,8 @@ func _on_ship_health_changed(current_health: float, maximum_health: float) -> vo
 ## Ends combat while keeping the Game Over controls responsive.
 func _handle_ship_destroyed() -> void:
 	_battle_ended = true
+	_disable_manual_turret_control()
+	_freeze_stats()
 	_stop_forest_storms()
 	$WeatherManager.clear_transient_effects()
 	if is_instance_valid(_evacuation_tip):
@@ -364,8 +400,9 @@ func _handle_ship_destroyed() -> void:
 	await BATTLE_END_BEAT.play(self, ship, &"defeat")
 	if not is_inside_tree():
 		return
-	game_over_panel.show()
+	# The old GameOverPanel stays as the logic holder; the board is shown.
 	return_to_base_button.disabled = false
+	_show_result_board(&"defeat", [])
 
 
 ## Presentation at the base after this battle (dwarves haul ore / repair).
@@ -401,6 +438,8 @@ func _on_evacuation_completed() -> void:
 		return
 
 	_battle_ended = true
+	_disable_manual_turret_control()
+	_freeze_stats()
 	_stop_forest_storms()
 	if battlefield.planet_theme == &"forest" and is_instance_valid(_forest_boss) and not _forest_boss.is_dying():
 		_show_stranded_dwarves()
@@ -426,6 +465,8 @@ func _on_planet_completed(config: PlanetWaveConfig) -> void:
 	if _battle_ended:
 		return
 	_battle_ended = true
+	_disable_manual_turret_control()
+	_freeze_stats()
 	_stop_forest_storms()
 	$WeatherManager.clear_transient_effects()
 	if is_instance_valid(_evacuation_tip):
@@ -435,9 +476,11 @@ func _on_planet_completed(config: PlanetWaveConfig) -> void:
 	evacuation_panel.set_battle_active(false)
 	ship.set_all_modules_active(false)
 	completion_unlock_label.hide()
+	var unlocked_for_board: Array = []
 	if config != null:
 		completion_title_label.text = tr("%s CLEARED") % tr(config.display_name.to_upper())
 		var unlocked_ids := WeaponUnlockManager.record_planet_completion(config.planet_id)
+		unlocked_for_board = Array(unlocked_ids)
 		if not unlocked_ids.is_empty():
 			var names: Array[String] = []
 			for weapon_id in unlocked_ids:
@@ -445,11 +488,50 @@ func _on_planet_completed(config: PlanetWaveConfig) -> void:
 				names.append(tr(definition.display_name) if definition != null else String(weapon_id))
 			completion_unlock_label.text = tr("NEW UNLOCK: %s") % ", ".join(names)
 			completion_unlock_label.show()
-	await BATTLE_END_BEAT.play(self, ship, &"victory")
+	await BATTLE_END_BEAT.play(self, ship, &"victory", _planet_display_name())
 	if not is_inside_tree():
 		return
-	completion_panel.show()
+	# The old CompletionPanel stays as the logic holder; the board is shown.
 	completion_return_button.disabled = false
+	_show_result_board(&"victory", unlocked_for_board)
+
+
+func _freeze_stats() -> void:
+	if is_instance_valid(_stats):
+		_stats.freeze()
+
+
+func _planet_display_name() -> String:
+	var config := wave_manager.wave_config
+	if config == null:
+		return ""
+	return tr(config.display_name.to_upper())
+
+
+## Shows the result board (victory or defeat) above every other UI layer.
+func _show_result_board(outcome: StringName, unlocks: Array) -> void:
+	if is_instance_valid(_result_board):
+		return
+	var layer := CanvasLayer.new()
+	layer.name = "ResultLayer"
+	layer.layer = 25
+	add_child(layer)
+	var board: Control = RESULT_BOARD.new()
+	board.name = "ResultBoard"
+	board.setup({
+		"outcome": outcome,
+		"planet_name": _planet_display_name(),
+		"stats": _stats,
+		"ore_total": ResourceManager.mission_ore,
+		"unlocks": unlocks,
+		"hull": ceili(maxf(ship.current_hp, 0.0)),
+		"max_hull": ceili(ship.max_hp),
+		"waves_done": wave_manager.get_current_wave_number() if outcome == &"defeat" else wave_manager.get_total_waves(),
+		"waves_total": wave_manager.get_total_waves(),
+	})
+	board.return_requested.connect(_on_completion_return_to_base_pressed if outcome == &"victory" else _on_return_to_base_pressed)
+	layer.add_child(board)
+	_result_board = board
 
 
 ## Banks the completed mission's resources and returns to assembly.
@@ -541,6 +623,7 @@ func play_rocky_finale(titan_position: Vector2) -> void:
 	if _battle_ended:
 		return
 	_battle_ended = true
+	_disable_manual_turret_control()
 	_stop_forest_storms()
 	$WeatherManager.clear_transient_effects()
 	if is_instance_valid(_evacuation_tip):
@@ -571,7 +654,7 @@ func _on_crystal_broken(world_position: Vector2, is_red: bool) -> void:
 	if _battle_ended:
 		return
 	var reward := 100.0 if is_red and ArtifactManager.owns_artifact(&"red_crystal") else 30.0
-	ResourceManager.add_mission_ore(reward)
+	ResourceManager.add_mission_ore(reward, &"crystal")
 	RewardPopup.spawn(self, world_position, reward)
 	if is_red and not ArtifactManager.owns_artifact(&"red_crystal"):
 		ArtifactManager.grant_artifact(&"red_crystal")
@@ -628,7 +711,7 @@ func find_knockback_module_at(world_point: Vector2) -> KnockbackModule:
 
 
 ## Attack range of a weapon in world units (0 if it has none), including
-## range bonuses (for example Demon Prism) so the preview ring matches play.
+## targeting-range bonuses (for example Goblin Scope) so the preview ring matches play.
 static func get_weapon_range(weapon: Node) -> float:
 	for property in [&"attack_range", &"attack_radius"]:
 		var value: Variant = weapon.get(property)

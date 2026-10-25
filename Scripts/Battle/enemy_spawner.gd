@@ -61,6 +61,10 @@ func spawn_enemy(
 		spawn_position = formation_position
 		enemy.set_meta("formation_spawn_side", direction)
 	if battlefield.planet_theme == &"forest" and enemy.enemy_id in [&"treant", &"big_treant"]:
+		if is_instance_valid(battlefield.forest_terrain) and battlefield.forest_terrain.rings_own_treants:
+			# ForestRingRaise raises whole rings of trees instead.
+			enemy.free()
+			return null
 		var tree := battlefield.take_forest_spawn_tree()
 		if tree == null:
 			enemy.free()

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/NecronomiconEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"necronomicon"
+display_name = "Necronomicon"
+rarity = "Legendary"
+description = "Each enemy defeated by the equipped turret releases a spirit that immediately damages nearby enemies for 33% of the defeated enemy's maximum health."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon", &"laser", &"chainsaw", &"flamethrower"])
+acquisition_source = "Defeat Giant Frank on Graveyard Planet"
+source_planet_id = &"graveyard_planet"
+source_name = "Giant Frank"
+effect_script = ExtResource("2")
+effect_parameters = {"health_damage_fraction": 0.33, "radius": 80.0}

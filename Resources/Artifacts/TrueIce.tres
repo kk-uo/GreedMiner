@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/ProjectileSlowArtifactEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"true_ice"
+display_name = "True Ice"
+rarity = "Rare"
+description = "Projectile hits slow enemies by 30% and bosses by 15% for 2 seconds."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon", &"flamethrower"])
+acquisition_source = "Frozen Planet mining salvage chest"
+source_planet_id = &"frozen_planet"
+source_name = "Mining salvage chest"
+mining_chest_reward = true
+mining_chest_planet_ids = Array[StringName]([&"frozen_planet"])
+effect_script = ExtResource("2")
+effect_parameters = {"boss_slow_fraction": 0.15, "duration": 2.0, "slow_fraction": 0.30}

@@ -15,6 +15,8 @@ extends ResearchEffect
 @export_range(0, 10, 1) var base_power_bonus: int = 0
 ## Unlocks the Hangar's SHIP STYLE (colors and hull designs).
 @export var unlocks_ship_style: bool = false
+## Allows selecting a turret for mouse-directed fire during battle.
+@export var unlocks_manual_turret_control: bool = false
 ## Extra ship-grid expansion capacity every Energy Module supplies. This is
 ## only an interface for the future hull slot-expansion research: it raises
 ## Ship.total_expansion_capacity but does not add any slot by itself.

@@ -193,6 +193,7 @@ func _rebuild_forest_trees() -> void:
 	forest_terrain.tree_spacing = FOREST_SETTINGS.tree_spacing
 	forest_terrain.empty_radius = FOREST_SETTINGS.empty_radius
 	forest_terrain.sparse_ring_width = FOREST_SETTINGS.sparse_ring_width
+	forest_terrain.ring_width = FOREST_SETTINGS.ring_width
 	forest_terrain.sparse_ring_density = FOREST_SETTINGS.sparse_ring_density
 	_interactables.add_child(forest_terrain)
 	forest_terrain.generate(self, _seed)

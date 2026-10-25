@@ -1,6 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Modules/Weapons/Chainsaw/Chainsaw.gd" id="1_chainsaw"]
+[ext_resource type="Script" path="res://Scripts/Audio/WeaponSound.gd" id="2_sound"]
+[ext_resource type="AudioStream" path="res://Assets/Audio/Weapons/chainsaw_loop.wav" id="3_audio"]
 
 [sub_resource type="CircleShape2D" id="CircleShape_attack"]
 radius = 80.0
@@ -17,3 +19,9 @@ monitorable = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackArea"]
 shape = SubResource("CircleShape_attack")
+
+[node name="Sound" type="AudioStreamPlayer2D" parent="."]
+script = ExtResource("2_sound")
+stream = ExtResource("3_audio")
+volume_db = -23.0
+continuous = true

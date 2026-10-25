@@ -1,6 +1,6 @@
 extends Node
 
-const TEST_SAVE := "user://research_tree_system_test.json"
+const TestSave := preload("res://Tests/TestSave.gd")
 const SHIP_SCENE := preload("res://Scenes/Ship/ship.tscn")
 const KNOCKBACK_SCENE := preload("res://Scenes/Modules/Shield/knockback_module.tscn")
 const REGENERATION_SCENE := preload("res://Scenes/Modules/Shield/regeneration_module.tscn")
@@ -12,12 +12,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	ProgressionStore.set_save_path_for_testing(TEST_SAVE)
-	ProgressionStore.reset_all_progress()
-	ShipLoadout.load_saved()
-	ResourceManager.reload_persistent_resources()
-	ResearchManager.reload_progress()
-	ArtifactManager.reload_progress()
+	TestSave.isolate("research_tree_system_test")
 	_check(ResearchManager.configuration.get_validation_errors().is_empty(), "valid default trees")
 	for id in [&"energy", &"mining", &"ship"]:
 		var tree := ResearchManager.configuration.get_tree(id)
@@ -29,7 +24,7 @@ func _run() -> void:
 			_check(view._nodes.size() == tree.nodes.size(), "%s tree displays configured nodes" % id)
 			if id == &"energy":
 				view.select_node(&"energy_install_slot_unlock")
-				_check(view._strip_cost_label.text == "FREE", "energy tree labels the second battery as free")
+				_check(view._strip_cost_label.text == tr("FREE"), "energy tree labels the second battery as free")
 				_check(not view.research_button.disabled, "free battery research is available with no Ore")
 			view.queue_free()
 	_check(ResearchManager.get_tree_node_state(&"ship_auto_regeneration_1") == &"LOCKED", "regeneration begins locked")
@@ -87,7 +82,7 @@ func _run() -> void:
 	_check(ResearchManager.get_tree_node_state(&"ship_style_unlock") == &"AVAILABLE", "ship style follows the magic slot")
 	_check(not ResearchManager.is_ship_style_unlocked(), "ship style starts locked")
 	var capacity_before := ship.total_power_capacity
-	ResourceManager.add_stored_ore(950)
+	ResourceManager.add_stored_ore(1250)
 	_check(ResearchManager.purchase_research(&"ship_air_conditioning_1"), "Air Conditioning purchased")
 	_check(ResearchManager.is_planet_in_range(&"frozen_planet"), "Frozen comes into range")
 	_check(not ResearchManager.is_planet_in_range(&"volcanic_planet"), "Volcanic also needs Long-Long-Range Cells")
@@ -100,7 +95,13 @@ func _run() -> void:
 	_check(ship.total_power_capacity == capacity_before + 1, "power cell adds one ship power")
 	_check(ResearchManager.purchase_research(&"ship_style_unlock"), "ship style purchased")
 	_check(ResearchManager.is_ship_style_unlocked(), "ship style unlocked")
-	_check(ResourceManager.stored_ore == 0, "ship branches cost 250 + 200 + 500")
+	_check(ResourceManager.stored_ore == 0, "ship branches cost 250 + 500 + 500")
+	_check(ResearchManager.get_tree_node_state(&"ship_manual_turret_control") == &"AVAILABLE", "manual aim requires built-in power and ship style")
+	_check(not ResearchManager.is_manual_turret_control_unlocked(), "manual aim starts disabled")
+	ResourceManager.add_stored_ore(1000)
+	_check(ResearchManager.purchase_research(&"ship_manual_turret_control"), "manual aim costs 1000 Ore")
+	_check(ResearchManager.is_manual_turret_control_unlocked(), "manual aim activates after research")
+	_check(ResourceManager.stored_ore == 0, "manual aim spends exactly 1000 Ore")
 	_check(ResearchManager.get_module_installation_limit(&"energy_module") == 2, "energy limit becomes two")
 	_check(ResearchManager.get_module_installation_limit(&"mining_module") == 2, "mining limit becomes two")
 	_check(not ResearchManager.purchase_research(&"mining_install_slot_unlock"), "completed expansion cannot be repurchased")
@@ -159,6 +160,18 @@ func _run() -> void:
 	var without_module := ship.current_hp
 	ship._process(10.0)
 	_check(ship.current_hp == without_module + 5.0, "ship regeneration works without a Regeneration Module")
+	_check(ResearchManager.get_tree_node_state(&"ship_max_hp_2") == &"AVAILABLE", "second hull upgrade follows Air Conditioning")
+	var hull_before := ship.max_hp
+	ResourceManager.add_stored_ore(500)
+	_check(ResearchManager.purchase_research(&"ship_max_hp_2"), "second hull upgrade costs 500 Ore")
+	_check(is_equal_approx(ship.max_hp, hull_before + 10.0), "second hull upgrade adds 10 maximum HP")
+	_check(ResearchManager.get_tree_node_state(&"ship_max_hp_3") == &"AVAILABLE", "third hull upgrade follows second")
+	ResourceManager.add_stored_ore(750)
+	_check(ResearchManager.purchase_research(&"ship_max_hp_3"), "third hull upgrade costs 750 Ore")
+	_check(is_equal_approx(ship.max_hp, hull_before + 20.0), "third hull upgrade adds another 10 maximum HP")
+	ProgressionStore.reload_from_disk()
+	ResearchManager.reload_progress()
+	_check(ResearchManager.is_manual_turret_control_unlocked() and ResearchManager.is_research_completed(&"ship_max_hp_3"), "new ship research persists")
 	var config := ResearchManager.configuration.duplicate(true) as ResearchConfiguration
 	var tree := config.get_tree(&"ship")
 	var root := tree.get_node(&"ship_max_hp_1")

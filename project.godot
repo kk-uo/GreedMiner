@@ -15,13 +15,10 @@ run/main_scene="res://Scenes/Base/base_main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
-[greedminer]
-
-developer_mode/enabled=true
-
 [autoload]
 
 LanguageManager="*res://Scripts/Core/LanguageManager.gd"
+AudioSettings="*res://Scripts/Core/AudioSettings.gd"
 ProgressionStore="*res://Scripts/Core/ProgressionStore.gd"
 WeaponUnlockManager="*res://Scripts/Progression/WeaponUnlockManager.gd"
 ShipLoadout="*res://Scripts/Ship/ShipLoadout.gd"
@@ -29,6 +26,7 @@ ResourceManager="*res://Scripts/Core/ResourceManager.gd"
 ResearchManager="*res://Scripts/Research/ResearchManager.gd"
 ChipManager="*res://Scripts/Chips/ChipManagerV2.gd"
 ArtifactManager="*res://Scripts/Artifacts/ArtifactManager.gd"
+UiClickSound="*res://Scripts/Audio/UiClickSound.gd"
 
 [display]
 
@@ -39,17 +37,21 @@ window/size/window_height_override=1440
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[greedminer]
+
+developer_mode/enabled=true
+
 [gui]
 
 theme/custom="res://Resources/UI/greedminer_theme.tres"
 
-[physics]
-
-3d/physics_engine="Jolt Physics"
-
 [internationalization]
 
 locale/translations=PackedStringArray("res://Translations/zh_CN.po")
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
 
 [rendering]
 

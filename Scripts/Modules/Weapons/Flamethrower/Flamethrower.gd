@@ -21,8 +21,11 @@ extends WeaponModule
 ## Rest between bursts, in seconds.
 @export var burst_pause: float = 1.0
 
-## Maximum targeting distance and how far the puffs travel, in pixels.
+## Maximum targeting distance in pixels.
 @export var attack_range: float = 200.0
+
+## Nominal maximum puff radius in pixels; collision and visuals scale together.
+@export var projectile_range: float = 15.0
 
 ## Puff speed in pixels per second.
 @export var projectile_speed: float = 300.0
@@ -37,12 +40,14 @@ extends WeaponModule
 
 @onready var _turret: Node2D = $Turret
 @onready var _muzzle: Marker2D = $Turret/Muzzle
+@onready var _sound: WeaponSound = $Sound
 
 var current_target: BasicEnemy = null
 ## Puffs still to fire in the current burst (0 = not bursting).
 var _burst_left: int = 0
 var _puff_timer: float = 0.0
 var _pause_left: float = 0.0
+const BASE_PUFF_RADIUS: float = 15.0
 func get_damage() -> float:
 	return get_modified_damage(basic_damage)
 
@@ -54,11 +59,9 @@ func get_fire_rate() -> float:
 	return get_modified_fire_rate(1.0 / attack_interval)
 
 
-## Range chips stretch the reach AND fatten every flame puff by the same factor.
+## Projectile-range bonuses stretch the reach and fatten every flame puff.
 func get_flame_size_scale() -> float:
-	if attack_range <= 0.0:
-		return 1.0
-	return maxf(get_modified_attack_range(attack_range) / attack_range, 0.1)
+	return maxf(get_modified_projectile_range(projectile_range) / BASE_PUFF_RADIUS, 0.1)
 
 
 ## True while a burst is spraying (the turret visual shows the pilot flare).
@@ -68,15 +71,26 @@ func is_spraying() -> bool:
 
 func _process(delta: float) -> void:
 	if assembly_mode:
+		_sound.stop_sound()
 		current_target = null
 		_burst_left = 0
 		_puff_timer = 0.0
 		_pause_left = 0.0
 		return
 	_pause_left = maxf(_pause_left - delta, 0.0)
-	current_target = keep_or_find_target(current_target, global_position, get_modified_attack_range(attack_range), delta)
-	if is_instance_valid(current_target):
-		rotate_turret_toward(_turret, current_target.get_target_point(global_position), rotation_speed, delta)
+	var has_aim := false
+	var aim_position := Vector2.ZERO
+	if is_manual_control_active():
+		current_target = null
+		has_aim = has_valid_manual_aim(_turret.global_position)
+		aim_position = get_manual_aim_world_position()
+	else:
+		current_target = keep_or_find_target(current_target, global_position, get_modified_attack_range(attack_range), delta)
+		has_aim = is_instance_valid(current_target)
+		if has_aim:
+			aim_position = current_target.get_target_point(global_position)
+	if has_aim:
+		rotate_turret_toward(_turret, aim_position, rotation_speed, delta)
 	var rate := get_fire_rate()
 	if rate <= 0.0:
 		return
@@ -90,9 +104,9 @@ func _process(delta: float) -> void:
 		if _burst_left == 0:
 			_pause_left = burst_pause
 		return
-	if _pause_left > 0.0 or not is_instance_valid(current_target):
+	if _pause_left > 0.0 or not has_aim:
 		return
-	if get_aim_error(_turret, current_target.get_target_point(global_position)) > deg_to_rad(aim_tolerance):
+	if get_aim_error(_turret, aim_position) > deg_to_rad(aim_tolerance):
 		return
 	_burst_left = maxi(burst_count, 1)
 	_puff_timer = 0.0
@@ -119,3 +133,4 @@ func fire() -> void:
 	puff.muzzle = _muzzle
 	var rate := get_fire_rate()
 	puff.emit_window = 1.0 / rate if rate > 0.0 else 0.0
+	_sound.sustain_for(0.28)

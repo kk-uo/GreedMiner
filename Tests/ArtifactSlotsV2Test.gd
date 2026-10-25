@@ -50,10 +50,12 @@ func _run() -> void:
 	var gun := ship.get_module_at(0, 0) as WeaponModule
 	var base_rate := gun.get_fire_rate()
 	var base_range := gun.get_modified_attack_range(200.0)
+	var base_projectile_size := float(gun.get("projectile_range"))
 	ArtifactManager.attach_battle_effects(ship)
 	check(ship.get_node("MagicArtifactEffects").get_child_count() == 3, "all three module effects attach")
 	check(is_equal_approx(gun.get_fire_rate(), base_rate * 1.25), "flag bonus applies")
-	check(is_equal_approx(gun.get_modified_attack_range(200.0), base_range * 2.0), "range artifact applies")
+	check(is_equal_approx(gun.get_modified_attack_range(200.0), base_range), "Demon Prism leaves range unchanged")
+	check(is_equal_approx(gun.get_modified_projectile_range(base_projectile_size), base_projectile_size * 2.0), "Demon Prism doubles projectile size")
 	ArtifactManager.record_battle_activity(gun, 2000.0)
 	check(is_equal_approx(gun.get_fire_rate(), base_rate * 1.26), "two fire-rate artifacts stack additively")
 	ArtifactManager.clear_battle_effects(ship)

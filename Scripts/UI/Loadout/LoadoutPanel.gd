@@ -64,6 +64,7 @@ var _drag_active: bool = false
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	LanguageManager.language_changed.connect(func(_locale: StringName) -> void: _rebuild())
 	if not WeaponUnlockManager.weapon_unlocked.is_connected(_on_weapon_unlocked):
 		WeaponUnlockManager.weapon_unlocked.connect(_on_weapon_unlocked)
 	_build_frame()
@@ -255,7 +256,7 @@ func _build_list() -> void:
 		_build_artifact_slots()
 	_body.add_child(_label("WEAPONS", 11, Palette.UI_MUTED))
 	for entry in ModuleCatalog.ENTRIES:
-		if entry["group"] == &"weapon":
+		if entry["group"] == &"weapon" and not bool(entry.get("fusion_only", false)):
 			_body.add_child(_make_card(entry))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0.0, 6.0)
@@ -830,7 +831,7 @@ func _build_detail() -> void:
 	identity.alignment = BoxContainer.ALIGNMENT_CENTER
 	identity.add_theme_constant_override("separation", 6)
 	top.add_child(identity)
-	var title := _label(String(entry.get("name", "")).to_upper(), 20, Palette.UI_TEXT)
+	var title := _label(tr(String(entry.get("name", ""))).to_upper(), 20, Palette.UI_TEXT)
 	identity.add_child(title)
 	var tags := HBoxContainer.new()
 	tags.add_theme_constant_override("separation", 6)
@@ -920,6 +921,9 @@ func _stat_rows(id: StringName, stats: Dictionary, category: String, turret_cell
 			elif stats.has("attack_range"):
 				var reach := float(stats["attack_range"])
 				rows.append(StatRow.make("RANGE", ModuleCatalog.format_number(reach), reach / ModuleCatalog.get_stat_max("attack_range")))
+			if stats.has("projectile_range"):
+				var projectile_reach := float(stats["projectile_range"])
+				rows.append(StatRow.make("PROJECTILE RANGE", ModuleCatalog.format_number(projectile_reach), projectile_reach / ModuleCatalog.get_stat_max("projectile_range")))
 			if stats.has("aoe_radius"):
 				var aoe := float(stats["aoe_radius"])
 				rows.append(StatRow.make("BLAST RADIUS", ModuleCatalog.format_number(aoe), aoe / ModuleCatalog.get_stat_max("aoe_radius")))
@@ -1043,7 +1047,10 @@ func _fill_module_artifact_storage(slot_index: int) -> bool:
 		))
 	for artifact_id in ArtifactManager.get_owned_artifact_ids():
 		var definition := ArtifactManager.get_definition(artifact_id)
-		if definition == null or not definition.is_compatible_with_module(_detail_id) or artifact_id == current:
+		# Use the same cell-aware rule as the actual equip command. Fusion
+		# weapons inherit compatibility from both of their source modules and
+		# therefore cannot be filtered only by their result module id.
+		if definition == null or not ArtifactManager.is_module_artifact_compatible(cell, artifact_id) or artifact_id == current:
 			continue
 		entries.append(_artifact_entry(definition, func() -> void:
 			ArtifactManager.equip_module_artifact(cell, artifact_id, slot_index)

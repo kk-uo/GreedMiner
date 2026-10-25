@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/FrostBreathArtifactEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"frost_breath"
+display_name = "Frost Breath"
+rarity = "Legendary"
+description = "The equipped turret freezes its locked target, preventing movement and attacks. Only one target can be frozen at a time. Bosses are immune."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon", &"laser", &"flamethrower"])
+acquisition_source = "Defeat Mega Monster on Frozen Planet"
+source_planet_id = &"frozen_planet"
+source_name = "Mega Monster"
+effect_script = ExtResource("2")
+effect_parameters = {"affects_bosses": false}

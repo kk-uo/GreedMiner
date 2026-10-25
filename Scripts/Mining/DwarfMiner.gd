@@ -44,7 +44,7 @@ func _physics_process(delta: float) -> void:
 	if state == State.RETURNING:
 		if _move_toward(module.global_position, delta):
 			if ore > 0.0:
-				ResourceManager.add_mission_ore(ore)
+				ResourceManager.add_mission_ore(ore, &"dwarf")
 				RewardPopup.spawn(battle, global_position, ore)
 			returned.emit(self)
 			queue_free()

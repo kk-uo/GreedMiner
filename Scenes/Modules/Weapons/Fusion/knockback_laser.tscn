@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Modules/Fusion/FusionWeapon.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Modules/Fusion/FusionTurretVisual.gd" id="2"]
+
+[node name="KnockbackLaser" type="Node2D"]
+script = ExtResource("1")
+weapon_type_id = &"knockback_laser"
+power_consumption = 3
+attack_kind = 2
+visual_kind = 1
+basic_damage = 15.0
+attack_interval = 3.0
+attack_range = 1000.0
+projectile_range = 100.0
+projectile_speed = 250.0
+knockback_distance = 200.0
+wave_thickness = 20.0
+wave_damage_per_second = 1.0
+rotation_speed = 240.0
+
+[node name="Turret" type="Node2D" parent="."]
+script = ExtResource("2")
+
+[node name="Muzzle" type="Marker2D" parent="Turret"]
+position = Vector2(26, 0)

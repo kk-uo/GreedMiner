@@ -14,6 +14,14 @@ extends Node2D
 @export_range(0.0, 1.0, 0.01) var sparse_ring_density: float = 0.06
 ## Treants prefer trees within this distance of the map centre (in view).
 @export_range(100.0, 3000.0, 10.0) var spawn_view_radius: float = 950.0
+## Rings (user design): ring 1 is the row of trees on the clearing's edge
+## (plus the sparse trees inside it), ring 2 the row behind it, ... Wave N
+## raises every standing tree of rings 1..N (ring N, plus inner trees that a
+## storm regrew). 0 = one tree row (tree_spacing).
+@export_range(0.0, 400.0, 1.0) var ring_width: float = 0.0
+## True: ForestRingRaise owns every treant spawn and the wave queue's treant
+## entries only set how many of the raised trees become big treants.
+var rings_own_treants: bool = true
 
 const TREE := preload("res://Scripts/Battle/Forest/ForestTree.gd")
 const CANOPY_LAYER := preload("res://Scripts/Battle/Forest/ForestCanopyLayer.gd")
@@ -62,9 +70,14 @@ func generate(field: Battlefield, seed_value: int) -> void:
 		var value := candidates[index]
 		candidates[index] = candidates[other]
 		candidates[other] = value
+	var band := ring_width if ring_width > 0.0 else tree_spacing
 	for point in candidates.slice(0, maximum_trees):
 		var tree := TREE.new() as ForestTree
 		tree.position = point
+		var pa: float = (point - center).angle()
+		var pw: float = 1.0 + 0.10 * sin(pa * 3.0 + phase) + 0.06 * sin(pa * 7.0 + phase * 2.0)
+		var depth: float = (point as Vector2).distance_to(center) - (empty_radius + sparse_ring_width) * pw
+		tree.ring = 1 + maxi(0, floori(depth / band))
 		var far: bool = (point as Vector2).distance_to(center) > empty_radius + sparse_ring_width + 140.0
 		if far and _rng.randf() < 0.05:
 			tree.kind = &"giant"
@@ -137,6 +150,37 @@ func _on_tree_state(tree: ForestTree) -> void:
 	# Uprooting removes itself from the pools; regrowing / chopping rebuilds.
 	if tree.is_standing() or tree.chopped:
 		_pool_dirty = true
+
+
+## Reserves every standing tree of rings 1..wave_number (the wave's own ring
+## plus inner trees a storm regrew) and returns them sorted by angle round
+## the clearing. Each one becomes exactly one treant: ForestRingRaise calls
+## uproot() on it the moment its treant appears (tree -> pit, same frame).
+func take_ring_trees(wave_number: int) -> Array[ForestTree]:
+	var picked: Array[ForestTree] = []
+	for tree in trees:
+		if is_instance_valid(tree) and tree.is_standing() and tree.ring <= wave_number:
+			picked.append(tree)
+	var c := _center
+	picked.sort_custom(func(a: ForestTree, b: ForestTree) -> bool:
+		return (a.position - c).angle() < (b.position - c).angle())
+	for tree in picked:
+		_remove_from_pools(tree)
+		tree.reserved = true
+	return picked
+
+
+## Number of standing trees a wave would raise (UI / tests).
+func count_ring_trees(wave_number: int) -> int:
+	var count := 0
+	for tree in trees:
+		if is_instance_valid(tree) and tree.is_standing() and tree.ring <= wave_number:
+			count += 1
+	return count
+
+
+func get_center() -> Vector2:
+	return _center
 
 
 func has_spawn_trees() -> bool:

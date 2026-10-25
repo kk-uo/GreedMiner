@@ -12,6 +12,9 @@ extends WeaponModule
 ## Maximum targeting distance in pixels.
 @export var attack_range: float = 200.0
 
+## Cannonball visual and collision radius in pixels. This does not affect travel.
+@export var projectile_range: float = 6.0
+
 ## Cannonball movement speed in pixels per second.
 @export var projectile_speed: float = 800.0
 
@@ -32,6 +35,7 @@ extends WeaponModule
 
 @onready var _turret: Node2D = $Turret
 @onready var _muzzle: Marker2D = $Turret/Muzzle
+@onready var _sound: WeaponSound = $Sound
 
 ## The enemy locked by the cannon until it dies or leaves range.
 var current_target: BasicEnemy = null
@@ -56,6 +60,11 @@ func _process(delta: float) -> void:
 	if assembly_mode:
 		current_target = null
 		_attack_cooldown = 0.0
+		return
+
+	if is_manual_control_active():
+		current_target = null
+		_process_manual_control(delta)
 		return
 
 	current_target = keep_or_find_target(
@@ -93,6 +102,23 @@ func _process(delta: float) -> void:
 		_attack_cooldown = 1.0 / effective_fire_rate
 
 
+func _process_manual_control(delta: float) -> void:
+	var aim_position := get_manual_aim_world_position()
+	if not has_valid_manual_aim(_turret.global_position):
+		_attack_cooldown = 0.0
+		return
+	rotate_turret_toward(_turret, aim_position, rotation_speed, delta)
+	var effective_fire_rate := get_fire_rate()
+	if effective_fire_rate <= 0.0:
+		return
+	_attack_cooldown = maxf(_attack_cooldown - delta, 0.0)
+	if get_aim_error(_turret, aim_position) > deg_to_rad(aim_tolerance):
+		return
+	if _attack_cooldown <= 0.0:
+		fire()
+		_attack_cooldown = 1.0 / effective_fire_rate
+
+
 ## Launches one physical cannonball along the turret's current direction.
 func fire() -> void:
 	if projectile_scene == null:
@@ -109,9 +135,11 @@ func fire() -> void:
 	projectile.global_position = _muzzle.global_position
 	projectile.direction = Vector2.RIGHT.rotated(_muzzle.global_rotation)
 	projectile.speed = projectile_speed
+	projectile.projectile_range = get_modified_projectile_range(projectile_range)
 	projectile.damage = get_modified_explosion_damage(get_damage())
 	projectile.source_weapon = self
 	var artifact_pierces := get_artifact_projectile_pierces()
 	if artifact_pierces > 0:
 		projectile.enable_ghost_piercing(artifact_pierces)
 	projectile.explosion_radius = aoe_radius
+	_sound.play_shot()

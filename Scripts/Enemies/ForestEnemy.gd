@@ -8,7 +8,7 @@ extends RangedEnemy
 @export_range(0.1, 30.0, 0.1) var heal_interval: float = 1.0
 var committed_to_attack: bool = false
 var _heal_time: float = 0.0
-@export_range(0.0, 5.0, 0.1) var emerge_duration: float = 0.8
+@export_range(0.0, 5.0, 0.1) var emerge_duration: float = 1.1
 var _emerge_left: float = 0.0
 ## Presentation: walk cycle clock and a throttled redraw (forest packs are big).
 const EMERGE_FX := preload("res://Scripts/VFX/ForestEmergeFx.gd")
@@ -135,4 +135,25 @@ func _draw() -> void:
 		return
 	var rise := 1.0 - _emerge_left / maxf(emerge_duration, 0.001)
 	var step := 0.0 if (_is_attacking or _emerge_left > 0.0) else sin(_anim_time * TAU * 1.4)
-	ForestVisual.draw_treant(self, _facing, step, _hit_flash_time > 0.0, enemy_id == &"big_treant", rise)
+	# A walking tree (user design): the crown of the tree it rose from.
+	if _crown.is_empty():
+		_crown = _build_crown()
+	var big := enemy_id == &"big_treant"
+	var swell := 1.0 + (BIG_CROWN_SCALE - 1.0) * clampf((rise - 0.45) / 0.55, 0.0, 1.0) if big else 1.0
+	var blink := fmod(_anim_time + _blink_offset, 4.3) < 0.13
+	ForestVisual.draw_walking_tree(self, _crown, _facing, step, _hit_flash_time > 0.0, rise, _anim_time, swell, blink)
+
+
+## Presentation: the walking-tree crown (ForestVisual.build_tree_crown),
+## taken from the tree this treant rose from (meta "forest_crown", set by
+## ForestRingRaise); a stand-in crown when spawned some other way.
+const BIG_CROWN_SCALE: float = 1.4
+var _crown: Dictionary = {}
+var _blink_offset: float = randf() * 4.3
+
+
+func _build_crown() -> Dictionary:
+	var info: Dictionary = get_meta("forest_crown", {})
+	var radius := float(info.get("radius", 40.0 if enemy_id == &"treant" else 46.0))
+	var seed_value := int(info.get("seed", get_instance_id() % 100000))
+	return ForestVisual.build_tree_crown(radius, seed_value, bool(info.get("giant", false)))

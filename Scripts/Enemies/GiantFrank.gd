@@ -34,6 +34,9 @@ var _grave_points: Array[Vector2] = []
 func _die() -> void:
 	if phase == Phase.NORMAL:
 		phase = Phase.FIRST_DEATH
+		# The first collapse is not a kill and must not remain credited when the
+		# resurrected boss eventually dies.
+		_killing_weapon = null
 		_stop_attacking()
 		attack_timer.stop()
 		set_physics_process(false)
@@ -92,6 +95,11 @@ func _spawn_zombies() -> int:
 
 func _get_visual_radius() -> float:
 	return 76.0
+
+
+func _perform_death_effect() -> void:
+	if not ArtifactManager.owns_artifact(&"necronomicon"):
+		ArtifactManager.grant_artifact(&"necronomicon")
 
 func _draw() -> void:
 	var state := UndeadVisual.FrankState.NORMAL

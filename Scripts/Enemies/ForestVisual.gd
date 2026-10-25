@@ -163,3 +163,107 @@ static func draw_fairy(canvas: CanvasItem, facing: float, flash: bool, time: flo
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	c.flush_to(canvas)
 	_flash = false
+
+
+# ------------------------------------------------------------ walking tree
+
+const TREE_ART := preload("res://Scripts/Battle/Forest/ForestArt.gd")
+const ROOT_DARK := Color("3A2A1E")
+const ROOT_MID := Color("5A4130")
+const ROOT_LIGHT := Color("7A5A42")
+const SOCKET := Color("17200F")
+const TREE_EYE := Color("FFD36A")
+const TREE_EYE_HOT := Color("FFF2B0")
+
+
+## Cached meshes of one walking tree's crown (built once per treant): the
+## exact crown of the tree it rose from (same seed / radius as ForestArt in
+## the chunk renderer), a flat white copy for the hit flash and its shadow.
+static func build_tree_crown(radius: float, seed: int, giant: bool) -> Dictionary:
+	var crown := MeshBatch2D.new()
+	var white := MeshBatch2D.new()
+	var shadow := MeshBatch2D.new()
+	var lobes := 9 if giant else 7
+	TREE_ART.canopy_shadow(shadow, Vector2.ZERO, radius, seed, lobes)
+	if giant:
+		TREE_ART.giant_oak(crown, Vector2.ZERO, radius, seed, false)
+	else:
+		TREE_ART.canopy(crown, Vector2.ZERO, radius, seed, TREE_ART.OAK if seed % 3 != 0 else TREE_ART.OAK_DEEP, 7, false)
+	var flat: Array[Color] = [Palette.HIT_FLASH, Palette.HIT_FLASH, Palette.HIT_FLASH]
+	TREE_ART.canopy(white, Vector2.ZERO, radius, seed, flat, lobes, false)
+	return {"crown": crown.build(), "white": white.build(), "shadow": shadow.build(), "radius": radius}
+
+
+## The treant IS a tree that walks (user design): the tree's own crown seen
+## from above, root legs stepping out under its rim, and glowing eyes in
+## dark hollows of the leaves (two big, a small third, two tiny ones).
+## `rise` 0..1 while tearing out of the ground: the crown first shudders in
+## place exactly like the tree, then the roots rip free and the eyes open.
+## `size` scales the crown (big treants swell while rising). Draws into
+## `canvas` in its local space; the crown never rotates (world light).
+static func draw_walking_tree(canvas: CanvasItem, crown: Dictionary, facing: float, step: float, flash: bool, rise: float, time: float, size: float = 1.0, blink: bool = false) -> void:
+	var r: float = float(crown["radius"]) * size
+	var k := size
+	var shudder := clampf(rise / 0.45, 0.0, 1.0)
+	var tear := clampf((rise - 0.45) / 0.55, 0.0, 1.0)
+	tear = 1.0 - pow(1.0 - tear, 3.0)
+	var shake := Vector2.ZERO
+	if rise < 0.45:
+		shake = Vector2(sin(time * 61.0), cos(time * 47.0)) * 2.2 * shudder
+	var hop := sin(PI * tear) * 0.12 if rise < 1.0 else 0.0
+	var dir := Vector2.RIGHT.rotated(facing)
+	var side := dir.orthogonal()
+	# Shadow (lifts a little while hopping out of the ground).
+	canvas.draw_set_transform(shake + TREE_ART.SH * hop * 2.0, 0.0, Vector2.ONE * k)
+	if crown["shadow"] != null:
+		canvas.draw_mesh(crown["shadow"], null)
+	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# Root legs: four roots under the rim, stepping in pairs.
+	if tear > 0.0:
+		var legs := [[0.8, 1.0], [-0.8, -1.0], [2.35, -1.0], [-2.35, 1.0]]
+		for leg in legs:
+			var a: float = facing + float(leg[0])
+			var phase: float = float(leg[1]) * step
+			var out := Vector2.RIGHT.rotated(a)
+			var tip := out * r * (0.75 + 0.58 * tear) + dir * r * 0.2 * phase
+			var knee := out * r * 0.62 + dir * r * 0.1 * phase
+			var w := maxf(3.0, r * 0.14) * (0.6 + 0.4 * tear)
+			var n := (tip - knee).normalized().orthogonal()
+			var root := PackedVector2Array([knee + n * w, tip + n * w * 0.35, tip + out * w * 0.5, tip - n * w * 0.35, knee - n * w])
+			canvas.draw_colored_polygon(Palette.offset_points(root, Vector2(2.5, 3.5)), Color(0, 0, 0, 0.25))
+			canvas.draw_colored_polygon(root, Palette.HIT_FLASH if flash else ROOT_MID)
+			if not flash:
+				canvas.draw_line(knee + n * w * 0.4, tip + n * w * 0.15, ROOT_LIGHT, maxf(1.0, w * 0.35))
+				# Little root toes at the tip.
+				for t in [-0.5, 0.5]:
+					canvas.draw_line(tip, tip + out.rotated(t) * w * 1.3, ROOT_DARK, maxf(1.0, w * 0.4))
+	# Crown: the tree itself.
+	canvas.draw_set_transform(shake - Vector2(0, r * hop * 0.25), 0.0, Vector2.ONE * k * (1.0 + hop * 0.15))
+	var mesh: ArrayMesh = crown["white"] if flash else crown["crown"]
+	if mesh != null:
+		canvas.draw_mesh(mesh, null)
+	canvas.draw_set_transform(shake - Vector2(0, r * hop * 0.25), 0.0, Vector2.ONE)
+	if flash or tear <= 0.0:
+		canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		return
+	# Eyes (open as the roots tear free); a slow glow pulse.
+	var glow := 0.8 + 0.2 * sin(time * 3.0)
+	var eyes := [
+		[dir * r * 0.40 + side * r * 0.19, 0.115],
+		[dir * r * 0.40 - side * r * 0.19, 0.115],
+		[dir * r * 0.64, 0.065],
+		[dir * r * 0.08 + side * r * 0.40, 0.05],
+		[dir * r * 0.08 - side * r * 0.40, 0.05],
+	]
+	for eye in eyes:
+		var at: Vector2 = eye[0]
+		var er := maxf(1.6, r * float(eye[1])) * tear
+		canvas.draw_circle(at, er * 1.75, SOCKET)
+		if blink:
+			canvas.draw_line(at - side * er, at + side * er, TREE_EYE, maxf(1.0, er * 0.35))
+			continue
+		canvas.draw_circle(at, er * 1.5, Color(TREE_EYE, 0.22 * glow))
+		canvas.draw_circle(at, er, TREE_EYE)
+		canvas.draw_circle(at + dir * er * 0.2, er * 0.45, TREE_EYE_HOT)
+		canvas.draw_circle(at - Vector2(er, er) * 0.3, er * 0.25, Color.WHITE)
+	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

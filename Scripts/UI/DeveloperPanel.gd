@@ -16,6 +16,7 @@ const SAFE_STARTING_SCENE: String = "res://Scenes/Base/base_main.tscn"
 @onready var unlock_weapons_button: Button = %UnlockWeaponsButton
 @onready var unlock_artifacts_button: Button = %UnlockArtifactsButton
 @onready var unlock_planets_button: Button = %UnlockPlanetsButton
+@onready var unlock_fusion_button: Button = %UnlockFusionButton
 @onready var reset_button: Button = %ResetButton
 @onready var close_button: Button = %CloseButton
 @onready var status_label: Label = %StatusLabel
@@ -27,25 +28,54 @@ var _commands := DeveloperCommands.new()
 
 func _ready() -> void:
 	hide()
+	_apply_localized_text()
 	currency_selector.clear()
-	currency_selector.add_item("Ore")
+	currency_selector.add_item(tr("Ore"))
 	currency_selector.set_item_metadata(0, DeveloperCommands.CURRENCY_ORE)
 	grant_button.pressed.connect(_on_grant_pressed)
 	unlock_weapons_button.pressed.connect(_on_unlock_weapons_pressed)
 	unlock_artifacts_button.pressed.connect(_on_unlock_artifacts_pressed)
 	unlock_planets_button.pressed.connect(_on_unlock_planets_pressed)
+	unlock_fusion_button.pressed.connect(_on_unlock_fusion_pressed)
 	reset_button.pressed.connect(_on_reset_requested)
 	close_button.pressed.connect(close_panel)
 	reset_confirmation.confirmed.connect(_on_reset_confirmed)
 	speed_button.visible = battle_mode
 	speed_button.pressed.connect(_on_speed_pressed)
 	if battle_mode:
-		for item in [balance_label, currency_selector, amount_input, grant_button, unlock_weapons_button, unlock_artifacts_button, unlock_planets_button, reset_button]:
+		for item in [balance_label, currency_selector, amount_input, grant_button, unlock_weapons_button, unlock_artifacts_button, unlock_planets_button, unlock_fusion_button, reset_button]:
 			item.hide()
 		_refresh_speed_button()
 	if not ResourceManager.stored_ore_changed.is_connected(_on_stored_ore_changed):
 		ResourceManager.stored_ore_changed.connect(_on_stored_ore_changed)
 	_refresh_balance()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready():
+		_apply_localized_text()
+		_refresh_balance()
+		_refresh_speed_button()
+
+
+func _apply_localized_text() -> void:
+	$Center/Panel/Content/Title.text = tr("DEVELOPER MODE")
+	$Center/Panel/Content/Hint.text = tr("Playtest tools  •  F12 to close")
+	amount_input.placeholder_text = tr("Non-negative whole amount")
+	grant_button.text = tr("Grant Resources")
+	speed_button.text = tr("Battle speed: %.0f×") % 1.0
+	unlock_weapons_button.text = tr("Unlock All Weapons")
+	unlock_artifacts_button.text = tr("Unlock All Magic Artifacts")
+	unlock_planets_button.text = tr("Unlock All Planets")
+	unlock_fusion_button.text = tr("Unlock Weapon Fusion")
+	reset_button.text = tr("Reset All Progress")
+	close_button.text = tr("Close")
+	reset_confirmation.title = tr("Reset All Progress?")
+	reset_confirmation.dialog_text = tr("This permanently resets currencies, research, unlocks, magic artifacts, and the ship loadout to new-game defaults.")
+	reset_confirmation.ok_button_text = tr("Reset Progress")
+	reset_confirmation.cancel_button_text = tr("Cancel")
+	if currency_selector.item_count > 0:
+		currency_selector.set_item_text(0, tr("Ore"))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -106,6 +136,10 @@ func _on_unlock_artifacts_pressed() -> void:
 func _on_unlock_planets_pressed() -> void:
 	_show_result(_commands.unlock_all_planets())
 
+
+func _on_unlock_fusion_pressed() -> void:
+	_show_result(_commands.unlock_weapon_fusion())
+
 func _on_speed_pressed() -> void:
 	var controller := get_tree().get_first_node_in_group("developer_battle_speed") as DeveloperBattleSpeed
 	if controller == null or not controller.set_speed(2.0 if controller.selected_speed == 1.0 else 1.0):
@@ -117,7 +151,7 @@ func _refresh_speed_button() -> void:
 	var controller := get_tree().get_first_node_in_group("developer_battle_speed") as DeveloperBattleSpeed
 	if speed_button != null:
 		speed_button.disabled = controller == null or not DeveloperCommands.is_available()
-		speed_button.text = "Battle speed: %.0f×" % (controller.selected_speed if controller != null else 1.0)
+		speed_button.text = tr("Battle speed: %.0f×") % (controller.selected_speed if controller != null else 1.0)
 
 
 func _on_reset_confirmed() -> void:
@@ -140,5 +174,8 @@ func _refresh_balance() -> void:
 
 
 func _show_result(result: Dictionary) -> void:
-	status_label.text = String(result.get("message", ""))
+	var message_key := String(result.get("message_key", result.get("message", "")))
+	var translated := tr(message_key)
+	var message_args: Array = result.get("message_args", [])
+	status_label.text = translated % message_args if not message_args.is_empty() else translated
 	status_label.modulate = Color("8ce8cf") if bool(result.get("ok", false)) else Color("ff8b82")

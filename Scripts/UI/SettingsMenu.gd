@@ -4,6 +4,7 @@ extends Control
 ## Top-left gear button with a small settings dropdown (style A).
 ##
 ## Items:
+## - VOLUME          -> controls the Master audio bus and saves the preference
 ## - MAIN MENU       -> emits main_menu_requested (not implemented yet: "SOON")
 ## - DEVELOPER MODE  -> emits developer_mode_requested when enabled by project settings
 ## - QUIT GAME       -> asks once more, then quits. On web builds a browser tab
@@ -187,6 +188,28 @@ func _build_dropdown() -> void:
 		)
 		language_row.add_child(language)
 		column.add_child(language_row)
+	var volume_row := HBoxContainer.new()
+	volume_row.custom_minimum_size.y = 32.0
+	volume_row.add_child(_label("VOLUME", 11, Palette.UI_MUTED))
+	var volume_slider := HSlider.new()
+	volume_slider.min_value = 0.0
+	volume_slider.max_value = 100.0
+	volume_slider.step = 1.0
+	volume_slider.value = AudioSettings.master_volume_percent
+	volume_slider.custom_minimum_size.x = 88.0
+	volume_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	volume_slider.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	volume_row.add_child(volume_slider)
+	var volume_value := _label("%d%%" % AudioSettings.master_volume_percent, 11, Palette.UI_TEXT)
+	volume_value.custom_minimum_size.x = 38.0
+	volume_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	volume_row.add_child(volume_value)
+	volume_slider.value_changed.connect(func(value: float) -> void:
+		var percent := roundi(value)
+		AudioSettings.set_master_volume(percent)
+		volume_value.text = "%d%%" % percent
+	)
+	column.add_child(volume_row)
 
 	column.add_child(_item("MAIN MENU", main_menu_enabled, func() -> void:
 		close_menu()
@@ -266,6 +289,7 @@ func _on_quit_pressed() -> void:
 		_set_quit_armed(true)
 		return
 	quit_requested.emit()
+	AudioSettings.flush()
 	if OS.has_feature("web"):
 		_quit_hint.text = "Close the browser tab to quit."
 		_quit_hint.visible = true

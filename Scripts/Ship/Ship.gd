@@ -770,6 +770,51 @@ func swap_modules(row_a: int, column_a: int, row_b: int, column_b: int) -> bool:
 	return true
 
 
+## Atomically consumes two occupied cells and installs a fusion weapon in the
+## target cell. Power is validated against the complete proposed loadout.
+func fuse_modules(source: Vector2i, target: Vector2i, result_scene: PackedScene) -> bool:
+	last_module_error = ""
+	if (
+		source == target
+		or not ShipLoadout.is_valid_cell(source.x, source.y)
+		or not ShipLoadout.is_valid_cell(target.x, target.y)
+		or not _module_instances.has(source)
+		or not _module_instances.has(target)
+	):
+		return _reject_module_operation("Weapon Fusion requires two occupied ship cells.")
+	var result := _instantiate_ship_module(result_scene)
+	if result == null or not result is WeaponModule:
+		if result != null:
+			result.free()
+		return _reject_module_operation("Fusion result must be a weapon module.")
+	var proposed := _get_installed_ship_modules(source)
+	for index in range(proposed.size() - 1, -1, -1):
+		if proposed[index] == _module_instances[target]:
+			proposed.remove_at(index)
+	proposed.append(result)
+	if not _validate_energy_profile(proposed):
+		result.free()
+		return false
+
+	var source_module: ShipModule = _module_instances[source]
+	var target_module: ShipModule = _module_instances[target]
+	_module_instances.erase(source)
+	_module_instances.erase(target)
+	if is_instance_valid(source_module):
+		source_module.queue_free()
+	if is_instance_valid(target_module):
+		target_module.queue_free()
+	_cells[source.x][source.y].module_type = ModuleType.Empty
+	_cells[target.x][target.y].module_type = ModuleType.Empty
+	_commit_module(result, result_scene, ModuleType.Weapon, target.x, target.y, false)
+	ShipLoadout.fuse_cells(source, target, result_scene.resource_path)
+	_recalculate_energy()
+	_recalculate_health_stats(false)
+	module_configuration_changed.emit()
+	queue_redraw()
+	return true
+
+
 ## Installed module currently in a cell, or null.
 func get_module_at(row: int, column: int) -> ShipModule:
 	return _module_instances.get(Vector2i(row, column), null)
@@ -809,7 +854,7 @@ func remove_module(row: int, column: int) -> bool:
 		return _reject_module_operation("Selected cell is already empty.")
 
 	var proposed_modules := _get_installed_ship_modules(key)
-	if not _validate_energy_profile(proposed_modules):
+	if not _validate_removal_energy_profile(proposed_modules):
 		return false
 
 	var module: ShipModule = _module_instances[key]
@@ -979,6 +1024,31 @@ func _validate_energy_profile(modules: Array[ShipModule]) -> bool:
 	if int(profile.energy_module_count) < 1:
 		return _reject_module_operation("At least one Energy Module is required.")
 	if int(profile.total_power_consumption) > int(profile.total_power_capacity):
+		return _reject_module_operation(
+			"Insufficient Power: required %d, capacity %d." % [
+				profile.total_power_consumption,
+				profile.total_power_capacity,
+			]
+		)
+	return true
+
+
+## Let an overloaded saved loadout shed modules until it is valid again.
+## Removing a power source is still rejected if it would worsen the deficit.
+func _validate_removal_energy_profile(modules: Array[ShipModule]) -> bool:
+	var profile := energy_system.calculate_profile(modules)
+	if int(profile.energy_module_count) < 1:
+		return _reject_module_operation("At least one Energy Module is required.")
+	var current_profile := energy_system.calculate_profile(_get_installed_ship_modules())
+	var current_deficit: int = maxi(
+		0,
+		int(current_profile.total_power_consumption) - int(current_profile.total_power_capacity)
+	)
+	var proposed_deficit: int = maxi(
+		0,
+		int(profile.total_power_consumption) - int(profile.total_power_capacity)
+	)
+	if proposed_deficit > 0 and (current_deficit == 0 or proposed_deficit > current_deficit):
 		return _reject_module_operation(
 			"Insufficient Power: required %d, capacity %d." % [
 				profile.total_power_consumption,

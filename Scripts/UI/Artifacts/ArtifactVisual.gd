@@ -69,6 +69,20 @@ static func draw_icon(canvas: CanvasItem, center: Vector2, size: float, artifact
 			_ghost_bullet(canvas, silhouette)
 		&"red_crystal":
 			_red_crystal(canvas, silhouette)
+		&"black_stone":
+			_pebble(canvas, silhouette, [Color("141216"), Color("2A272E"), Color("5A5662")], Color("B69CFF"))
+		&"red_stone":
+			_pebble(canvas, silhouette, [Color("5E1018"), Color("A8202E"), Color("FF6B7D")], Color("FFC061"))
+		&"frost_breath":
+			_frost_breath(canvas, silhouette)
+		&"goblin_scope":
+			_goblin_scope(canvas, silhouette)
+		&"necronomicon":
+			_necronomicon(canvas, silhouette)
+		&"snow_monster_eyeball":
+			_snow_eyeball(canvas, silhouette)
+		&"true_ice":
+			_true_ice(canvas, silhouette)
 		_:
 			_gem(canvas, rarity_color(rarity), silhouette)
 	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -390,3 +404,168 @@ class IconView:
 			draw_circle(center, diameter * 0.5, Color(color, 0.12))
 			draw_circle(center, diameter * 0.36, Color(color, 0.14))
 		_visual.draw_icon(self, center, diameter * 0.82, artifact_id, rarity, silhouette)
+
+
+# ------------------------------------------------------------ new artifacts (2026-10-24)
+
+static func _blob(c: Vector2, r: Vector2, sides: int = 14, wob: float = 0.06, seed: float = 0.0) -> PackedVector2Array:
+	var p := PackedVector2Array()
+	for k in range(sides):
+		var a := TAU * float(k) / float(sides)
+		var w := 1.0 + wob * sin(a * 3.0 + seed) + wob * 0.5 * sin(a * 5.0 + seed * 2.0)
+		p.append(c + Vector2(cos(a) * r.x, sin(a) * r.y) * w)
+	return p
+
+
+## Black Stone / Red Stone: a smooth river pebble with a sheen and one small
+## carved rune glowing in `glow`.
+static func _pebble(canvas: CanvasItem, silhouette: bool, tones: Array, glow: Color) -> void:
+	var body := _blob(Vector2(0, 2), Vector2(21, 16), 16, 0.05, 1.3)
+	if silhouette:
+		canvas.draw_colored_polygon(body, SILHOUETTE)
+		return
+	canvas.draw_colored_polygon(Palette.offset_points(body, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+	canvas.draw_colored_polygon(body, tones[0])
+	canvas.draw_colored_polygon(_blob(Vector2(-1.5, 0), Vector2(18, 13), 16, 0.05, 1.3), tones[1])
+	canvas.draw_colored_polygon(_blob(Vector2(-8, -6), Vector2(7, 3.5), 12, 0.0), tones[2])
+	canvas.draw_circle(Vector2(-12, -7), 1.6, Color(1, 1, 1, 0.7))
+	# Small carved rune (a dwarven "+").
+	canvas.draw_circle(Vector2(5, 5), 7.0, Color(glow, 0.14))
+	canvas.draw_line(Vector2(5, 0), Vector2(5, 10), glow, 2.0)
+	canvas.draw_line(Vector2(0, 5), Vector2(10, 5), glow, 2.0)
+	canvas.draw_line(Vector2(1.5, 1.5), Vector2(8.5, 8.5), Color(glow, 0.5), 1.2)
+
+
+## Frost Breath: an icy swirl of breath blowing a snowflake.
+static func _frost_breath(canvas: CanvasItem, silhouette: bool) -> void:
+	if silhouette:
+		for part in [[Vector2(-10, 2), 12.0], [Vector2(2, -4), 11.0], [Vector2(-2, 9), 9.0], [Vector2(-18, -6), 7.0], [Vector2(14, 6), 8.0]]:
+			canvas.draw_circle(part[0], part[1], SILHOUETTE)
+		return
+	canvas.draw_circle(Vector2(0, 0), 24.0, Color("7FD8FF", 0.12))
+	for part in [[Vector2(-10, 2), 12.0], [Vector2(2, -4), 11.0], [Vector2(-2, 9), 9.0], [Vector2(-18, -6), 7.0]]:
+		canvas.draw_circle((part[0] as Vector2) + Vector2(2.5, 3), part[1], Color(0, 0, 0, 0.25))
+	for part in [[Vector2(-10, 2), 12.0], [Vector2(2, -4), 11.0], [Vector2(-2, 9), 9.0], [Vector2(-18, -6), 7.0]]:
+		canvas.draw_circle(part[0], part[1], Color("6FA8D0"))
+	for part in [[Vector2(-11, 0), 9.0], [Vector2(1, -6), 8.0], [Vector2(-3, 7), 6.0], [Vector2(-19, -8), 5.0]]:
+		canvas.draw_circle(part[0], part[1], Color("BFE6FF"))
+	# Swirl lines.
+	canvas.draw_arc(Vector2(-6, 0), 7.0, PI * 0.2, PI * 1.6, 16, Color("6FA8D0"), 2.0)
+	canvas.draw_arc(Vector2(-6, 0), 3.0, PI * 1.0, PI * 2.4, 10, Color("6FA8D0"), 1.6)
+	# The snowflake it blows out.
+	var c := Vector2(14, 6)
+	canvas.draw_circle(c, 9.5, Color("CBEFFF", 0.3))
+	for k in range(6):
+		var a := TAU * float(k) / 6.0 + 0.26
+		var tip := c + Vector2(cos(a), sin(a)) * 8.5
+		canvas.draw_line(c, tip, Color.WHITE, 2.0)
+		var mid := c + Vector2(cos(a), sin(a)) * 5.0
+		canvas.draw_line(mid, mid + Vector2(cos(a + 0.8), sin(a + 0.8)) * 2.6, Color.WHITE, 1.4)
+		canvas.draw_line(mid, mid + Vector2(cos(a - 0.8), sin(a - 0.8)) * 2.6, Color.WHITE, 1.4)
+	canvas.draw_circle(c, 2.0, Color("7FD8FF"))
+
+
+## Goblin Scope: a crude brass spyglass lashed with leather straps.
+static func _goblin_scope(canvas: CanvasItem, silhouette: bool) -> void:
+	var tube := PackedVector2Array([Vector2(-20, -5), Vector2(10, -8), Vector2(10, 8), Vector2(-20, 5)])
+	var bell := Palette.rounded_rect_points(Rect2(8, -11, 10, 22), 3.0)
+	var eye := Palette.rounded_rect_points(Rect2(-24, -4, 6, 8), 2.0)
+	if silhouette:
+		for poly in [tube, bell, eye]:
+			canvas.draw_colored_polygon(poly, SILHOUETTE)
+		return
+	for poly in [tube, bell, eye]:
+		canvas.draw_colored_polygon(Palette.offset_points(poly, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+	canvas.draw_colored_polygon(tube, Color("8A6420"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-20, -5), Vector2(10, -8), Vector2(10, -3), Vector2(-20, -1)]), Color("D9A63A"))
+	canvas.draw_colored_polygon(eye, Color("3B3530"))
+	canvas.draw_colored_polygon(bell, Color("8A6420"))
+	canvas.draw_colored_polygon(Palette.rounded_rect_points(Rect2(8, -11, 10, 8), 3.0), Color("D9A63A"))
+	# Lens with a glint, leather straps and a goblin notch.
+	canvas.draw_circle(Vector2(18, 0), 6.0, Color("1E3A40"))
+	canvas.draw_circle(Vector2(18, 0), 4.5, Color("5FB0FF", 0.7))
+	canvas.draw_circle(Vector2(16.5, -1.5), 1.6, Color.WHITE)
+	for x in [-12.0, -2.0]:
+		canvas.draw_line(Vector2(x, -8), Vector2(x + 1, 8), Color("6B4A32"), 3.4)
+		canvas.draw_line(Vector2(x, -8), Vector2(x + 1, 8), Color("8C6A3E"), 1.4)
+	canvas.draw_circle(Vector2(-7, 0), 1.4, Color("9CC44C"))
+
+
+## Necronomicon: a dark leather tome with a bone skull on the cover, green
+## glowing eyes and an iron clasp.
+static func _necronomicon(canvas: CanvasItem, silhouette: bool) -> void:
+	var book := Palette.rounded_rect_points(Rect2(-17, -21, 34, 42), 3.0)
+	if silhouette:
+		canvas.draw_colored_polygon(book, SILHOUETTE)
+		return
+	canvas.draw_circle(Vector2(0, 0), 25.0, Color("9AF07A", 0.10))
+	canvas.draw_colored_polygon(Palette.offset_points(book, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+	# pages edge on the right, cover
+	canvas.draw_colored_polygon(Palette.rounded_rect_points(Rect2(-15, -19, 33, 40), 2.0), Color("D8CDB4"))
+	for k in range(4):
+		canvas.draw_line(Vector2(15, -16 + k * 10), Vector2(17, -16 + k * 10), Color("A89C88"), 1.0)
+	canvas.draw_colored_polygon(book, Color("2A1E30"))
+	canvas.draw_colored_polygon(Palette.rounded_rect_points(Rect2(-15, -19, 30, 12), 2.0), Color("3E2C48"))
+	canvas.draw_line(Vector2(-13, -21), Vector2(-13, 21), Color("1A1220"), 3.0)
+	# corner guards
+	for c in [Vector2(-17, -21), Vector2(17, -21), Vector2(-17, 21), Vector2(17, 21)]:
+		canvas.draw_colored_polygon(PackedVector2Array([c, c + Vector2(signf(-c.x) * 7, 0), c + Vector2(0, signf(-c.y) * 7)]), Color("8E8A99"))
+	# skull
+	canvas.draw_circle(Vector2(1, -3), 8.0, Color("D8D2C4"))
+	canvas.draw_rect(Rect2(-3.5, 3, 9, 6), Color("D8D2C4"))
+	canvas.draw_circle(Vector2(-2, -3), 2.4, Color("9AF07A"))
+	canvas.draw_circle(Vector2(4, -3), 2.4, Color("9AF07A"))
+	canvas.draw_circle(Vector2(-2, -3), 4.0, Color("9AF07A", 0.25))
+	canvas.draw_circle(Vector2(4, -3), 4.0, Color("9AF07A", 0.25))
+	for k in range(3):
+		canvas.draw_line(Vector2(-1.5 + k * 2.5, 4), Vector2(-1.5 + k * 2.5, 8), Color("2A1E30"), 1.0)
+	# clasp
+	canvas.draw_rect(Rect2(12, -3, 8, 7), Color("8E8A99"))
+	canvas.draw_circle(Vector2(17, 0.5), 1.6, Color("2A1E30"))
+	# a wisp rising
+	canvas.draw_arc(Vector2(10, -20), 5.0, PI * 0.5, PI * 1.6, 10, Color("9AF07A", 0.7), 1.6)
+
+
+## Snow Monster Eyeball: a big bloodshot eyeball with an ice-blue iris and a
+## frosty rim.
+static func _snow_eyeball(canvas: CanvasItem, silhouette: bool) -> void:
+	if silhouette:
+		canvas.draw_circle(Vector2.ZERO, 20.0, SILHOUETTE)
+		return
+	canvas.draw_circle(Vector2(2.5, 3.0), 20.0, Color(0, 0, 0, 0.3))
+	canvas.draw_circle(Vector2.ZERO, 20.0, Color("B8C4CC"))
+	canvas.draw_circle(Vector2(-1, -1), 18.0, Color("F2F4F6"))
+	# veins
+	for v in [[Vector2(-17, 6), Vector2(-9, 3), Vector2(-6, 7)], [Vector2(15, -9), Vector2(8, -6), Vector2(9, -2)], [Vector2(-6, 17), Vector2(-3, 10)]]:
+		canvas.draw_polyline(PackedVector2Array(v), Color("D9465A", 0.8), 1.2)
+	# iris looking a little to the right
+	canvas.draw_circle(Vector2(4, 1), 9.5, Color("2E6F9E"))
+	canvas.draw_circle(Vector2(4, 1), 7.5, Color("5FB0FF"))
+	canvas.draw_circle(Vector2(4, 1), 3.6, Color("0E0B12"))
+	canvas.draw_circle(Vector2(1.5, -2), 2.2, Color.WHITE)
+	# frost crust on the top edge
+	for k in range(7):
+		var a := PI + 0.35 + float(k) * 0.4
+		var p := Vector2(cos(a), sin(a)) * 19.0
+		canvas.draw_colored_polygon(PackedVector2Array([p + Vector2(-3, 0), p + Vector2(0, -4).rotated(a + PI * 0.5), p + Vector2(3, 0)]), Color("CBEFFF"))
+
+
+## True Ice: a clear hexagonal ice crystal with a bright inner core.
+static func _true_ice(canvas: CanvasItem, silhouette: bool) -> void:
+	var outer := PackedVector2Array([Vector2(0, -24), Vector2(13, -10), Vector2(13, 10), Vector2(0, 22), Vector2(-13, 10), Vector2(-13, -10)])
+	if silhouette:
+		canvas.draw_colored_polygon(outer, SILHOUETTE)
+		return
+	canvas.draw_circle(Vector2(0, 0), 23.0, Color("86C0DC", 0.15))
+	canvas.draw_colored_polygon(Palette.offset_points(outer, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.28))
+	canvas.draw_colored_polygon(outer, Color("4F86A6"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(0, -24), Vector2(13, -10), Vector2(13, 10), Vector2(0, 22), Vector2(0, -2)]), Color("86C0DC"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(0, -24), Vector2(-13, -10), Vector2(0, -2)]), Color("CBEFFF"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(0, -24), Vector2(13, -10), Vector2(0, -2)]), Color("A9DCF2"))
+	canvas.draw_line(Vector2(-9, -9), Vector2(-9, 7), Color(1, 1, 1, 0.75), 1.6)
+	canvas.draw_circle(Vector2(0, 2), 5.0, Color("EEF9FF", 0.6))
+	canvas.draw_circle(Vector2(0, 2), 2.4, Color.WHITE)
+	# frost sparkle
+	for p in [Vector2(16, -16), Vector2(-17, 13)]:
+		canvas.draw_line(p - Vector2(3, 0), p + Vector2(3, 0), Color.WHITE, 1.2)
+		canvas.draw_line(p - Vector2(0, 3), p + Vector2(0, 3), Color.WHITE, 1.2)

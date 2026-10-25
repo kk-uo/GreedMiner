@@ -1,0 +1,31 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Modules/Fusion/FlameLaser.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Modules/Fusion/FusionTurretVisual.gd" id="2"]
+
+[node name="FlameLaser" type="Node2D"]
+script = ExtResource("1")
+weapon_type_id = &"flame_laser"
+power_consumption = 4
+attack_kind = 1
+visual_kind = 4
+basic_damage = 1.0
+attack_interval = 0.1
+attack_range = 800.0
+projectile_range = 6.0
+beam_width = 6.0
+rotation_speed = 240.0
+doubling_interval = 0.5
+maximum_tick_damage = 500.0
+
+[node name="Turret" type="Node2D" parent="."]
+script = ExtResource("2")
+[node name="Muzzle" type="Marker2D" parent="Turret"]
+position = Vector2(24, 0)
+[node name="Beam" type="Line2D" parent="Turret/Muzzle"]
+visible = false
+width = 6.0
+default_color = Color(1, 0.37, 0.13, 0.95)
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true

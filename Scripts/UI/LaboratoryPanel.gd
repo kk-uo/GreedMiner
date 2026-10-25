@@ -63,6 +63,10 @@ const ScrollKeeper := preload("res://Scripts/UI/ScrollKeeper.gd")
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	LanguageManager.language_changed.connect(func(_locale: StringName) -> void:
+		_build_categories()
+		_refresh_category()
+	)
 	_build_frame()
 	ResearchManager.research_level_changed.connect(_on_research_level_changed)
 	ResearchManager.purchase_failed.connect(_on_purchase_failed)
@@ -657,7 +661,7 @@ class ResearchCard:
 	func setup(definition: ResearchDefinition) -> void:
 		_definition = definition
 		_apply_card_style(false)
-		tooltip_text = definition.description
+		tooltip_text = tr(definition.description)
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		var column := VBoxContainer.new()
 		column.add_theme_constant_override("separation", 4)
@@ -761,7 +765,7 @@ class ResearchCard:
 			_next_label.text = ModuleCatalog.format_number(_damage_for(level + 1))
 		_pips.set_values(level, max_level, maxed, _artifact_milestone_levels())
 		var is_shield_research := _definition.effect is ModuleStatResearchEffect
-		var module_unlocked := WeaponUnlockManager.is_weapon_unlocked(_definition.target_id)
+		var module_unlocked := ModuleCatalog.is_module_unlocked(_definition.target_id)
 		var unlocked_slots := (
 			ResearchManager.get_shield_artifact_slot_count(_definition.target_id)
 			if is_shield_research
@@ -769,7 +773,7 @@ class ResearchCard:
 		)
 		var maximum_slots := ArtifactManager.MODULE_SLOT_COUNT
 		if not module_unlocked:
-			_slot_label.text = tr("REQUIRES: %s") % tr(WeaponUnlockManager.get_unlock_requirement(_definition.target_id).to_upper())
+			_slot_label.text = tr("REQUIRES: %s") % tr(ModuleCatalog.get_unlock_requirement(_definition.target_id).to_upper())
 			_slot_label.add_theme_color_override("font_color", LaboratoryPanel.INK_SOFT)
 		else:
 			_slot_label.text = tr("%d / %d ARTIFACT SLOTS") % [unlocked_slots, maximum_slots]
@@ -952,11 +956,11 @@ class ResearchCard:
 
 	func _title_text() -> String:
 		if _definition.effect is ModuleInstallationLimitResearchEffect:
-			return _definition.display_name.to_upper()
+			return tr(_definition.display_name).to_upper()
 		for entry in ModuleCatalog.ENTRIES:
 			if entry["id"] == _definition.target_id:
-				return String(entry["name"])
-		return _definition.display_name
+				return tr(String(entry["name"]))
+		return tr(_definition.display_name)
 
 	func _stat_text() -> String:
 		if _definition.effect is WeaponDamageResearchEffect:
@@ -1130,6 +1134,11 @@ static func draw_category_glyph(canvas: CanvasItem, category_id: StringName, cen
 			canvas.draw_arc(center, 7.0, 0.0, TAU, 16, color, 2.0)
 			for direction in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
 				canvas.draw_line(center + direction * 4.0, center + direction * 10.0, color, 2.0)
+		&"fusion_weapon":
+			# Two linked weapon cores communicate fusion without adding new art.
+			canvas.draw_arc(center + Vector2(-4.5, 0.0), 6.0, 0.0, TAU, 16, color, 2.0)
+			canvas.draw_arc(center + Vector2(4.5, 0.0), 6.0, 0.0, TAU, 16, color, 2.0)
+			canvas.draw_line(center + Vector2(-1.5, -7.0), center + Vector2(1.5, 7.0), color, 2.0)
 		&"energy":
 			canvas.draw_colored_polygon(PackedVector2Array([
 				center + Vector2(2.0, -9.0), center + Vector2(-5.0, 1.0), center + Vector2(0.0, 1.0),

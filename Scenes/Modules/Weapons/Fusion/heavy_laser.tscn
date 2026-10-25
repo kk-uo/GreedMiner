@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Modules/Fusion/FusionWeapon.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Modules/Fusion/FusionTurretVisual.gd" id="2"]
+
+[node name="HeavyLaser" type="Node2D"]
+script = ExtResource("1")
+weapon_type_id = &"heavy_laser"
+power_consumption = 3
+attack_kind = 1
+visual_kind = 2
+basic_damage = 2.0
+attack_interval = 0.05
+attack_range = 1500.0
+projectile_range = 60.0
+beam_width = 60.0
+rotation_speed = 120.0
+
+[node name="Turret" type="Node2D" parent="."]
+script = ExtResource("2")
+[node name="Muzzle" type="Marker2D" parent="Turret"]
+position = Vector2(26, 0)
+[node name="Beam" type="Line2D" parent="Turret/Muzzle"]
+visible = false
+width = 60.0
+default_color = Color(1, 0.58, 0.16, 0.92)
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true

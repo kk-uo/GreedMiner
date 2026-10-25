@@ -106,6 +106,9 @@ var _is_attacking: bool = false
 
 ## Prevents duplicate death effects from multiple hits in the same frame.
 var _is_dying: bool = false
+## Weapon credited with the current killing blow. Cleared for non-weapon and
+## artifact damage so on-kill effects cannot recursively trigger themselves.
+var _killing_weapon: WeaponModule
 
 ## Battle shutdown disables splitting so descendants cannot appear afterward.
 var _death_effects_enabled: bool = true
@@ -124,6 +127,16 @@ var _click_tween: Tween
 
 ## Facing angle used by subclasses' _draw(); enemies always face the ship.
 var _facing: float = 0.0
+## Temporary projectile slow supplied by magic artifacts. Repeated hits refresh
+## the timer and retain the strongest active slow without mutating base stats.
+var _artifact_slow_fraction: float = 0.0
+var _artifact_slow_timer: Timer
+## Source-scoped hard freeze. The original process mode and tint are restored
+## when the last turret releases this enemy or the enemy dies.
+var _artifact_freeze_sources: Dictionary = {}
+var _artifact_pre_freeze_process_mode: ProcessMode = PROCESS_MODE_INHERIT
+var _artifact_pre_freeze_disable_mode: int = DISABLE_MODE_REMOVE
+var _artifact_pre_freeze_modulate: Color = Color.WHITE
 
 
 @onready var attack_timer: Timer = $AttackTimer
@@ -250,12 +263,33 @@ func _physics_process(delta: float) -> void:
 
 ## Weather is a transient additive modifier and never changes saved base stats.
 func get_effective_move_speed() -> float:
-	if enemy_tier == EnemyTier.BOSS:
-		return move_speed
-	var weather := get_node_or_null("../../WeatherManager")
-	if weather != null and weather.has_method("blood_moon_speed_bonus"):
-		return move_speed + float(weather.call("blood_moon_speed_bonus"))
-	return move_speed
+	var effective_speed := move_speed
+	if enemy_tier != EnemyTier.BOSS:
+		var weather := get_node_or_null("../../WeatherManager")
+		if weather != null and weather.has_method("blood_moon_speed_bonus"):
+			effective_speed += float(weather.call("blood_moon_speed_bonus"))
+	return effective_speed * (1.0 - clampf(_artifact_slow_fraction, 0.0, 0.95))
+
+
+## Applies or refreshes a data-driven projectile slow. Boss resistance is
+## based on EnemyTier rather than enemy names.
+func apply_artifact_projectile_slow(normal_fraction: float, boss_fraction: float, duration: float) -> void:
+	if _is_dying or duration <= 0.0:
+		return
+	var fraction := boss_fraction if enemy_tier == EnemyTier.BOSS else normal_fraction
+	if fraction <= 0.0:
+		return
+	_artifact_slow_fraction = maxf(_artifact_slow_fraction, clampf(fraction, 0.0, 0.95))
+	if _artifact_slow_timer == null:
+		_artifact_slow_timer = Timer.new()
+		_artifact_slow_timer.one_shot = true
+		_artifact_slow_timer.timeout.connect(_clear_artifact_projectile_slow)
+		add_child(_artifact_slow_timer)
+	_artifact_slow_timer.start(maxf(duration, _artifact_slow_timer.time_left))
+
+
+func _clear_artifact_projectile_slow() -> void:
+	_artifact_slow_fraction = 0.0
 
 
 ## Weather is read at the moment of damage so spawned enemies inherit it too.
@@ -550,7 +584,51 @@ func take_damage(damage: float, ignore_damage_reduction: bool = false, count_for
 
 	# Destroy the enemy when health reaches zero.
 	if _current_health <= 0.0:
+		_killing_weapon = source_weapon if count_for_artifact and is_instance_valid(source_weapon) else null
 		_die()
+
+
+## Freeze blocks all movement, attack timers and special abilities while the
+## enemy remains targetable and can still receive damage from weapon impacts.
+func apply_artifact_freeze(source_id: int, affects_bosses: bool = false) -> bool:
+	if _is_dying or (enemy_tier == EnemyTier.BOSS and not affects_bosses):
+		return false
+	if _artifact_freeze_sources.has(source_id):
+		return true
+	if _artifact_freeze_sources.is_empty():
+		_artifact_pre_freeze_process_mode = process_mode
+		_artifact_pre_freeze_disable_mode = disable_mode
+		_artifact_pre_freeze_modulate = modulate
+		# Keep the collision shape in the physics world while script/timer
+		# processing is paused; projectiles must still be able to hit it.
+		disable_mode = DISABLE_MODE_KEEP_ACTIVE
+		process_mode = PROCESS_MODE_DISABLED
+		modulate = modulate.lerp(Color(0.55, 0.85, 1.0), 0.55)
+	_artifact_freeze_sources[source_id] = true
+	return true
+
+
+func remove_artifact_freeze(source_id: int) -> void:
+	if not _artifact_freeze_sources.has(source_id):
+		return
+	_artifact_freeze_sources.erase(source_id)
+	if _artifact_freeze_sources.is_empty():
+		process_mode = _artifact_pre_freeze_process_mode
+		disable_mode = _artifact_pre_freeze_disable_mode
+		modulate = _artifact_pre_freeze_modulate
+
+
+func is_artifact_frozen() -> bool:
+	return not _artifact_freeze_sources.is_empty()
+
+
+func _clear_artifact_freeze() -> void:
+	if _artifact_freeze_sources.is_empty():
+		return
+	_artifact_freeze_sources.clear()
+	process_mode = _artifact_pre_freeze_process_mode
+	disable_mode = _artifact_pre_freeze_disable_mode
+	modulate = _artifact_pre_freeze_modulate
 
 
 ## Removes the enemy from the scene.
@@ -559,12 +637,16 @@ func _die() -> void:
 		return
 
 	_is_dying = true
+	_clear_artifact_freeze()
 	_stop_attacking()
 	set_physics_process(false)
 	remove_from_group("enemies")
 	set_deferred("monitoring", false)
 
 	var death_position := global_position
+	if is_instance_valid(_killing_weapon):
+		_killing_weapon.enemy_defeated.emit(death_position, max_health)
+	_killing_weapon = null
 	_spawn_death_visual(death_position)
 	if _death_effects_enabled:
 		# Presentation: every boss's killing blow gets the cinema finisher
@@ -593,7 +675,7 @@ func _finisher_keeps_camera() -> bool:
 func _grant_reward(death_position: Vector2) -> void:
 	if reward_ore <= 0.0:
 		return
-	ResourceManager.add_mission_ore(reward_ore)
+	ResourceManager.add_mission_ore(reward_ore, &"bounty")
 	# Only bosses show a floating "+N" pickup; ordinary kills add ore silently.
 	if enemy_tier == EnemyTier.BOSS:
 		RewardPopup.spawn(get_parent(), death_position, reward_ore)
