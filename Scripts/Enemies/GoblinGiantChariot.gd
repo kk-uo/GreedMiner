@@ -161,7 +161,10 @@ func _advance(delta: float) -> void:
 	if to_ship.length_squared() > 0.01:
 		_facing = to_ship.angle()
 	var gap: float = to_ship.length() - FRONT_REACH
-	if gap <= attack_range:
+	# The long rig can stop a floating-point hair outside the exact reach.
+	# Use the same contact tolerance as ordinary melee enemies so its attack
+	# timer does not remain off while the boars appear to touch the hull.
+	if gap <= attack_range + ATTACK_RANGE_TOLERANCE:
 		_start_attacking()
 		return
 	_stop_attacking()
@@ -204,12 +207,14 @@ func _enter_berserk() -> void:
 	stage = Stage.BERSERK
 	move_speed = _base_speed * berserk_speed_multiplier
 	berserk_started.emit()
+	EnemySfx.play(self, SFX_BERSERK, -3.0, 0.0)
 
 
 ## Hurls throw_goblin_count goblins at once into a block ahead of the chariot.
 func _release_goblins() -> void:
 	thrown_elites.clear()
 	_released = true
+	EnemySfx.play(self, SFX_THROW, -5.0, 0.04)
 	_since_release = 0.0
 	throws_done += 1
 	var thrown: Array[Goblin] = []
@@ -255,9 +260,15 @@ func _release_goblins() -> void:
 
 
 ## Ten goblins burst out of the wreck, evenly spread, using normal AI at once.
+## Presentation: the ram thud each time the chariot hits the hull.
+func _perform_attack(ship: Ship) -> void:
+	super(ship)
+	EnemySfx.play(self, SFX_RAM, -6.0)
+
+
 func _perform_death_effect() -> void:
-	if not ArtifactManager.owns_artifact(&"goblin_horn"):
-		ArtifactManager.grant_artifact(&"goblin_horn")
+	EnemySfx.play(global_position, SFX_DEATH, -2.0, 0.0)
+	ArtifactManager.grant_artifact(&"goblin_wheel")
 	var parent := get_parent()
 	if parent == null:
 		return
@@ -325,3 +336,9 @@ func _draw() -> void:
 	elif stage == Stage.PAUSED:
 		release = 1.0
 	GoblinVisual.draw_chariot(self, _facing, _roll, get_throw_progress(), release, _berserk, _anim_time, _is_flashing(), get_tilt())
+
+
+const SFX_THROW := preload("res://Assets/Audio/Enemies/Verdant/chariot_throw.wav")
+const SFX_BERSERK := preload("res://Assets/Audio/Enemies/Verdant/chariot_berserk.wav")
+const SFX_RAM := preload("res://Assets/Audio/Enemies/Verdant/chariot_ram.wav")
+const SFX_DEATH := preload("res://Assets/Audio/Enemies/Verdant/chariot_death.wav")

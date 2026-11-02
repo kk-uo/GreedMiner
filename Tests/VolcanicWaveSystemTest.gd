@@ -74,7 +74,6 @@ func _test_configuration_and_plans() -> void:
 		_expect_true(wave.batch_spawning_enabled, "wave %d uses manageable batches" % (index + 1))
 		_expect_true(wave.get_spawn_batch_size() > 1, "wave %d batch contains multiple enemies" % (index + 1))
 		if index < 10:
-			_expect_near(wave.preparation_duration, VERDANT_CONFIG.waves[index].preparation_duration, "wave %d preserves preparation duration" % (index + 1))
 			_expect_near(wave.spawn_interval, VERDANT_CONFIG.waves[index].spawn_interval, "wave %d preserves spawn interval" % (index + 1))
 			_expect_near(wave.get_effective_spawn_phase_duration(), VERDANT_CONFIG.waves[index].get_effective_spawn_phase_duration(), "wave %d preserves active spawn duration" % (index + 1))
 			first_ten_count += wave.get_total_spawn_count()

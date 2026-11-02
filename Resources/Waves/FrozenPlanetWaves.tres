@@ -1,14 +1,73 @@
-[gd_resource type="Resource" script_class="PlanetWaveConfig" format=3]
+[gd_resource type="Resource" script_class="PlanetWaveConfig" format=3 uid="uid://dipc0es2b8qb4"]
 
-[ext_resource type="Script" path="res://Scripts/Waves/EnemySpawnEntry.gd" id="entry"]
-[ext_resource type="Script" path="res://Scripts/Waves/WaveDefinition.gd" id="wave"]
-[ext_resource type="Script" path="res://Scripts/Waves/PlanetWaveConfig.gd" id="config"]
-[ext_resource type="Script" path="res://Scripts/Waves/SpecialSpawnEventRule.gd" id="rule"]
-[ext_resource type="PackedScene" path="res://Scenes/Enemies/snow_monster.tscn" id="snow_monster"]
 [ext_resource type="PackedScene" path="res://Scenes/Enemies/big_snow_monster.tscn" id="big_snow_monster"]
-[ext_resource type="PackedScene" path="res://Scenes/Enemies/sled_car_snow_monster.tscn" id="sled_car_snow_monster"]
-[ext_resource type="PackedScene" path="res://Scenes/Enemies/snow_monster_wizard.tscn" id="snow_monster_wizard"]
+[ext_resource type="Script" uid="uid://cbpn6xvsjha4g" path="res://Scripts/Waves/PlanetWaveConfig.gd" id="config"]
+[ext_resource type="Script" uid="uid://d4jnmrbo34g3l" path="res://Scripts/Waves/EnemySpawnEntry.gd" id="entry"]
 [ext_resource type="PackedScene" path="res://Scenes/Enemies/mega_monster.tscn" id="mega_monster"]
+[ext_resource type="Script" uid="uid://b5ij4fdghypy1" path="res://Scripts/Waves/SpecialSpawnEventRule.gd" id="rule"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/sled_car_snow_monster.tscn" id="sled_car_snow_monster"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/snow_monster.tscn" id="snow_monster"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/snow_monster_wizard.tscn" id="snow_monster_wizard"]
+[ext_resource type="Script" uid="uid://6boj7f2no6e8" path="res://Scripts/Waves/WaveDefinition.gd" id="wave"]
+
+[sub_resource type="Resource" id="Pack_2"]
+script = ExtResource("rule")
+event_id = &"frozen_w2_snow_pack"
+enemy_id = &"snow_monster"
+trigger_mode = 1
+exact_wave = 2
+trigger_phase_fraction = 0.4
+fixed_group_size = 6
+pattern = 1
+formation_spacing = 32.0
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Pack_4"]
+script = ExtResource("rule")
+event_id = &"frozen_w4_snow_pack"
+enemy_id = &"snow_monster"
+trigger_mode = 1
+exact_wave = 4
+trigger_phase_fraction = 0.4
+fixed_group_size = 8
+pattern = 1
+formation_spacing = 32.0
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Pack_6"]
+script = ExtResource("rule")
+event_id = &"frozen_w6_snow_pack"
+enemy_id = &"snow_monster"
+trigger_mode = 1
+exact_wave = 6
+fixed_group_size = 8
+pattern = 1
+formation_spacing = 32.0
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Pack_8"]
+script = ExtResource("rule")
+event_id = &"frozen_w8_snow_pack"
+enemy_id = &"snow_monster"
+trigger_mode = 1
+exact_wave = 8
+trigger_phase_fraction = 0.35
+fixed_group_size = 10
+pattern = 1
+formation_spacing = 32.0
+with_flag_bearer = false
+
+[sub_resource type="Resource" id="Pack_9"]
+script = ExtResource("rule")
+event_id = &"frozen_w9_snow_pack"
+enemy_id = &"snow_monster"
+trigger_mode = 1
+exact_wave = 9
+trigger_phase_fraction = 0.3
+fixed_group_size = 10
+pattern = 1
+formation_spacing = 32.0
+with_flag_bearer = false
 
 [sub_resource type="Resource" id="Entry_1_snow_monster"]
 script = ExtResource("entry")
@@ -36,7 +95,6 @@ spawn_count = 0
 
 [sub_resource type="Resource" id="Wave_1"]
 script = ExtResource("wave")
-wave_number = 1
 spawn_phase_duration = 12.0
 batch_spawning_enabled = true
 interleave_enemy_types = true
@@ -92,7 +150,6 @@ spawn_count = 6
 script = ExtResource("entry")
 enemy_id = &"sled_car_snow_monster"
 enemy_scene = ExtResource("sled_car_snow_monster")
-spawn_count = 1
 
 [sub_resource type="Resource" id="Entry_3_snow_monster_wizard"]
 script = ExtResource("entry")
@@ -166,7 +223,6 @@ spawn_count = 2
 script = ExtResource("entry")
 enemy_id = &"snow_monster_wizard"
 enemy_scene = ExtResource("snow_monster_wizard")
-spawn_count = 1
 
 [sub_resource type="Resource" id="Wave_5"]
 script = ExtResource("wave")
@@ -318,7 +374,6 @@ enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_9_snow_monster")
 script = ExtResource("entry")
 enemy_id = &"mega_monster"
 enemy_scene = ExtResource("mega_monster")
-spawn_count = 1
 spawn_cost = 50
 spawn_first = true
 is_boss = true
@@ -345,78 +400,17 @@ spawn_count = 2
 script = ExtResource("entry")
 enemy_id = &"snow_monster_wizard"
 enemy_scene = ExtResource("snow_monster_wizard")
-spawn_count = 1
 
 [sub_resource type="Resource" id="Wave_10"]
 script = ExtResource("wave")
 wave_number = 10
 spawn_interval = 1.5
+boss_wave = true
 spawn_phase_duration = 15.0
 batch_spawning_enabled = true
 interleave_enemy_types = true
 wait_for_spawn_phase_end = true
-boss_wave = true
 enemy_entries = Array[ExtResource("entry")]([SubResource("Entry_10_boss"), SubResource("Entry_10_snow_monster"), SubResource("Entry_10_big_snow_monster"), SubResource("Entry_10_sled_car_snow_monster"), SubResource("Entry_10_snow_monster_wizard")])
-
-[sub_resource type="Resource" id="Pack_2"]
-script = ExtResource("rule")
-event_id = &"frozen_w2_snow_pack"
-enemy_id = &"snow_monster"
-trigger_mode = 1
-exact_wave = 2
-trigger_phase_fraction = 0.4
-fixed_group_size = 6
-pattern = 1
-formation_spacing = 32.0
-with_flag_bearer = false
-
-[sub_resource type="Resource" id="Pack_4"]
-script = ExtResource("rule")
-event_id = &"frozen_w4_snow_pack"
-enemy_id = &"snow_monster"
-trigger_mode = 1
-exact_wave = 4
-trigger_phase_fraction = 0.4
-fixed_group_size = 8
-pattern = 1
-formation_spacing = 32.0
-with_flag_bearer = false
-
-[sub_resource type="Resource" id="Pack_6"]
-script = ExtResource("rule")
-event_id = &"frozen_w6_snow_pack"
-enemy_id = &"snow_monster"
-trigger_mode = 1
-exact_wave = 6
-trigger_phase_fraction = 0.5
-fixed_group_size = 8
-pattern = 1
-formation_spacing = 32.0
-with_flag_bearer = false
-
-[sub_resource type="Resource" id="Pack_8"]
-script = ExtResource("rule")
-event_id = &"frozen_w8_snow_pack"
-enemy_id = &"snow_monster"
-trigger_mode = 1
-exact_wave = 8
-trigger_phase_fraction = 0.35
-fixed_group_size = 10
-pattern = 1
-formation_spacing = 32.0
-with_flag_bearer = false
-
-[sub_resource type="Resource" id="Pack_9"]
-script = ExtResource("rule")
-event_id = &"frozen_w9_snow_pack"
-enemy_id = &"snow_monster"
-trigger_mode = 1
-exact_wave = 9
-trigger_phase_fraction = 0.3
-fixed_group_size = 10
-pattern = 1
-formation_spacing = 32.0
-with_flag_bearer = false
 
 [resource]
 script = ExtResource("config")

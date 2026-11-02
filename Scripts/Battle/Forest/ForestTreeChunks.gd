@@ -8,15 +8,39 @@ extends Node2D
 
 const ART := preload("res://Scripts/Battle/Forest/ForestArt.gd")
 const CHUNK: float = 300.0
+const MAX_REBUILDS_PER_FRAME: int = 2
 
 ## Vector2i -> {"trees": Array, "ground": ArrayMesh, "shadow": ArrayMesh, "crown": ArrayMesh}
 var _chunks: Dictionary = {}
 var _dirty: Dictionary = {}
-var _rebuild_queued: bool = false
+var _views: Dictionary = {}
+var _passes: Dictionary = {}
+
+
+class ChunkPass extends Node2D:
+	var mesh: ArrayMesh
+	func _draw() -> void:
+		if mesh != null:
+			draw_mesh(mesh, null)
+
+
+func _ready() -> void:
+	set_process(false)
 
 
 func setup(trees: Array) -> void:
+	for pass_node in _passes.values():
+		pass_node.hide()
+		pass_node.queue_free()
+	_passes.clear()
+	_views.clear()
 	_chunks.clear()
+	_cache.clear()
+	for layer in [&"ground", &"shadow", &"crown"]:
+		var pass_node := Node2D.new()
+		pass_node.name = String(layer).capitalize() + "Pass"
+		add_child(pass_node)
+		_passes[layer] = pass_node
 	for tree in trees:
 		var key := _key((tree as Node2D).position)
 		if not _chunks.has(key):
@@ -24,8 +48,13 @@ func setup(trees: Array) -> void:
 		_chunks[key]["trees"].append(tree)
 		(tree as Node2D).connect("state_changed", _on_tree_changed)
 	for key in _chunks.keys():
+		_views[key] = {}
+		for layer in [&"ground", &"shadow", &"crown"]:
+			var view := ChunkPass.new()
+			view.name = "Chunk_%d_%d" % [key.x, key.y]
+			_passes[layer].add_child(view)
+			_views[key][layer] = view
 		_bake(key)
-	queue_redraw()
 
 
 func _key(p: Vector2) -> Vector2i:
@@ -34,18 +63,20 @@ func _key(p: Vector2) -> Vector2i:
 
 func _on_tree_changed(tree: Node2D) -> void:
 	_dirty[_key(tree.position)] = true
-	if not _rebuild_queued:
-		_rebuild_queued = true
-		_rebuild_dirty.call_deferred()
+	set_process(true)
 
 
-func _rebuild_dirty() -> void:
-	_rebuild_queued = false
+func _process(_delta: float) -> void:
+	var rebuilt := 0
 	for key in _dirty.keys():
 		if _chunks.has(key):
 			_bake(key)
-	_dirty.clear()
-	queue_redraw()
+		_dirty.erase(key)
+		rebuilt += 1
+		if rebuilt >= MAX_REBUILDS_PER_FRAME:
+			break
+	if _dirty.is_empty():
+		set_process(false)
 
 
 ## Per tree, per state: cached triangles {pass: [vertices, colors]} so a
@@ -66,7 +97,9 @@ func _piece(tree: Node2D, state: StringName) -> Dictionary:
 	match state:
 		&"dug": ART.dug(ground, p, r, seed)
 		&"stump": ART.stump(ground, p, maxf(9.0, r * 0.32), seed)
-		&"spot": ART.spot(ground, p, r, seed)
+		# A vacated origin stays in gameplay state for storm regrowth, but no
+		# longer paints a persistent hole on the ground.
+		&"spot": pass
 		_:
 			if tree.kind == &"giant":
 				ART.canopy_shadow(shadow, p, r, seed, 9)
@@ -113,6 +146,9 @@ func _bake(key: Vector2i) -> void:
 			lists[layer][1].append_array(piece[layer][1])
 	for layer in ["ground", "shadow", "crown"]:
 		chunk[layer] = _mesh(lists[layer][0], lists[layer][1])
+		var view: ChunkPass = _views[key][StringName(layer)]
+		view.mesh = chunk[layer]
+		view.queue_redraw()
 
 
 static func _mesh(vertices: PackedVector2Array, colors: PackedColorArray) -> ArrayMesh:
@@ -122,10 +158,3 @@ static func _mesh(vertices: PackedVector2Array, colors: PackedColorArray) -> Arr
 	batch._vertices = vertices
 	batch._colors = colors
 	return batch.build()
-
-
-func _draw() -> void:
-	for layer in ["ground", "shadow", "crown"]:
-		for chunk in _chunks.values():
-			if chunk[layer] != null:
-				draw_mesh(chunk[layer], null)

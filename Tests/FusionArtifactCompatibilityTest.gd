@@ -79,7 +79,7 @@ func _run() -> void:
 		ArtifactManager.attach_battle_effects(ship)
 		_check(is_equal_approx(weapon.get_fire_rate(), base_rate * 1.25), "fire-rate artifact modifies fusion weapon")
 		_check(is_equal_approx(weapon.get_modified_attack_range(weapon.attack_range), weapon.attack_range), "Demon Prism leaves fusion targeting range unchanged")
-		_check(is_equal_approx(weapon.get_modified_projectile_range(weapon.projectile_range), weapon.projectile_range * 2.0), "Demon Prism modifies fusion projectile size")
+		_check(is_equal_approx(weapon.get_modified_projectile_range(weapon.projectile_range), weapon.projectile_range * 3.0), "Demon Prism modifies fusion projectile size")
 		_check(weapon.get_artifact_projectile_pierces() == 1, "Ghost Bullet provider reaches fusion weapon")
 		weapon._fire_projectiles()
 		await get_tree().process_frame

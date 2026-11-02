@@ -27,7 +27,6 @@ enum SpawnDirection {
 }
 
 @export_range(1, 999, 1) var wave_number: int = 1
-@export_range(0.0, 600.0, 0.1) var preparation_duration: float = 0.0
 @export_range(0.05, 60.0, 0.05) var spawn_interval: float = 2.0
 @export_range(0.0, 60.0, 0.1) var initial_spawn_delay: float = 0.0
 @export_range(0, 500, 1) var maximum_simultaneous_enemies: int = 0
@@ -56,8 +55,11 @@ enum SpawnDirection {
 ## one-enemy-per-interval scheduler used by Rocky Planet.
 @export_range(0.0, 600.0, 0.1) var spawn_phase_duration: float = 0.0
 @export var batch_spawning_enabled: bool = false
+## Emit every scheduled request at wave start (separate from batch sizing).
+@export var spawn_all_at_start: bool = false
 @export var interleave_enemy_types: bool = false
-## Optional full-duration spawn phases; disabled for existing planets.
+## Optional full-duration spawn phase for timed wave events; this is not a
+## between-wave preparation timer.
 @export var wait_for_spawn_phase_end: bool = false
 
 ## Negative fractions disable graveyard weather on this wave.

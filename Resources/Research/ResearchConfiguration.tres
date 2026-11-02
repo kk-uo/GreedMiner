@@ -8,11 +8,11 @@
 [ext_resource type="Script" uid="uid://kt6mdb5qjf1f" path="res://Scripts/Research/ResearchMilestone.gd" id="6_milestone"]
 [ext_resource type="Script" uid="uid://ccdc6cu5t5ob6" path="res://Scripts/Research/ModuleInstallationLimitResearchEffect.gd" id="7_module_limit"]
 [ext_resource type="Script" uid="uid://ukay8smen2ro" path="res://Scripts/Research/ModuleStatResearchEffect.gd" id="8_module_stat"]
-[ext_resource type="Script" path="res://Scripts/Research/ShipResearchEffect.gd" id="9_ship_effect"]
-[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="10_tree_script"]
-[ext_resource type="Resource" path="res://Resources/Research/EnergyTree.tres" id="11_energy_tree"]
-[ext_resource type="Resource" path="res://Resources/Research/MiningTree.tres" id="12_mining_tree"]
-[ext_resource type="Resource" path="res://Resources/Research/ShipTree.tres" id="13_ship_tree"]
+[ext_resource type="Script" uid="uid://btedipud8wgqn" path="res://Scripts/Research/ShipResearchEffect.gd" id="9_ship_effect"]
+[ext_resource type="Script" uid="uid://ccvjknrm5e617" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="10_tree_script"]
+[ext_resource type="Resource" uid="uid://cfahbfkv12j5g" path="res://Resources/Research/EnergyTree.tres" id="11_energy_tree"]
+[ext_resource type="Resource" uid="uid://gmct8yn0c12x" path="res://Resources/Research/MiningTree.tres" id="12_mining_tree"]
+[ext_resource type="Resource" uid="uid://dcccf12wruvor" path="res://Resources/Research/ShipTree.tres" id="13_ship_tree"]
 
 [sub_resource type="Resource" id="Category_Weapon"]
 script = ExtResource("1_category")
@@ -49,18 +49,18 @@ display_name = "Energy"
 description = "Energy module permissions and future energy technology research."
 implemented = true
 
-[sub_resource type="Resource" id="Category_WeaponSkills"]
-script = ExtResource("1_category")
-category_id = &"weapon_skills"
-display_name = "Weapon Skills"
-description = "Future per-weapon active skill research."
-
 [sub_resource type="Resource" id="Category_Ship"]
 script = ExtResource("1_category")
 category_id = &"ship"
 display_name = "Ship"
 description = "Permanent ship improvements."
 implemented = true
+
+[sub_resource type="Resource" id="Category_WeaponSkills"]
+script = ExtResource("1_category")
+category_id = &"weapon_skills"
+display_name = "Weapon Skills"
+description = "Future per-weapon active skill research."
 
 [sub_resource type="Resource" id="Category_Chips"]
 script = ExtResource("1_category")
@@ -71,7 +71,6 @@ enabled = false
 
 [sub_resource type="Resource" id="Cost_MachineGun"]
 script = ExtResource("2_cost")
-base_upgrade_cost = 200
 linear_cost_coefficient = 200
 quadratic_cost_coefficient = 0
 
@@ -110,7 +109,6 @@ implemented = true
 
 [sub_resource type="Resource" id="Cost_DwarfCannon"]
 script = ExtResource("2_cost")
-base_upgrade_cost = 200
 linear_cost_coefficient = 200
 quadratic_cost_coefficient = 0
 
@@ -150,7 +148,6 @@ implemented = true
 
 [sub_resource type="Resource" id="Cost_Laser"]
 script = ExtResource("2_cost")
-base_upgrade_cost = 200
 linear_cost_coefficient = 200
 quadratic_cost_coefficient = 0
 
@@ -190,7 +187,6 @@ implemented = true
 
 [sub_resource type="Resource" id="Cost_Chainsaw"]
 script = ExtResource("2_cost")
-base_upgrade_cost = 200
 linear_cost_coefficient = 200
 quadratic_cost_coefficient = 0
 
@@ -230,7 +226,6 @@ implemented = true
 
 [sub_resource type="Resource" id="Cost_Flamethrower"]
 script = ExtResource("2_cost")
-base_upgrade_cost = 200
 linear_cost_coefficient = 200
 quadratic_cost_coefficient = 0
 
@@ -270,7 +265,6 @@ implemented = true
 
 [sub_resource type="Resource" id="Cost_FusionWeapon"]
 script = ExtResource("2_cost")
-base_upgrade_cost = 200
 linear_cost_coefficient = 200
 quadratic_cost_coefficient = 0
 
@@ -478,7 +472,6 @@ implemented = true
 
 [sub_resource type="Resource" id="Cost_KnockbackResearch"]
 script = ExtResource("2_cost")
-base_upgrade_cost = 200
 linear_cost_coefficient = 200
 quadratic_cost_coefficient = 0
 
@@ -488,7 +481,6 @@ stat_id = &"shockwave_damage"
 
 [sub_resource type="Resource" id="Milestone_Knockback_Level10"]
 script = ExtResource("6_milestone")
-target_level = 10
 module_chip_slots_unlocked = 1
 display_text = "Unlocks Knockback Artifact Slot 1"
 
@@ -520,7 +512,6 @@ implemented = true
 
 [sub_resource type="Resource" id="Cost_RegenerationResearch"]
 script = ExtResource("2_cost")
-base_upgrade_cost = 200
 linear_cost_coefficient = 200
 quadratic_cost_coefficient = 0
 
@@ -530,7 +521,6 @@ stat_id = &"healing_amount"
 
 [sub_resource type="Resource" id="Milestone_Regeneration_Level10"]
 script = ExtResource("6_milestone")
-target_level = 10
 module_chip_slots_unlocked = 1
 display_text = "Unlocks Regeneration Artifact Slot 1"
 
@@ -559,91 +549,6 @@ effect = SubResource("Effect_RegenerationResearch")
 milestones = Array[ExtResource("6_milestone")]([SubResource("Milestone_Regeneration_Level10"), SubResource("Milestone_Regeneration_Level20"), SubResource("Milestone_Regeneration_Level30")])
 unlocked_by_default = false
 implemented = true
-
-[sub_resource type="Resource" id="Cost_EnergyInstallSlot"]
-script = ExtResource("2_cost")
-base_upgrade_cost = 0
-linear_cost_coefficient = 0
-quadratic_cost_coefficient = 0
-
-[sub_resource type="Resource" id="Effect_EnergyInstallSlot"]
-script = ExtResource("7_module_limit")
-purchase_button_text = "Unlock Second Energy Module"
-
-[sub_resource type="Resource" id="Definition_EnergyInstallSlot"]
-script = ExtResource("4_definition")
-research_id = &"energy_install_slot_unlock"
-category_id = &"energy"
-display_name = "Energy Module Installation"
-description = "Permanently unlocks one additional Energy Module installation slot."
-starting_level = 0
-cost_configuration = SubResource("Cost_EnergyInstallSlot")
-target_id = &"energy_module"
-effect = SubResource("Effect_EnergyInstallSlot")
-implemented = true
-
-[sub_resource type="Resource" id="Cost_MiningInstallSlot"]
-script = ExtResource("2_cost")
-base_upgrade_cost = 200
-linear_cost_coefficient = 0
-quadratic_cost_coefficient = 0
-
-[sub_resource type="Resource" id="Effect_MiningInstallSlot"]
-script = ExtResource("7_module_limit")
-purchase_button_text = "Unlock Second Mining Module"
-
-[sub_resource type="Resource" id="Definition_MiningInstallSlot"]
-script = ExtResource("4_definition")
-research_id = &"mining_install_slot_unlock"
-category_id = &"mining"
-display_name = "Mining Module Installation"
-description = "Permanently unlocks one additional Mining Module installation slot."
-starting_level = 0
-cost_configuration = SubResource("Cost_MiningInstallSlot")
-target_id = &"mining_module"
-effect = SubResource("Effect_MiningInstallSlot")
-implemented = true
-
-[sub_resource type="Resource" id="ShipCost100"]
-script = ExtResource("2_cost")
-base_upgrade_cost = 100
-linear_cost_coefficient = 0
-quadratic_cost_coefficient = 0
-
-[sub_resource type="Resource" id="ShipCost500"]
-script = ExtResource("2_cost")
-base_upgrade_cost = 500
-linear_cost_coefficient = 0
-quadratic_cost_coefficient = 0
-
-[sub_resource type="Resource" id="ShipCost750"]
-script = ExtResource("2_cost")
-base_upgrade_cost = 750
-linear_cost_coefficient = 0
-quadratic_cost_coefficient = 0
-
-[sub_resource type="Resource" id="ShipCost1000"]
-script = ExtResource("2_cost")
-base_upgrade_cost = 1000
-linear_cost_coefficient = 0
-quadratic_cost_coefficient = 0
-
-[sub_resource type="Resource" id="ShipHpEffect"]
-script = ExtResource("9_ship_effect")
-max_hp_bonus = 50.0
-
-[sub_resource type="Resource" id="ShipHp10Effect"]
-script = ExtResource("9_ship_effect")
-max_hp_bonus = 10.0
-
-[sub_resource type="Resource" id="ShipRegenEffect"]
-script = ExtResource("9_ship_effect")
-regeneration_amount = 5.0
-regeneration_interval = 10.0
-
-[sub_resource type="Resource" id="ShipMagicEffect"]
-script = ExtResource("9_ship_effect")
-artifact_slots = 1
 
 [sub_resource type="Resource" id="Cost_EnergyCore"]
 script = ExtResource("2_cost")
@@ -685,6 +590,28 @@ description = "Your batteries now reach farther planets: Verdant Planet and Froz
 starting_level = 0
 cost_configuration = SubResource("Cost_EnergyRange")
 effect = SubResource("Effect_EnergyRange")
+implemented = true
+
+[sub_resource type="Resource" id="Cost_EnergyInstallSlot"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 0
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_EnergyInstallSlot"]
+script = ExtResource("7_module_limit")
+purchase_button_text = "Unlock Second Energy Module"
+
+[sub_resource type="Resource" id="Definition_EnergyInstallSlot"]
+script = ExtResource("4_definition")
+research_id = &"energy_install_slot_unlock"
+category_id = &"energy"
+display_name = "Energy Module Installation"
+description = "Permanently unlocks one additional Energy Module installation slot."
+starting_level = 0
+cost_configuration = SubResource("Cost_EnergyInstallSlot")
+target_id = &"energy_module"
+effect = SubResource("Effect_EnergyInstallSlot")
 implemented = true
 
 [sub_resource type="Resource" id="Cost_EnergySlotSupport"]
@@ -750,6 +677,122 @@ cost_configuration = SubResource("Cost_EnergyRange2")
 effect = SubResource("Effect_EnergyRange2")
 implemented = true
 
+[sub_resource type="Resource" id="Cost_EnergyPowerHalf"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 2500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_EnergyPowerHalf"]
+script = ExtResource("9_ship_effect")
+power_bonus = 0.5
+
+[sub_resource type="Resource" id="Definition_EnergyPowerHalf"]
+script = ExtResource("4_definition")
+research_id = &"energy_core_half"
+category_id = &"energy"
+display_name = "Enhanced Energy Core"
+description = "Every installed Energy Module supplies an additional 0.5 Power."
+starting_level = 0
+cost_configuration = SubResource("Cost_EnergyPowerHalf")
+effect = SubResource("Effect_EnergyPowerHalf")
+implemented = true
+
+[sub_resource type="Resource" id="Cost_FusionEnergy"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 5000
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_FusionEnergy"]
+script = ExtResource("9_ship_effect")
+
+[sub_resource type="Resource" id="Definition_FusionEnergy"]
+script = ExtResource("4_definition")
+research_id = &"energy_fusion_unlock"
+category_id = &"energy"
+display_name = "Fusion Energy"
+description = "After clearing Graveyard Planet and reaching Level 30 with every base weapon, spend 5000 Ore to enable weapon fusion."
+starting_level = 0
+cost_configuration = SubResource("Cost_FusionEnergy")
+effect = SubResource("Effect_FusionEnergy")
+implemented = true
+
+[sub_resource type="Resource" id="Cost_ThirdBattery"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 2500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_ThirdBattery"]
+script = ExtResource("7_module_limit")
+unlocked_installation_limit = 3
+purchase_button_text = "Unlock Third Energy Module"
+
+[sub_resource type="Resource" id="Definition_ThirdBattery"]
+script = ExtResource("4_definition")
+research_id = &"energy_install_slot_3"
+category_id = &"energy"
+display_name = "Third Energy Module"
+description = "Permanently unlocks a third Energy Module installation slot."
+starting_level = 0
+cost_configuration = SubResource("Cost_ThirdBattery")
+target_id = &"energy_module"
+effect = SubResource("Effect_ThirdBattery")
+implemented = true
+
+[sub_resource type="Resource" id="Cost_EnergyRange3"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 1500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_EnergyRange3"]
+script = ExtResource("9_ship_effect")
+unlocked_planet_ids = Array[StringName]([&"tree_planet"])
+
+[sub_resource type="Resource" id="Definition_EnergyRange3"]
+script = ExtResource("4_definition")
+research_id = &"energy_range_3"
+category_id = &"energy"
+display_name = "Super-Range Cells"
+description = "Your batteries can now reach Tree Planet."
+starting_level = 0
+cost_configuration = SubResource("Cost_EnergyRange3")
+effect = SubResource("Effect_EnergyRange3")
+implemented = true
+
+[sub_resource type="Resource" id="Cost_MiningInstallSlot"]
+script = ExtResource("2_cost")
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="Effect_MiningInstallSlot"]
+script = ExtResource("7_module_limit")
+purchase_button_text = "Unlock Second Mining Module"
+
+[sub_resource type="Resource" id="Definition_MiningInstallSlot"]
+script = ExtResource("4_definition")
+research_id = &"mining_install_slot_unlock"
+category_id = &"mining"
+display_name = "Mining Module Installation"
+description = "Permanently unlocks one additional Mining Module installation slot."
+starting_level = 0
+cost_configuration = SubResource("Cost_MiningInstallSlot")
+target_id = &"mining_module"
+effect = SubResource("Effect_MiningInstallSlot")
+implemented = true
+
+[sub_resource type="Resource" id="ShipCost100"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 100
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipHpEffect"]
+script = ExtResource("9_ship_effect")
+max_hp_bonus = 50.0
+
 [sub_resource type="Resource" id="ShipHp"]
 script = ExtResource("4_definition")
 research_id = &"ship_max_hp_1"
@@ -760,6 +803,10 @@ cost_configuration = SubResource("ShipCost100")
 effect = SubResource("ShipHpEffect")
 implemented = true
 
+[sub_resource type="Resource" id="ShipRegenEffect"]
+script = ExtResource("9_ship_effect")
+regeneration_amount = 5.0
+
 [sub_resource type="Resource" id="ShipRegen"]
 script = ExtResource("4_definition")
 research_id = &"ship_auto_regeneration_1"
@@ -769,6 +816,16 @@ starting_level = 0
 cost_configuration = SubResource("ShipCost100")
 effect = SubResource("ShipRegenEffect")
 implemented = true
+
+[sub_resource type="Resource" id="ShipCost500"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipMagicEffect"]
+script = ExtResource("9_ship_effect")
+artifact_slots = 1
 
 [sub_resource type="Resource" id="ShipMagic"]
 script = ExtResource("4_definition")
@@ -790,18 +847,6 @@ quadratic_cost_coefficient = 0
 script = ExtResource("9_ship_effect")
 unlocked_planet_ids = Array[StringName]([&"frozen_planet", &"volcanic_planet"])
 
-[sub_resource type="Resource" id="ShipPowerEffect"]
-script = ExtResource("9_ship_effect")
-base_power_bonus = 1
-
-[sub_resource type="Resource" id="ShipStyleEffect"]
-script = ExtResource("9_ship_effect")
-unlocks_ship_style = true
-
-[sub_resource type="Resource" id="ShipManualAimEffect"]
-script = ExtResource("9_ship_effect")
-unlocks_manual_turret_control = true
-
 [sub_resource type="Resource" id="ShipAir"]
 script = ExtResource("4_definition")
 research_id = &"ship_air_conditioning_1"
@@ -812,6 +857,10 @@ starting_level = 0
 cost_configuration = SubResource("ShipCost250")
 effect = SubResource("ShipAirEffect")
 implemented = true
+
+[sub_resource type="Resource" id="ShipPowerEffect"]
+script = ExtResource("9_ship_effect")
+base_power_bonus = 1
 
 [sub_resource type="Resource" id="ShipPower"]
 script = ExtResource("4_definition")
@@ -824,6 +873,10 @@ cost_configuration = SubResource("ShipCost500")
 effect = SubResource("ShipPowerEffect")
 implemented = true
 
+[sub_resource type="Resource" id="ShipStyleEffect"]
+script = ExtResource("9_ship_effect")
+unlocks_ship_style = true
+
 [sub_resource type="Resource" id="ShipStyle"]
 script = ExtResource("4_definition")
 research_id = &"ship_style_unlock"
@@ -834,6 +887,10 @@ starting_level = 0
 cost_configuration = SubResource("ShipCost500")
 effect = SubResource("ShipStyleEffect")
 implemented = true
+
+[sub_resource type="Resource" id="ShipHp10Effect"]
+script = ExtResource("9_ship_effect")
+max_hp_bonus = 10.0
 
 [sub_resource type="Resource" id="ShipHp2"]
 script = ExtResource("4_definition")
@@ -846,6 +903,12 @@ cost_configuration = SubResource("ShipCost500")
 effect = SubResource("ShipHp10Effect")
 implemented = true
 
+[sub_resource type="Resource" id="ShipCost750"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 750
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
 [sub_resource type="Resource" id="ShipHp3"]
 script = ExtResource("4_definition")
 research_id = &"ship_max_hp_3"
@@ -856,6 +919,48 @@ starting_level = 0
 cost_configuration = SubResource("ShipCost750")
 effect = SubResource("ShipHp10Effect")
 implemented = true
+
+[sub_resource type="Resource" id="ShipCost1250"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 1250
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipHp4"]
+script = ExtResource("4_definition")
+research_id = &"ship_max_hp_4"
+category_id = &"ship"
+display_name = "Ship HP +10 IV"
+description = "Permanently increases maximum ship HP by another 10."
+starting_level = 0
+cost_configuration = SubResource("ShipCost1250")
+effect = SubResource("ShipHp10Effect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipSpiritDetectorEffect"]
+script = ExtResource("9_ship_effect")
+unlocked_planet_ids = Array[StringName]([&"graveyard_planet"])
+
+[sub_resource type="Resource" id="ShipSpiritDetector"]
+script = ExtResource("4_definition")
+research_id = &"ship_spirit_detector"
+category_id = &"ship"
+display_name = "Spirit Detector"
+description = "The ship can now reach Graveyard Planet."
+starting_level = 0
+cost_configuration = SubResource("ShipCost500")
+effect = SubResource("ShipSpiritDetectorEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipCost1000"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 1000
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipManualAimEffect"]
+script = ExtResource("9_ship_effect")
+unlocks_manual_turret_control = true
 
 [sub_resource type="Resource" id="ShipManualAim"]
 script = ExtResource("4_definition")
@@ -868,8 +973,146 @@ cost_configuration = SubResource("ShipCost1000")
 effect = SubResource("ShipManualAimEffect")
 implemented = true
 
+[sub_resource type="Resource" id="ShipCost2000"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 2000
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipHullSlotEffect"]
+script = ExtResource("9_ship_effect")
+hull_slot_capacity_bonus = 1
+
+[sub_resource type="Resource" id="ShipHullSlot1"]
+script = ExtResource("4_definition")
+research_id = &"ship_hull_slot_1"
+category_id = &"ship"
+display_name = "Ship Expansion Slot I"
+description = "After clearing Verdant Planet, unlock one additional ship module slot in the Hangar."
+starting_level = 0
+cost_configuration = SubResource("ShipCost2000")
+effect = SubResource("ShipHullSlotEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipRotationEffect"]
+script = ExtResource("9_ship_effect")
+unlocks_ship_rotation = true
+
+[sub_resource type="Resource" id="ShipRotation"]
+script = ExtResource("4_definition")
+research_id = &"ship_rotation_unlock"
+category_id = &"ship"
+display_name = "Ship Rotation"
+description = "Rotate the ship layout in the Hangar."
+starting_level = 0
+cost_configuration = SubResource("ShipCost500")
+effect = SubResource("ShipRotationEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipCost3500"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 3500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipHullSlot2"]
+script = ExtResource("4_definition")
+research_id = &"ship_hull_slot_2"
+category_id = &"ship"
+display_name = "Ship Expansion Slot II"
+description = "After clearing Graveyard Planet, unlock a second additional ship module slot."
+starting_level = 0
+cost_configuration = SubResource("ShipCost3500")
+effect = SubResource("ShipHullSlotEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipPower2"]
+script = ExtResource("4_definition")
+research_id = &"ship_power_2"
+category_id = &"ship"
+display_name = "Built-in Power Cell II"
+description = "The ship itself supplies one more Power, without an Energy Module."
+starting_level = 0
+cost_configuration = SubResource("ShipCost2000")
+effect = SubResource("ShipPowerEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipCost1500"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 1500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipSpiritPowerHalfEffect"]
+script = ExtResource("9_ship_effect")
+base_power_bonus = 0.5
+
+[sub_resource type="Resource" id="ShipSpiritPowerHalf"]
+script = ExtResource("4_definition")
+research_id = &"ship_spirit_power_half"
+category_id = &"ship"
+display_name = "Spirit Power Cell"
+description = "The ship itself supplies another 0.5 Power."
+starting_level = 0
+cost_configuration = SubResource("ShipCost1500")
+effect = SubResource("ShipSpiritPowerHalfEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipGoldDetectorEffect"]
+script = ExtResource("9_ship_effect")
+unlocked_planet_ids = Array[StringName]([&"dragon_nest_planet"])
+
+[sub_resource type="Resource" id="ShipGoldDetector"]
+script = ExtResource("4_definition")
+research_id = &"ship_gold_detector"
+category_id = &"ship"
+display_name = "Gold Detector"
+description = "The ship can now reach Dragon Nest Planet."
+starting_level = 0
+cost_configuration = SubResource("ShipCost2000")
+effect = SubResource("ShipGoldDetectorEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipCost5000"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 5000
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipMagic2"]
+script = ExtResource("4_definition")
+research_id = &"ship_magic_slot_2"
+category_id = &"ship"
+display_name = "Magic Item Slot II"
+description = "Unlock the second ship magic item slot."
+starting_level = 0
+cost_configuration = SubResource("ShipCost5000")
+effect = SubResource("ShipMagicEffect")
+implemented = true
+
+[sub_resource type="Resource" id="ShipCost2500"]
+script = ExtResource("2_cost")
+base_upgrade_cost = 2500
+linear_cost_coefficient = 0
+quadratic_cost_coefficient = 0
+
+[sub_resource type="Resource" id="ShipHp20Effect"]
+script = ExtResource("9_ship_effect")
+max_hp_bonus = 20.0
+
+[sub_resource type="Resource" id="ShipHp5"]
+script = ExtResource("4_definition")
+research_id = &"ship_max_hp_5"
+category_id = &"ship"
+display_name = "Ship HP +20 V"
+description = "Permanently increases maximum ship HP by 20 after both branches are completed."
+starting_level = 0
+cost_configuration = SubResource("ShipCost2500")
+effect = SubResource("ShipHp20Effect")
+implemented = true
+
 [resource]
 script = ExtResource("5_configuration")
 categories = Array[ExtResource("1_category")]([SubResource("Category_Weapon"), SubResource("Category_FusionWeapon"), SubResource("Category_Mining"), SubResource("Category_Shield"), SubResource("Category_Energy"), SubResource("Category_Ship"), SubResource("Category_WeaponSkills"), SubResource("Category_Chips")])
-definitions = Array[ExtResource("4_definition")]([SubResource("Definition_MachineGun"), SubResource("Definition_DwarfCannon"), SubResource("Definition_Laser"), SubResource("Definition_Chainsaw"), SubResource("Definition_Flamethrower"), SubResource("Definition_ScatterMachineGun"), SubResource("Definition_KnockbackMachineGun"), SubResource("Definition_LaserMachineGun"), SubResource("Definition_SawbladeMachineGun"), SubResource("Definition_FlameMachineGun"), SubResource("Definition_LaserChainsaw"), SubResource("Definition_HeavyLaser"), SubResource("Definition_AutomaticCannon"), SubResource("Definition_SiegeCannon"), SubResource("Definition_KnockbackCannon"), SubResource("Definition_FlameCannon"), SubResource("Definition_KnockbackLaser"), SubResource("Definition_FlameLaser"), SubResource("Definition_KnockbackResearch"), SubResource("Definition_RegenerationResearch"), SubResource("Definition_EnergyCore"), SubResource("Definition_EnergyRange"), SubResource("Definition_EnergyInstallSlot"), SubResource("Definition_EnergySlotSupport"), SubResource("Definition_EnergyShielded"), SubResource("Definition_EnergyRange2"), SubResource("Definition_MiningInstallSlot"), SubResource("ShipHp"), SubResource("ShipRegen"), SubResource("ShipMagic"), SubResource("ShipAir"), SubResource("ShipPower"), SubResource("ShipStyle"), SubResource("ShipHp2"), SubResource("ShipHp3"), SubResource("ShipManualAim")])
+definitions = Array[ExtResource("4_definition")]([SubResource("Definition_MachineGun"), SubResource("Definition_DwarfCannon"), SubResource("Definition_Laser"), SubResource("Definition_Chainsaw"), SubResource("Definition_Flamethrower"), SubResource("Definition_ScatterMachineGun"), SubResource("Definition_KnockbackMachineGun"), SubResource("Definition_LaserMachineGun"), SubResource("Definition_SawbladeMachineGun"), SubResource("Definition_FlameMachineGun"), SubResource("Definition_LaserChainsaw"), SubResource("Definition_HeavyLaser"), SubResource("Definition_AutomaticCannon"), SubResource("Definition_SiegeCannon"), SubResource("Definition_KnockbackCannon"), SubResource("Definition_FlameCannon"), SubResource("Definition_KnockbackLaser"), SubResource("Definition_FlameLaser"), SubResource("Definition_KnockbackResearch"), SubResource("Definition_RegenerationResearch"), SubResource("Definition_EnergyCore"), SubResource("Definition_EnergyRange"), SubResource("Definition_EnergyInstallSlot"), SubResource("Definition_EnergySlotSupport"), SubResource("Definition_EnergyShielded"), SubResource("Definition_EnergyRange2"), SubResource("Definition_EnergyPowerHalf"), SubResource("Definition_FusionEnergy"), SubResource("Definition_ThirdBattery"), SubResource("Definition_EnergyRange3"), SubResource("Definition_MiningInstallSlot"), SubResource("ShipHp"), SubResource("ShipRegen"), SubResource("ShipMagic"), SubResource("ShipAir"), SubResource("ShipPower"), SubResource("ShipStyle"), SubResource("ShipHp2"), SubResource("ShipHp3"), SubResource("ShipHp4"), SubResource("ShipSpiritDetector"), SubResource("ShipManualAim"), SubResource("ShipHullSlot1"), SubResource("ShipRotation"), SubResource("ShipHullSlot2"), SubResource("ShipPower2"), SubResource("ShipSpiritPowerHalf"), SubResource("ShipGoldDetector"), SubResource("ShipMagic2"), SubResource("ShipHp5")])
 trees = Array[ExtResource("10_tree_script")]([ExtResource("11_energy_tree"), ExtResource("12_mining_tree"), ExtResource("13_ship_tree")])

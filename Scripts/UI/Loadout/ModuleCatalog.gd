@@ -38,13 +38,14 @@ const ENTRIES: Array[Dictionary] = [
 	{"id": &"heavy_laser", "name": "Heavy Laser", "group": &"weapon",
 		"scene": "res://Scenes/Modules/Weapons/Fusion/heavy_laser.tscn", "fusion_only": true,
 		"research_source_id": &"heavy_laser", "artifact_compatibility_ids": [&"laser", &"dwarf_cannon"],
-		"artifact_incompatible_ids": [&"angry_stone", &"ghost_bullet", &"red_crystal", &"true_ice"]},
+		"artifact_incompatible_ids": [&"angry_stone", &"ghost_bullet", &"red_crystal", &"true_ice", &"sturdy_stone", &"twin_demon", &"zombie_arm", &"slow_hourglass", &"fast_hourglass"]},
 	{"id": &"automatic_cannon", "name": "Automatic Cannon", "group": &"weapon",
 		"scene": "res://Scenes/Modules/Weapons/Fusion/automatic_cannon.tscn", "fusion_only": true,
 		"research_source_id": &"automatic_cannon", "artifact_compatibility_ids": [&"dwarf_cannon", &"machine_gun"]},
 	{"id": &"siege_cannon", "name": "Siege Cannon", "group": &"weapon",
 		"scene": "res://Scenes/Modules/Weapons/Fusion/siege_cannon.tscn", "fusion_only": true,
-		"research_source_id": &"siege_cannon", "artifact_compatibility_ids": [&"dwarf_cannon"]},
+		"research_source_id": &"siege_cannon", "artifact_compatibility_ids": [&"dwarf_cannon"],
+		"artifact_incompatible_ids": [&"zombie_arm"]},
 	{"id": &"knockback_cannon", "name": "Long-Range Knockback Cannon", "group": &"weapon",
 		"scene": "res://Scenes/Modules/Weapons/Fusion/knockback_cannon.tscn", "fusion_only": true,
 		"research_source_id": &"knockback_cannon", "artifact_compatibility_ids": [&"dwarf_cannon", &"knockback_module"]},
@@ -58,7 +59,7 @@ const ENTRIES: Array[Dictionary] = [
 	{"id": &"flame_laser", "name": "Flame Laser", "group": &"weapon",
 		"scene": "res://Scenes/Modules/Weapons/Fusion/flame_laser.tscn", "fusion_only": true,
 		"research_source_id": &"flame_laser", "artifact_compatibility_ids": [&"laser", &"flamethrower"],
-		"artifact_incompatible_ids": [&"angry_stone", &"ghost_bullet", &"red_crystal", &"true_ice"]},
+		"artifact_incompatible_ids": [&"angry_stone", &"ghost_bullet", &"red_crystal", &"true_ice", &"slow_hourglass", &"fast_hourglass"]},
 	{"id": &"energy_module", "name": "Energy", "group": &"system",
 		"scene": "res://Scenes/Modules/Energy/energy_module.tscn"},
 	{"id": &"mining_module", "name": "Mining", "group": &"system",
@@ -208,7 +209,7 @@ static func get_summary(id: StringName) -> String:
 				parts.append("RNG %s" % format_number(stats["attack_range"]))
 			return " · ".join(parts)
 		"energy":
-			return "+%d POWER" % int(stats.get("power_capacity", 0))
+			return "+%s POWER" % format_number(stats.get("power_capacity", 0.0))
 		"mining":
 			return "%s ORE / s" % format_number(stats.get("mining_rate", 0.0))
 		"shield":

@@ -12,11 +12,12 @@ var wave_length: float = 100.0
 var wave_thickness: float = 20.0
 var initial_damage: float = 15.0
 var damage_per_second: float = 1.0
-var knockback_distance: float = 200.0
+var knockback_distance: float = 20.0
 var source_weapon: WeaponModule
 
 var _origin: Vector2
 var _contacts: Dictionary = {}
+var _homing_target: BasicEnemy
 
 
 func arm_from_current_position() -> void:
@@ -29,6 +30,12 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_instance_valid(source_weapon):
+		var turn_rate := source_weapon.get_artifact_projectile_homing_turn_rate()
+		if turn_rate > 0.0:
+			var steering := source_weapon.get_homing_steering(global_position, direction, _homing_target, _contacts, delta, turn_rate)
+			_homing_target = steering["target"] as BasicEnemy
+			direction = steering["direction"]
 	var travel := direction.normalized()
 	global_position += travel * speed * delta
 	if _origin.distance_to(global_position) >= maximum_distance:
@@ -43,9 +50,13 @@ func _physics_process(delta: float) -> void:
 	query.collision_mask = 1
 	query.collide_with_areas = true
 	query.collide_with_bodies = false
-	for result in get_world_2d().direct_space_state.intersect_shape(query, 256):
+	# A crowded wave must consider every enemy it touches, not only the first
+	# few colliders returned by the physics query.
+	for result in get_world_2d().direct_space_state.intersect_shape(query, 4096):
 		var enemy := result.get("collider") as BasicEnemy
 		if enemy == null or enemy.is_dying() or not enemy.is_in_group(&"enemies"):
+			continue
+		if is_instance_valid(source_weapon) and not source_weapon.can_target_enemy(enemy):
 			continue
 		var key := enemy.get_instance_id()
 		if not _contacts.has(key):
@@ -54,8 +65,13 @@ func _physics_process(delta: float) -> void:
 
 	for key in _contacts.keys():
 		var state: Dictionary = _contacts[key]
+		# Check before the typed assignment: assigning a freed enemy to a
+		# BasicEnemy variable is itself an error ("previously freed instance").
+		if not is_instance_valid(state["enemy"]):
+			_contacts.erase(key)
+			continue
 		var enemy: BasicEnemy = state["enemy"]
-		if not is_instance_valid(enemy) or enemy.is_dying():
+		if enemy.is_dying():
 			_contacts.erase(key)
 			continue
 		state["elapsed"] = float(state["elapsed"]) + delta

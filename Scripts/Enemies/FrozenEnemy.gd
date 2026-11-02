@@ -121,6 +121,7 @@ func _launch_freezing_snowball() -> void:
 	projectile.direction = global_position.direction_to(target_ship.to_global(Ship.SHIP_SIZE * 0.5))
 	get_tree().current_scene.add_child(projectile)
 	projectile.global_position = global_position
+	EnemySfx.play(self, SFX_FREEZE_THROW, -4.0, 0.0)
 
 func _on_weather_changed(_value: int) -> void:
 	_apply_speed()
@@ -152,7 +153,7 @@ func _perform_death_effect() -> void:
 	# Defeating the Frozen Planet boss puts a trophy snowman in the base.
 	if enemy_id == &"mega_monster":
 		BASE_TROPHIES.grant(&"snowman")
-		ArtifactManager.grant_artifact(&"frost_breath")
+		ArtifactManager.grant_artifact(&"blizzard_bottle")
 	if split_scene == null or get_parent() == null:
 		return
 	var center := global_position
@@ -192,6 +193,8 @@ func _on_attack_timer_timeout() -> void:
 	super()
 	if _is_attacking:
 		_attack_pose_time = DemonVisual.ATTACK_POSE_TIME
+		var sfx: Array = SFX_BY_KIND.get(_visual_kind(), SFX_BY_KIND[&"snow"])
+		EnemySfx.play(self, sfx[0], sfx[2])
 
 
 func _walk_step() -> float:
@@ -272,7 +275,19 @@ func _ship_center() -> Vector2:
 const YETI_GORE := preload("res://Scripts/VFX/GoblinGore.gd")
 const DROPPED_GEAR := preload("res://Scripts/VFX/DroppedShield.gd")
 
+## Presentation: [attack, death, attack volume, death volume] per body.
+const SFX_FREEZE_THROW := preload("res://Assets/Audio/Enemies/Frozen/mega_freeze_throw.wav")
+const SFX_BY_KIND := {
+	&"snow": [preload("res://Assets/Audio/Enemies/Frozen/snow_attack.wav"), preload("res://Assets/Audio/Enemies/Frozen/snow_death.wav"), -13.0, -11.0],
+	&"big": [preload("res://Assets/Audio/Enemies/Frozen/big_snow_attack.wav"), preload("res://Assets/Audio/Enemies/Frozen/big_snow_death.wav"), -10.0, -9.0],
+	&"wizard": [preload("res://Assets/Audio/Enemies/Frozen/wizard_attack.wav"), preload("res://Assets/Audio/Enemies/Frozen/wizard_death.wav"), -12.0, -10.0],
+	&"sled": [preload("res://Assets/Audio/Enemies/Frozen/sled_attack.wav"), preload("res://Assets/Audio/Enemies/Frozen/sled_death.wav"), -9.0, -7.0],
+	&"mega": [preload("res://Assets/Audio/Enemies/Frozen/mega_attack.wav"), preload("res://Assets/Audio/Enemies/Frozen/mega_death.wav"), -6.0, -2.0],
+}
+
 func _spawn_death_visual(death_position: Vector2) -> void:
+	var sfx: Array = SFX_BY_KIND.get(_visual_kind(), SFX_BY_KIND[&"snow"])
+	EnemySfx.play(death_position, sfx[1], sfx[3], 0.0 if _visual_kind() == &"mega" else 0.08)
 	# The sled keeps its own snow-and-wood burst (spawned with the riders in
 	# _perform_death_effect); no gore for it.
 	if _visual_kind() == &"sled":

@@ -25,6 +25,7 @@ func _run() -> void:
 	TestSave.isolate("battle_click_test")
 	ShipLoadout.installed_modules.clear()
 	ShipLoadout.install_module(0, 0, MACHINE_GUN_SCENE_PATH)
+	ResearchManager.progress.levels["ship_manual_turret_control"] = 1
 	battle = BATTLE_SCENE.instantiate()
 	battle.get_node("WaveManager").auto_start = false
 	add_child(battle)
@@ -70,6 +71,7 @@ func _run() -> void:
 	# Turret range ring.
 	var gun := ship.get_module_at(0, 0) as WeaponModule
 	var indicator: Node2D = battle.get_node("TurretRangeIndicator")
+	_expect_true(ship.has_node("ManualTurretController"), "manual turret control is active for the integration test")
 	_expect_false(indicator.visible, "no range ring at first")
 	_click_world(gun.global_position)
 	await get_tree().process_frame

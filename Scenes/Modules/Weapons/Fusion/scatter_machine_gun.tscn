@@ -7,6 +7,7 @@
 [node name="ScatterMachineGun" type="Node2D"]
 script = ExtResource("1")
 weapon_type_id = &"scatter_machine_gun"
+enemy_targeting = 1
 power_consumption = 3
 visual_kind = 0
 basic_damage = 5.0

@@ -19,6 +19,8 @@ extends Node2D
 signal generated(seed_value: int)
 ## Emitted once per broken crystal in global coordinates.
 signal crystal_broken(world_position: Vector2, is_red: bool)
+## Optional Rocky mine: one group wakes only when the dwarf starts its stage.
+signal risky_mine_golems_awakened(positions: Array[Vector2])
 
 ## Total playable map size in world pixels.
 ## Baked static map (see _draw) and the recorder the painters draw into.
@@ -124,6 +126,7 @@ var _claims: Array = []
 ## below the ship and enemies). See get_interactables_root().
 var _interactables: Node2D
 const ROCKY_CRYSTAL := preload("res://Scripts/Battle/RockyCrystal.gd")
+const RISKY_ROCKY_CRYSTAL := preload("res://Scripts/Battle/RiskyRockyCrystal.gd")
 var _crystal_container: Node2D
 ## Graveyard theme: tombstones and grave clusters (decor "grave").
 const GRAVEYARD_TOMBSTONES := preload("res://Scripts/Battle/Graveyard/GraveyardTombstones.gd")
@@ -194,6 +197,9 @@ func _rebuild_forest_trees() -> void:
 	forest_terrain.empty_radius = FOREST_SETTINGS.empty_radius
 	forest_terrain.sparse_ring_width = FOREST_SETTINGS.sparse_ring_width
 	forest_terrain.ring_width = FOREST_SETTINGS.ring_width
+	forest_terrain.ring_raise_fraction = FOREST_SETTINGS.ring_raise_fraction
+	forest_terrain.final_canopy_wave = FOREST_SETTINGS.final_canopy_wave
+	forest_terrain.final_canopy_raise_fraction = FOREST_SETTINGS.final_canopy_raise_fraction
 	forest_terrain.sparse_ring_density = FOREST_SETTINGS.sparse_ring_density
 	_interactables.add_child(forest_terrain)
 	forest_terrain.generate(self, _seed)
@@ -239,12 +245,23 @@ func _rebuild_rocky_crystals() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _seed ^ 0x524544
 	for deposit in _deposits:
+		if bool(deposit.get("risky", false)):
+			var risky := RISKY_ROCKY_CRYSTAL.new()
+			risky.position = deposit["position"]
+			risky.configure(1.35, 0.0, true, false)
+			risky.golems_awakened.connect(_on_risky_mine_golems_awakened)
+			_crystal_container.add_child(risky)
+			continue
 		for crystal_data in deposit["crystals"]:
 			var crystal := ROCKY_CRYSTAL.new()
 			crystal.position = (deposit["position"] as Vector2) + (crystal_data[0] as Vector2)
 			crystal.configure(float(crystal_data[1]), float(crystal_data[2]), bool(deposit["gold"]), rng.randf() < red_crystal_chance)
 			crystal.broken.connect(_on_crystal_broken)
 			_crystal_container.add_child(crystal)
+
+
+func _on_risky_mine_golems_awakened(positions: Array[Vector2]) -> void:
+	risky_mine_golems_awakened.emit(positions)
 
 
 ## Whether this battle map has planet ore deposits for the dwarves.
@@ -780,6 +797,10 @@ func _place_special_sites(rng: RandomNumberGenerator, center: Vector2) -> void:
 
 func _place_craters(rng: RandomNumberGenerator, center: Vector2) -> void:
 	_craters.clear()
+	# The forest's old generic craters read as permanent black pits whenever
+	# nearby tree crowns move away. The tree planet has no crater terrain.
+	if planet_theme == &"forest":
+		return
 	for point in _poisson(rng, crater_spacing, _inner_bounds(100.0)):
 		if rng.randf() > 0.6:
 			continue
@@ -826,12 +847,21 @@ func _place_deposits(rng: RandomNumberGenerator, center: Vector2) -> void:
 			continue
 		_deposits.append(_make_deposit(rng, point))
 		_claims.append([point, keep_free])
-	# Keep at least two separate mineable crystal deposits on the Rocky Planet.
+	# Keep two ordinary deposits in addition to the optional high-risk mine.
 	if planet_theme == &"rocky" and interactive_rocky_crystals:
-		while _deposits.size() < 2:
+		while _deposits.size() < 3:
 			var spot := _guaranteed_spot(rng, bounds, center, clear_radius + 40.0, 46.0)
 			_deposits.append(_make_deposit(rng, spot))
 			_claims.append([spot, 46.0])
+		# The distant deposit is visible to the player but is not mandatory.
+		var farthest_index := 0
+		var farthest_distance := -1.0
+		for index in range(_deposits.size()):
+			var distance: float = (_deposits[index]["position"] as Vector2).distance_squared_to(center)
+			if distance > farthest_distance:
+				farthest_distance = distance
+				farthest_index = index
+		_deposits[farthest_index]["risky"] = true
 
 
 func _make_deposit(rng: RandomNumberGenerator, point: Vector2) -> Dictionary:
@@ -970,6 +1000,7 @@ func add_zombie_grave(world_position: Vector2) -> void:
 		return
 	var grave := ZOMBIE_GRAVE.new() as Node2D
 	get_interactables_root().add_child(grave)
+	EnemySfx.play(world_position, preload("res://Assets/Audio/Graveyard/grave_rise.wav"), -12.0)
 	grave.global_position = world_position
 	_zombie_graves.append(grave)
 

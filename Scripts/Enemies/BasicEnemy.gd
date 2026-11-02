@@ -20,6 +20,12 @@ enum AttackType {
 	RANGED,
 }
 
+## Physical movement layer used by future weapon targeting rules.
+enum MovementType {
+	WALK,
+	FLYING,
+}
+
 ## Broad enemy tiers used by future spawn systems.
 enum EnemyTier {
 	COMMON,
@@ -65,6 +71,10 @@ enum SpawnPattern {
 
 ## Attack behavior category for future enemy definitions.
 @export var attack_type: AttackType = AttackType.MELEE
+
+## Whether this enemy moves on the ground or in the air. Weapon filters can
+## read this without inferring movement from the attack type or scene class.
+@export var movement_type: MovementType = MovementType.WALK
 
 ## Spawn and difficulty category for future enemy definitions.
 @export var enemy_tier: EnemyTier = EnemyTier.COMMON
@@ -131,6 +141,10 @@ var _facing: float = 0.0
 ## the timer and retain the strongest active slow without mutating base stats.
 var _artifact_slow_fraction: float = 0.0
 var _artifact_slow_timer: Timer
+## Persistent source-scoped slows from target-lock artifacts. This stays
+## separate from temporary projectile slows so releasing one never clears the
+## other. The strongest active slow wins rather than stacking multiplicatively.
+var _artifact_target_slow_sources: Dictionary = {}
 ## Source-scoped hard freeze. The original process mode and tint are restored
 ## when the last turret releases this enemy or the enemy dies.
 var _artifact_freeze_sources: Dictionary = {}
@@ -191,7 +205,10 @@ func _physics_process(delta: float) -> void:
 		var dwarf_position: Vector2 = dwarf.call("get_enemy_target_position")
 		var distance := global_position.distance_to(dwarf_position)
 		_facing = (dwarf_position - global_position).angle()
-		if distance <= _dwarf_attack_reach():
+		# Same tolerance as the hull: move_toward stops a floating-point hair
+		# short of the reach (worse far from the map origin), and a strict
+		# comparison left the enemy standing beside the dwarf forever.
+		if distance <= _dwarf_attack_reach() + ATTACK_RANGE_TOLERANCE:
 			_start_attacking()
 		else:
 			_stop_attacking()
@@ -268,7 +285,10 @@ func get_effective_move_speed() -> float:
 		var weather := get_node_or_null("../../WeatherManager")
 		if weather != null and weather.has_method("blood_moon_speed_bonus"):
 			effective_speed += float(weather.call("blood_moon_speed_bonus"))
-	return effective_speed * (1.0 - clampf(_artifact_slow_fraction, 0.0, 0.95))
+	return effective_speed * (1.0 - maxf(
+		clampf(_artifact_slow_fraction, 0.0, 0.95),
+		get_artifact_target_slow_fraction()
+	))
 
 
 ## Applies or refreshes a data-driven projectile slow. Boss resistance is
@@ -292,6 +312,27 @@ func _clear_artifact_projectile_slow() -> void:
 	_artifact_slow_fraction = 0.0
 
 
+## Applies a source-scoped movement slow while an artifact keeps this enemy
+## selected. Bosses use the same fraction unless the artifact data says
+## otherwise; Frost Breath currently supplies 50% for every enemy tier.
+func apply_artifact_target_slow(source_id: int, fraction: float) -> bool:
+	if _is_dying or fraction <= 0.0:
+		return false
+	_artifact_target_slow_sources[source_id] = clampf(fraction, 0.0, 0.95)
+	return true
+
+
+func remove_artifact_target_slow(source_id: int) -> void:
+	_artifact_target_slow_sources.erase(source_id)
+
+
+func get_artifact_target_slow_fraction() -> float:
+	var strongest := 0.0
+	for fraction in _artifact_target_slow_sources.values():
+		strongest = maxf(strongest, float(fraction))
+	return strongest
+
+
 ## Weather is read at the moment of damage so spawned enemies inherit it too.
 func is_blood_moon_active() -> bool:
 	var weather := get_node_or_null("../../WeatherManager") as WeatherManager
@@ -305,19 +346,75 @@ func get_blood_moon_total_damage_reduction() -> float:
 
 ## Keeps the hit flash and facing up to date on screen.
 func _process(delta: float) -> void:
-	if _hit_flash_time > 0.0:
-		_hit_flash_time = maxf(_hit_flash_time - delta, 0.0)
+	_update_hit_feedback(delta)
 	queue_redraw()
 
 
-## Returns the white flash color while hit, otherwise the given color.
+## Hit feedback: instead of swapping the whole body to solid white (which,
+## under machine-gun fire, kept enemies white all the time) the body is
+## brightened toward white through self_modulate - lightly for small hits,
+## strongly for big ones - and it gives a short punch-and-wobble.
+var _hit_flash_strength: float = 0.0
+var _hit_flash_total: float = HIT_FLASH_DURATION
+var _hit_jiggle: float = 0.0
+var _hit_jiggle_amp: float = 0.0
+
+
+## strength 0..1; damage-based callers use _register_hit_damage().
+func _register_hit_feedback(strength: float) -> void:
+	if enemy_tier == EnemyTier.BOSS:
+		strength = minf(strength, 0.5)
+	var remaining := _hit_flash_strength * (_hit_flash_time / maxf(_hit_flash_total, 0.001)) if _hit_flash_time > 0.0 else 0.0
+	_hit_flash_strength = maxf(strength, remaining)
+	_hit_flash_total = HIT_FLASH_DURATION * (1.0 + _hit_flash_strength)
+	_hit_flash_time = _hit_flash_total
+	if enemy_tier == EnemyTier.BOSS:
+		return
+	# A weak hit does not restart a wobble that is still playing out.
+	if _hit_jiggle < 0.4 or strength > _hit_jiggle_amp * _hit_jiggle:
+		_hit_jiggle_amp = maxf(strength, _hit_jiggle_amp * _hit_jiggle)
+		_hit_jiggle = 1.0
+
+
+func _register_hit_damage(amount: float) -> void:
+	var ratio := amount / maxf(max_health, 1.0)
+	_register_hit_feedback(clampf(0.22 + ratio * 6.0, 0.22, 1.0))
+
+
+var _hit_bright_applied: float = 1.0
+
+func _update_hit_feedback(delta: float) -> void:
+	var k := 0.0
+	if _hit_flash_time > 0.0:
+		_hit_flash_time = maxf(_hit_flash_time - delta, 0.0)
+		k = _hit_flash_strength * (_hit_flash_time / maxf(_hit_flash_total, 0.001))
+	var bright := 1.0 + 1.3 * k
+	# Only touch the canvas item when it changes (big forest packs).
+	if not is_equal_approx(bright, _hit_bright_applied):
+		_hit_bright_applied = bright
+		self_modulate = Color(bright, bright, bright, self_modulate.a)
+	if _hit_jiggle > 0.0:
+		_hit_jiggle = maxf(_hit_jiggle - delta / 0.2, 0.0)
+		var p := 1.0 - _hit_jiggle
+		rotation = sin(p * PI * 3.0) * 0.14 * _hit_jiggle_amp * _hit_jiggle
+		var clicking := _click_tween != null and _click_tween.is_valid() and _click_tween.is_running()
+		if not clicking:
+			scale = Vector2.ONE * (1.0 - 0.12 * _hit_jiggle_amp * sin(p * TAU) * _hit_jiggle)
+		if _hit_jiggle <= 0.0:
+			rotation = 0.0
+			if not clicking:
+				scale = Vector2.ONE
+
+
+## Kept for the per-enemy painters: the solid-white swap is retired (the
+## brightening above replaces it), so this returns the colour unchanged.
 func _flash(base_color: Color) -> Color:
-	return Palette.HIT_FLASH if _hit_flash_time > 0.0 else base_color
+	return base_color
 
 
-## Whether the hit flash is currently showing.
+## Painters used this to swap to solid white; that look is retired.
 func _is_flashing() -> bool:
-	return _hit_flash_time > 0.0
+	return false
 
 
 ## Approximate visual radius, used to size the death burst.
@@ -330,12 +427,7 @@ func _get_nearest_ship_boundary_world(
 	ship: Ship,
 	world_position: Vector2
 ) -> Vector2:
-	var local_position: Vector2 = ship.to_local(world_position)
-	var boundary_position: Vector2 = _get_nearest_ship_boundary_local(
-		local_position
-	)
-
-	return ship.to_global(boundary_position)
+	return ship.get_nearest_hull_boundary_world(world_position)
 
 
 ## Finds the nearest outer-boundary point of the local 3x3 ship rectangle.
@@ -533,7 +625,7 @@ func register_click() -> bool:
 	if not is_clickable():
 		return false
 	click_count += 1
-	_hit_flash_time = HIT_FLASH_DURATION
+	_register_hit_feedback(0.6)
 	if click_count >= CLICKS_TO_POP:
 		if _click_tween != null:
 			_click_tween.kill()
@@ -572,7 +664,9 @@ func take_damage(damage: float, ignore_damage_reduction: bool = false, count_for
 	_current_health = maxf(_current_health - final_damage, 0.0)
 	if count_for_artifact:
 		ArtifactManager.record_battle_activity(source_weapon, previous_health - _current_health)
-	_hit_flash_time = HIT_FLASH_DURATION
+	_register_hit_damage(previous_health - _current_health)
+	if is_instance_valid(source_weapon) and previous_health > _current_health:
+		source_weapon.damage_dealt.emit(previous_health - _current_health)
 	health_changed.emit(_current_health, max_health)
 
 	if debug_combat_logging:
@@ -637,6 +731,7 @@ func _die() -> void:
 		return
 
 	_is_dying = true
+	_artifact_target_slow_sources.clear()
 	_clear_artifact_freeze()
 	_stop_attacking()
 	set_physics_process(false)
@@ -696,6 +791,16 @@ func _perform_death_effect() -> void:
 ## Returns current health for HUD, tests, and future enemy inspection UI.
 func get_current_health() -> float:
 	return _current_health
+
+
+func is_flying_enemy() -> bool:
+	return movement_type == MovementType.FLYING
+
+
+## Ramping weapons use this token to detect a new protected health phase.
+## Ordinary enemies have one phase; segmented bosses override it.
+func get_weapon_damage_phase() -> int:
+	return 0
 
 
 ## Returns whether death handling has already started.

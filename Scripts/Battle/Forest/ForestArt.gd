@@ -19,7 +19,7 @@ const STUMP_TOP := Color("B08A5E")
 const RING := Color("8A6A46")
 const MOSS := Color("67793F")
 ## Ground under the canopy (the forest floor between trunks).
-const FLOOR := Color("2F3B26")
+const FLOOR := Color("445133")
 
 
 static func ngon(c: Vector2, r: float, n: int, rot: float = 0.0) -> PackedVector2Array:
@@ -72,16 +72,9 @@ static func canopy_shadow(pen: Object, c: Vector2, r: float, seed: int, lobes: i
 		pen.draw_colored_polygon(ngon(c + Vector2(cos(a), sin(a)) * r * 0.5 + off, r * rng.randf_range(0.42, 0.55), 10), SHADOW)
 
 
-## The empty spot a treant tore itself out of: a dark hole and torn roots.
-static func spot(pen: Object, c: Vector2, r: float, seed: int) -> void:
-	pen.draw_colored_polygon(blob(c, r * 0.62, seed, 12, 0.18), Color("3A2C1E"))
-	pen.draw_colored_polygon(blob(c + Vector2(-1.5, -1.5), r * 0.4, seed + 1, 10, 0.2), Color("221810"))
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
-	for k in range(5):
-		var a := TAU * float(k) / 5.0 + rng.randf_range(-0.3, 0.3)
-		var dir := Vector2(cos(a), sin(a))
-		pen.draw_line(c + dir * r * 0.4, c + dir * r * rng.randf_range(0.75, 0.95), ROOT, maxf(2.0, r * 0.07))
+## Kept as an art API for callers, but vacated spawn origins stay invisible.
+static func spot(_pen: Object, _c: Vector2, _r: float, _seed: int) -> void:
+	pass
 
 
 ## A spot the dwarves dug over for good: flattened lighter soil and pebbles.

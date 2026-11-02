@@ -66,12 +66,15 @@ func register_click() -> bool:
 	_jolt = 1.0
 	if clicks >= CLICKS_TO_ERUPT:
 		_erupt()
+	else:
+		EnemySfx.play(self, preload("res://Assets/Audio/Volcanic/lava_vent_click.wav"), -8.0, 0.0, 0.9 + 0.12 * float(clicks))
 	return true
 
 
 func _erupt() -> void:
 	clicks = 0
 	_erupt_age = 0.0
+	EnemySfx.play(global_position, preload("res://Assets/Audio/Volcanic/lava_erupt.wav"), -3.0, 0.04)
 	_cooldown = COOLDOWN
 	var hit := 0
 	if is_inside_tree():

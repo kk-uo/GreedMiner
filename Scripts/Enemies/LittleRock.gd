@@ -32,6 +32,7 @@ func _on_attack_timer_timeout() -> void:
 	super()
 	if _is_attacking:
 		_attack_pose_time = StoneVisual.ATTACK_POSE_TIME
+		EnemySfx.play(self, SFX_ATTACK, -14.0)
 
 
 ## Grey stone pebble (variant chosen per enemy), purple eyes; see StoneVisual.
@@ -43,6 +44,9 @@ func _draw() -> void:
 
 ## Presentation: the rock shatters into shards and dust.
 const STONE_SHATTER := preload("res://Scripts/VFX/StoneShatter.gd")
+const SFX_ATTACK := preload("res://Assets/Audio/Enemies/Rocky/little_rock_attack.wav")
+const SFX_DEATH := preload("res://Assets/Audio/Enemies/Rocky/little_rock_death.wav")
 
 func _spawn_death_visual(death_position: Vector2) -> void:
 	STONE_SHATTER.spawn(get_parent(), death_position, 1.0, false)
+	EnemySfx.play(death_position, SFX_DEATH, -12.0)

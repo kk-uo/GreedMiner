@@ -617,6 +617,7 @@ func _test_evacuation_cleanup() -> void:
 	var stand_in := Node.new()
 	get_tree().root.add_child(stand_in)
 	get_tree().current_scene = stand_in
+	battle._on_wave_completed(3, battle.get_node("WaveManager").get_total_waves())
 	battle._on_evacuation_completed()
 	_expect_false(manager.is_event_active(), "evacuation cancels the active QTE immediately")
 	_expect_true(manager.try_start_event(MiningQteEvent.TYPE_ORE_BURST, mining_a) == null, "no new QTE while evacuating")

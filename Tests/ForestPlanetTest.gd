@@ -1,5 +1,7 @@
 extends Node
 
+const SAW_SCRIPT := preload("res://Scripts/Enemies/ForestSawProjectile.gd")
+
 ## Headless integration checks for the new forest-only systems. This test
 ## disables scheduled waves so every observed enemy is an explicit test spawn.
 func _ready() -> void:
@@ -13,11 +15,12 @@ func _ready() -> void:
 	var ship := battle.get_node("Ship") as Ship
 	var waves := battle.get_node("WaveManager") as WaveManager
 	_assert(field.planet_theme == &"forest", "tree planet theme")
+	_assert((field.get("_craters") as Array).is_empty(), "forest ground has no persistent crater marks")
 	_assert(field.world_size == Vector2(3500.0, 2500.0), "forest map extends by 300 px on each axis")
 	var visible_width := get_viewport().get_visible_rect().size.x / ship.world_camera.zoom.x
 	var original_width := get_viewport().get_visible_rect().size.x / ship.world_visual_scale
 	_assert(absf(visible_width - original_width - 300.0) < 1.0, "forest camera shows 300 more world pixels")
-	_assert(waves.wave_config.planet_id == &"tree_planet" and waves.wave_config.get_total_waves() == 10, "tree wave config")
+	_assert(waves.wave_config.planet_id == &"tree_planet" and waves.wave_config.get_total_waves() == 12, "tree wave config")
 	_assert(waves.wave_config.get_validation_errors().is_empty(), "wave entries resolve")
 	_assert(field.forest_terrain != null and field.forest_terrain.trees.size() > 20, "forest layout")
 	var center := field.world_size * 0.5
@@ -27,6 +30,11 @@ func _ready() -> void:
 	var second := field.take_forest_spawn_tree()
 	_assert(first != null and second != null and first != second, "distinct spawn trees")
 	_assert(first.uprooted and second.uprooted and not second.is_standing(), "a treant leaves an empty spot")
+	var empty_piece: Dictionary = field.forest_terrain.tree_chunks.call("_piece", second, &"spot")
+	_assert(empty_piece["ground"][0].is_empty(), "empty treant origins leave no visible pit")
+	var empty_art := MeshBatch2D.new()
+	preload("res://Scripts/Battle/Forest/ForestArt.gd").spot(empty_art, second.position, second.get_crown_radius(), second.get_crown_seed())
+	_assert(empty_art.get_vertex_count() == 0, "legacy spot art cannot draw a dark pit")
 	var target: Array[Node2D] = [first]
 	var site := ForestChopSite.new()
 	site.setup(target)
@@ -37,7 +45,7 @@ func _ready() -> void:
 	var before := waves.total_lifetime_spawned
 	var scheduled_before := waves.get_scheduled_spawned_count()
 	var regrown := storms.start_storm()
-	_assert(regrown == 1 and not second.is_standing(), "storm regrows the empty spot (animated), not the dug one")
+	_assert(regrown == 1 and not second.is_standing(), "storm regrows the empty spot, not the dug one")
 	second.finish_regrow()
 	_assert(second.is_standing() and not second.uprooted, "the spot grows back into a standing tree")
 	_assert(first.chopped and not first.is_standing(), "a dug spot never regrows")
@@ -50,8 +58,8 @@ func _ready() -> void:
 	_assert(fairy.max_health == 300.0 and fairy.move_speed == 10.0, "fairy V2 health and move speed")
 	_assert(fairy.attack_damage == 50.0 and fairy.attack_interval == 1.0 and fairy.attack_range == 150.0, "fairy V2 combat stats")
 	_assert(fairy.heal_amount == fairy.attack_damage * 2.0, "fairy healing is twice its attack damage")
-	_assert(treant.max_health == 1000.0 and treant.move_speed == 30.0 and treant.attack_damage == 10.0, "treant V2 stats")
-	_assert(big_treant.max_health == 3000.0 and big_treant.move_speed == 30.0 and big_treant.attack_damage == 15.0, "big treant V2 stats")
+	_assert(treant.max_health == 2000.0 and treant.move_speed == 30.0 and treant.attack_damage == 10.0, "treant doubled health, unchanged offense")
+	_assert(big_treant.max_health == 6000.0 and big_treant.move_speed == 30.0 and big_treant.attack_damage == 15.0, "big treant doubled health, unchanged offense")
 	_assert(boss_stats.max_health == 50000.0 and boss_stats.move_speed == 15.0 and boss_stats.attack_damage == 10.0, "forest boss V2 stats")
 	big_treant.queue_free()
 	boss_stats.queue_free()
@@ -63,13 +71,13 @@ func _ready() -> void:
 	treant.global_position = fairy.global_position + Vector2(25.0, 0.0)
 	treant.take_damage(100.0)
 	fairy._heal_nearest_treant()
-	_assert(is_equal_approx(treant.get_current_health(), 1000.0), "fairy heals 100")
+	_assert(is_equal_approx(treant.get_current_health(), 2000.0), "fairy heals 100")
 	treant.take_damage(50.0)
 	fairy.global_position = ship.to_global(Ship.SHIP_SIZE * 0.5) + Vector2(150.0, 0.0)
 	treant.global_position = fairy.global_position + Vector2(20.0, 0.0)
 	fairy._physics_process(1.1)
 	_assert(fairy.committed_to_attack, "fairy permanently targets ship in range")
-	_assert(is_equal_approx(treant.get_current_health(), 950.0), "committed fairy stops healing")
+	_assert(is_equal_approx(treant.get_current_health(), 1950.0), "committed fairy stops healing")
 	_assert(is_equal_approx(fairy.attack_damage, 50.0), "fairy attack damage")
 	var boss := EnemyCatalog.instantiate_enemy(&"chainsaw_spaceship_treant") as ForestBoss
 	boss.target_ship = ship
@@ -93,18 +101,49 @@ func _ready() -> void:
 	worker.global_position += Vector2(0.0, 100.0)
 	_assert(boss.get("_locked_direction") == locked_direction, "saw direction remains locked")
 	boss._fire_saw()
-	var saw: HostileProjectile
+	var saws: Array[HostileProjectile] = []
 	for child in get_children():
-		if child is HostileProjectile:
-			saw = child
-	_assert(saw != null, "boss launches a saw")
-	if saw != null:
+		if child is HostileProjectile and child.get_script() == SAW_SCRIPT:
+			saws.append(child)
+	_assert(saws.size() == 2, "boss launches one saw from each side")
+	if saws.size() == 2:
+		var flank := locked_direction.orthogonal()
+		_assert((saws[0].global_position - boss.global_position).dot(flank) < 0.0, "first saw launches from one flank")
+		_assert((saws[1].global_position - boss.global_position).dot(flank) > 0.0, "second saw launches from other flank")
+		for blade in saws:
+			_assert(blade.get("max_health") == 4000.0 and blade.get("current_health") == 4000.0, "each saw has 4000 HP")
+			_assert(blade.is_in_group(&"destructible_props") and blade.collision_layer == 1, "turret projectiles can collide with saws")
+			var saw_shape := blade.get_node("CollisionShape2D") as CollisionShape2D
+			_assert((saw_shape.shape as CircleShape2D).radius == 25.0, "saw collision is larger")
+		var saw := saws[0]
 		var dwarf_target: Vector2 = worker.call("get_enemy_target_position")
-		saw.global_position = dwarf_target - locked_direction * 20.0
+		saw.global_position = dwarf_target - saw.direction * 20.0
 		var dwarf_hp_before := float(worker.get("hp"))
 		saw._physics_process(0.1)
 		_assert(float(worker.get("hp")) < dwarf_hp_before, "saw damages intercepting dwarf")
+		var shootable := saws[1]
+		shootable.set_physics_process(false)
+		shootable.global_position = boss.global_position + Vector2(400.0, 400.0)
+		var bullet := preload("res://Scenes/Modules/Weapons/MachineGun/machine_gun_projectile.tscn").instantiate() as MachineGunProjectile
+		bullet.damage = 1500.0
+		bullet.speed = 0.0
+		add_child(bullet)
+		bullet.global_position = shootable.global_position
+		bullet._on_area_entered(shootable)
+		_assert(shootable.get("current_health") == 2500.0 and not shootable.is_queued_for_deletion(), "partial bullet damage leaves saw active")
+		var finishing_bullet := preload("res://Scenes/Modules/Weapons/MachineGun/machine_gun_projectile.tscn").instantiate() as MachineGunProjectile
+		finishing_bullet.damage = 2500.0
+		finishing_bullet.speed = 0.0
+		add_child(finishing_bullet)
+		finishing_bullet.global_position = shootable.global_position
+		finishing_bullet._on_area_entered(shootable)
+		_assert(shootable.get("current_health") == 0.0 and shootable._has_hit, "turret bullet destroys saw before ship impact")
+		_assert(shootable.is_queued_for_deletion(), "destroyed saw disappears")
+		var ship_hp_before := ship.current_hp
+		shootable._on_area_entered(ship.get_node("DamageArea") as Area2D)
+		_assert(ship.current_hp == ship_hp_before, "destroyed saw cannot damage ship")
 	await get_tree().process_frame
+	battle.call("_on_wave_completed", 3, waves.get_total_waves())
 	battle.call("_on_evacuation_completed")
 	var root := battle.get("_forest_root") as ForestRoot
 	_assert(root != null and not root.chopped, "boss stops first escape attempt")

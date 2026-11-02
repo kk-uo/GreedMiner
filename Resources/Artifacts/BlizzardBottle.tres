@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" format=3 uid="uid://bgaeuqubi4inj"]
+
+[ext_resource type="Script" uid="uid://b5hnikeheit2g" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" uid="uid://bvmb6s4be16q5" path="res://Scripts/Artifacts/BlizzardBottleEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"blizzard_bottle"
+display_name = "Blizzard Bottle"
+rarity = "Legendary"
+source_planet_id = &"frozen_planet"
+source_name = "Mega Monster"
+stat_keys = Array[StringName]([&"radius", &"slow_fraction"])
+description = "Enemies within 200 px of the ship are slowed by 30% while they remain inside the aura."
+acquisition_source = "Defeat Mega Monster on Frozen Planet"
+effect_script = ExtResource("2")
+effect_parameters = {
+"radius": 200.0,
+"scan_interval": 0.1,
+"slow_fraction": 0.3
+}

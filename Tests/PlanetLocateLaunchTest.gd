@@ -3,7 +3,7 @@ extends Node
 ## Integration coverage for "precise locate" planet unlocks (paid once with
 ## Ore), launch eligibility without expedition energy/fuel, and launching.
 
-const TEST_SAVE_PATH: String = "user://greedminer_planet_locate_test.json"
+var _test_save_path: String = "user://greedminer_planet_locate_test.json"
 const ENERGY_SCENE: PackedScene = preload("res://Scenes/Modules/Energy/energy_module.tscn")
 const PLANET_SELECT_SCENE: PackedScene = preload("res://Scenes/PlanetSelection/planet_select.tscn")
 const BATTLE_SCENE: PackedScene = preload("res://Scenes/Battle/BattleMain.tscn")
@@ -17,9 +17,12 @@ func _ready() -> void:
 
 
 func _run() -> void:
+	var temp_dir := OS.get_environment("TMPDIR")
+	if not temp_dir.is_empty():
+		_test_save_path = temp_dir.path_join("greedminer_planet_locate_test.json")
 	_saved_loadout = ShipLoadout.installed_modules.duplicate()
 	_remove_test_save()
-	ProgressionStore.set_save_path_for_testing(TEST_SAVE_PATH)
+	ProgressionStore.set_save_path_for_testing(_test_save_path)
 	ResourceManager.reload_persistent_resources()
 	WeaponUnlockManager.reload_progress()
 	ResearchManager.reload_progress()
@@ -99,10 +102,10 @@ func _test_requirements() -> void:
 	_expect_false(PlanetSelect.evaluate_launch_requirements(volcanic, _profile(1), 999.0).can_locate, "999 Ore cannot locate Volcanic")
 	_expect_true(PlanetSelect.evaluate_launch_requirements(volcanic, _profile(1), 1000.0).can_locate, "1000 Ore can locate Volcanic")
 	var visible_planets := PlanetSelect.get_visible_planets()
-	_expect_equal(visible_planets.size(), PlanetSelect.PLANETS.size() - 1, "only Volcanic is hidden from the star map")
-	_expect_false(visible_planets.any(func(planet: Dictionary) -> bool: return StringName(planet.get("id", &"")) == &"volcanic_planet"), "Volcanic is absent from the visible carousel")
+	_expect_equal(visible_planets.size(), PlanetSelect.PLANETS.size(), "Volcanic is back on the star map (sync 88)")
+	_expect_true(visible_planets.any(func(planet: Dictionary) -> bool: return StringName(planet.get("id", &"")) == &"volcanic_planet"), "Volcanic is in the visible carousel")
 	_expect_equal(PlanetSelect.get_planet_index(&"volcanic_planet"), 3, "Volcanic remains in the complete dependency registry")
-	_expect_equal(PlanetSelect.get_visible_planet_index(&"volcanic_planet"), 0, "a hidden previous destination safely falls back to Rocky")
+	_expect_equal(PlanetSelect.get_visible_planet_index(&"removed_planet"), 0, "an unknown previous destination safely falls back to Rocky")
 
 
 func _test_locate_transaction_and_persistence() -> void:
@@ -153,7 +156,7 @@ func _test_planet_select_flow() -> void:
 	add_child(selector)
 	await get_tree().process_frame
 	_expect_equal(selector.selected_index, 1, "star map reopens on the last deployed planet")
-	_expect_true(selector.planet_layer.get_node_or_null("Planet_volcanic_planet") == null, "star map creates no Volcanic visual")
+	_expect_true(selector.planet_layer.get_node_or_null("Planet_volcanic_planet") != null, "star map creates the Volcanic twin visual")
 	_expect_equal(selector.planet_layer.get_child_count(), PlanetSelect.get_visible_planets().size(), "carousel contains only visible planets")
 	_expect_equal(PlanetSelect.get_planet_index(&"volcanic_planet"), 3, "planet IDs resolve to carousel indexes")
 	_expect_equal(PlanetSelect.get_planet_index(&"removed_planet"), 0, "unknown planet IDs fall back to Rocky")
@@ -235,8 +238,8 @@ func _cleanup() -> void:
 
 
 func _remove_test_save() -> void:
-	if FileAccess.file_exists(TEST_SAVE_PATH):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SAVE_PATH))
+	if FileAccess.file_exists(_test_save_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(_test_save_path))
 
 
 func _expect_true(value: bool, description: String) -> void:

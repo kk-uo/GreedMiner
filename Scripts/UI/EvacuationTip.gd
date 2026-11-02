@@ -3,7 +3,7 @@ extends Control
 ## One-time battle tip: the first time the ship's hull drops to
 ## CRITICAL_RATIO, the battle slows to bullet time, the big red EVACUATE
 ## button gets an arrow and a pulsing ring, and a caption explains the
-## strategy: slam it 10 times to leave right away and keep this run's ore,
+## strategy: after Wave 3, slam it 10 times to leave and keep this run's ore,
 ## because a destroyed ship loses all of it.
 ##
 ## Bullet time ends when the player evacuates, presses KEEP FIGHTING, the ship
@@ -63,7 +63,15 @@ func _on_health_changed(current_health: float, maximum_health: float) -> void:
 		return
 	if not should_watch() or evacuation_panel == null or evacuation_panel.is_completed():
 		return
+	if not evacuation_panel._is_pressable():
+		return
 	start()
+
+
+## Also evaluate when Wave 3 unlocks evacuation; hull may already be critical.
+func check_critical_hull() -> void:
+	if is_instance_valid(ship):
+		_on_health_changed(ship.current_hp, ship.max_hp)
 
 
 ## Shows the tip and slows the battle down.

@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ResearchTreeDefinition" load_steps=12 format=3]
+[gd_resource type="Resource" script_class="ResearchTreeDefinition" format=3 uid="uid://dcccf12wruvor"]
 
-[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="1"]
-[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeNode.gd" id="2"]
+[ext_resource type="Script" uid="uid://ccvjknrm5e617" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="1"]
+[ext_resource type="Script" uid="uid://bvrkt756pnovo" path="res://Scripts/Research/ResearchTreeNode.gd" id="2"]
 
 [sub_resource type="Resource" id="Hp"]
 script = ExtResource("2")
@@ -56,6 +56,24 @@ tree_category = &"ship"
 prerequisite_ids = Array[StringName]([&"ship_max_hp_2"])
 visual_position = Vector2(30, 900)
 
+[sub_resource type="Resource" id="Hp4"]
+script = ExtResource("2")
+research_id = &"ship_max_hp_4"
+display_name = "Ship HP +10 IV"
+description = "Permanently increases maximum ship HP by another 10."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_max_hp_3"])
+visual_position = Vector2(30, 1120)
+
+[sub_resource type="Resource" id="SpiritDetector"]
+script = ExtResource("2")
+research_id = &"ship_spirit_detector"
+display_name = "Spirit Detector"
+description = "Reach Graveyard Planet."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_max_hp_4"])
+visual_position = Vector2(30, 1340)
+
 [sub_resource type="Resource" id="Power"]
 script = ExtResource("2")
 research_id = &"ship_power_1"
@@ -83,8 +101,83 @@ tree_category = &"ship"
 prerequisite_ids = Array[StringName]([&"ship_power_1", &"ship_style_unlock"])
 visual_position = Vector2(430, 680)
 
+[sub_resource type="Resource" id="HullSlot1"]
+script = ExtResource("2")
+research_id = &"ship_hull_slot_1"
+display_name = "Ship Expansion Slot I"
+description = "After clearing Verdant Planet, unlock one additional ship module slot in the Hangar."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_manual_turret_control"])
+required_external_research_ids = Array[StringName]([&"energy_slot_support_1"])
+required_planet_clear_ids = Array[StringName]([&"goblin_planet"])
+visual_position = Vector2(430, 900)
+
+[sub_resource type="Resource" id="Rotation"]
+script = ExtResource("2")
+research_id = &"ship_rotation_unlock"
+display_name = "Ship Rotation"
+description = "Rotate the ship layout in the Hangar."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_hull_slot_1"])
+visual_position = Vector2(330, 1120)
+
+[sub_resource type="Resource" id="HullSlot2"]
+script = ExtResource("2")
+research_id = &"ship_hull_slot_2"
+display_name = "Ship Expansion Slot II"
+description = "After clearing Graveyard Planet, unlock a second additional ship module slot."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_hull_slot_1"])
+required_planet_clear_ids = Array[StringName]([&"graveyard_planet"])
+visual_position = Vector2(530, 1120)
+
+[sub_resource type="Resource" id="Power2"]
+script = ExtResource("2")
+research_id = &"ship_power_2"
+display_name = "Built-in Power Cell II"
+description = "The ship itself supplies one more Power, without an Energy Module."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_hull_slot_2"])
+visual_position = Vector2(530, 1340)
+
+[sub_resource type="Resource" id="SpiritPowerHalf"]
+script = ExtResource("2")
+research_id = &"ship_spirit_power_half"
+display_name = "Spirit Power Cell"
+description = "The ship itself supplies another 0.5 Power."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_spirit_detector"])
+visual_position = Vector2(30, 1560)
+
+[sub_resource type="Resource" id="GoldDetector"]
+script = ExtResource("2")
+research_id = &"ship_gold_detector"
+display_name = "Gold Detector"
+description = "Reach Dragon Nest Planet."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_spirit_detector"])
+visual_position = Vector2(250, 1560)
+
+[sub_resource type="Resource" id="Magic2"]
+script = ExtResource("2")
+research_id = &"ship_magic_slot_2"
+display_name = "Magic Item Slot II"
+description = "Unlock the second ship magic item slot."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_hull_slot_2"])
+visual_position = Vector2(530, 1560)
+
+[sub_resource type="Resource" id="Hp20"]
+script = ExtResource("2")
+research_id = &"ship_max_hp_5"
+display_name = "Ship HP +20 V"
+description = "Permanently increases maximum ship HP by 20. Requires Gold Detector and Magic Item Slot II."
+tree_category = &"ship"
+prerequisite_ids = Array[StringName]([&"ship_gold_detector", &"ship_magic_slot_2"])
+visual_position = Vector2(390, 1780)
+
 [resource]
 script = ExtResource("1")
 tree_id = &"ship"
 display_name = "Ship Research"
-nodes = Array[ExtResource("2")]([SubResource("Hp"), SubResource("Regen"), SubResource("Magic"), SubResource("Air"), SubResource("Hp2"), SubResource("Hp3"), SubResource("Power"), SubResource("Style"), SubResource("ManualAim")])
+nodes = Array[ExtResource("2")]([SubResource("Hp"), SubResource("Regen"), SubResource("Magic"), SubResource("Air"), SubResource("Hp2"), SubResource("Hp3"), SubResource("Hp4"), SubResource("SpiritDetector"), SubResource("Power"), SubResource("Style"), SubResource("ManualAim"), SubResource("HullSlot1"), SubResource("Rotation"), SubResource("HullSlot2"), SubResource("Power2"), SubResource("SpiritPowerHalf"), SubResource("GoldDetector"), SubResource("Magic2"), SubResource("Hp20")])

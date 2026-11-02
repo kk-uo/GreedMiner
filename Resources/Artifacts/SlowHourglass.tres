@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/WeaponStatArtifactEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"slow_hourglass"
+display_name = "Slow Hourglass"
+rarity = "Rare"
+description = "The equipped turret's projectiles travel at 50% speed. Speed modifiers multiply."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon", &"flamethrower"])
+acquisition_method = 3
+shop_price_ore = -1
+acquisition_source = "Magic Shop"
+source_name = "Magic Shop"
+source_planet_id = &"magic_shop"
+effect_script = ExtResource("2")
+effect_parameters = {"projectile_speed_multiplier": 0.5}

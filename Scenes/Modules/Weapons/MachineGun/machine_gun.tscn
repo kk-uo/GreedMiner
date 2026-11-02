@@ -9,6 +9,7 @@
 [node name="MachineGun" type="Node2D" unique_id=1144851608]
 script = ExtResource("1_5nbo0")
 weapon_type_id = &"machine_gun"
+enemy_targeting = 1
 attack_range = 400.0
 projectile_range = 4.0
 projectile_scene = ExtResource("2_paadf")

@@ -79,7 +79,7 @@ func _run() -> void:
 	await get_tree().process_frame
 	manager._finish_current_wave_spawning()
 	check(manager.get_current_wave_number() == 10 and weather.blood_moon_active, "blood moon survives the transition to wave 10")
-	manager._update_preparation(5.0)
+	check(manager._state == WaveManager.State.SPAWNING, "boss wave starts without preparation")
 	battle.get_node("EnemySpawner").call("set_spawning_enabled", true)
 	for _tick in range(60):
 		if is_instance_valid(manager._boss):
@@ -102,18 +102,15 @@ func _run() -> void:
 	for child in battle.get_node("Enemies").get_children():
 		child.queue_free()
 	await get_tree().process_frame
-	check(not CONFIG.advance_on_wave_clear and is_equal_approx(CONFIG.inter_wave_delay, 5.0), "graveyard advances five seconds after scheduled spawning")
+	check(not CONFIG.advance_on_wave_clear and not CONFIG.waves[0].wait_for_spawn_phase_end, "graveyard advances when scheduled spawning finishes")
 	check(manager.start_wave_system(), "graveyard wave system starts")
 	manager.set_process(false)
 	for _tick in range(31):
 		manager._update_spawning(1.0)
-	check(manager.get_current_wave_number() == 2 and manager._state == WaveManager.State.PREPARING, "next wave waits after all first-wave enemies spawn")
+	check(manager.get_current_wave_number() == 2 and manager._state == WaveManager.State.SPAWNING, "next wave starts when first-wave spawning ends")
 	check(battle.get_node("Enemies").get_child_count() == 31, "all first-wave enemies spawned and remain alive")
 	await get_tree().process_frame
-	manager._update_preparation(4.9)
-	check(manager._state == WaveManager.State.PREPARING, "next wave does not start before five seconds")
-	manager._update_preparation(0.1)
-	check(manager._state == WaveManager.State.SPAWNING and manager.get_current_wave_number() == 2, "wave 2 starts after five seconds even with survivors")
+	check(manager._state == WaveManager.State.SPAWNING and manager.get_current_wave_number() == 2, "wave 2 remains active with survivors")
 	check(battle.get_node("Enemies").get_child_count() == 31, "previous-wave survivors remain")
 	manager.set_process(false)
 	for _tick in range(10):

@@ -9,63 +9,6 @@
 [ext_resource type="PackedScene" path="res://Scenes/Enemies/rock_titan.tscn" id="6_titan"]
 [ext_resource type="PackedScene" path="res://Scenes/Enemies/red_rock.tscn" id="7_red"]
 
-[sub_resource type="Resource" id="Entry_2_Little"]
-script = ExtResource("1_entry")
-enemy_scene = ExtResource("4_little")
-spawn_count = 9
-
-[sub_resource type="Resource" id="Entry_2_Golem"]
-script = ExtResource("1_entry")
-enemy_id = &"rock_golem"
-enemy_scene = ExtResource("5_golem")
-spawn_count = 0
-
-[sub_resource type="Resource" id="Entry_2_Titan"]
-script = ExtResource("1_entry")
-enemy_id = &"rock_titan"
-enemy_scene = ExtResource("6_titan")
-spawn_count = 0
-
-[sub_resource type="Resource" id="Entry_2_RedRock"]
-script = ExtResource("1_entry")
-enemy_id = &"red_rock"
-enemy_scene = ExtResource("7_red")
-spawn_cost = 3
-
-[sub_resource type="Resource" id="Wave_2"]
-script = ExtResource("2_wave")
-wave_number = 1
-enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_2_Little"), SubResource("Entry_2_Golem"), SubResource("Entry_2_Titan"), SubResource("Entry_2_RedRock")])
-
-[sub_resource type="Resource" id="Entry_3_Little"]
-script = ExtResource("1_entry")
-enemy_scene = ExtResource("4_little")
-spawn_count = 11
-
-[sub_resource type="Resource" id="Entry_3_Golem"]
-script = ExtResource("1_entry")
-enemy_id = &"rock_golem"
-enemy_scene = ExtResource("5_golem")
-
-[sub_resource type="Resource" id="Entry_3_Titan"]
-script = ExtResource("1_entry")
-enemy_id = &"rock_titan"
-enemy_scene = ExtResource("6_titan")
-spawn_count = 0
-
-[sub_resource type="Resource" id="Entry_3_RedRock"]
-script = ExtResource("1_entry")
-enemy_id = &"red_rock"
-enemy_scene = ExtResource("7_red")
-spawn_cost = 3
-
-[sub_resource type="Resource" id="Wave_3"]
-script = ExtResource("2_wave")
-wave_number = 2
-spawn_interval = 1.5
-spawn_pattern = 1
-enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_3_Little"), SubResource("Entry_3_Golem"), SubResource("Entry_3_Titan"), SubResource("Entry_3_RedRock")])
-
 [sub_resource type="Resource" id="Entry_4_Little"]
 script = ExtResource("1_entry")
 enemy_scene = ExtResource("4_little")
@@ -90,7 +33,6 @@ spawn_cost = 3
 
 [sub_resource type="Resource" id="Wave_4"]
 script = ExtResource("2_wave")
-wave_number = 1
 spawn_interval = 1.5
 spawn_pattern = 1
 enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_4_Little"), SubResource("Entry_4_Golem"), SubResource("Entry_4_Titan"), SubResource("Entry_4_RedRock")])
@@ -104,7 +46,6 @@ spawn_count = 10
 script = ExtResource("1_entry")
 enemy_id = &"rock_golem"
 enemy_scene = ExtResource("5_golem")
-spawn_count = 1
 
 [sub_resource type="Resource" id="Entry_5_Titan"]
 script = ExtResource("1_entry")
@@ -274,5 +215,4 @@ enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_10_Little"), S
 
 [resource]
 script = ExtResource("3_config")
-inter_wave_delay = 7.0
 waves = Array[ExtResource("2_wave")]([SubResource("Wave_4"), SubResource("Wave_5"), SubResource("Wave_6"), SubResource("Wave_7"), SubResource("Wave_8"), SubResource("Wave_9"), SubResource("Wave_10")])

@@ -3,16 +3,18 @@ extends Node
 
 ## Runtime progression for a PlanetWaveConfig. Configuration remains data-only.
 
-signal wave_preparation_started(wave_number: int, total_waves: int, duration: float)
-signal preparation_time_changed(seconds_remaining: int)
 signal wave_started(wave_number: int, total_waves: int, boss_wave: bool)
+## Emitted exactly once when a wave has finished according to the planet's
+## progression mode. Continuous planets finish when their spawn schedule ends;
+## clear-based planets finish when their final enemy is defeated.
+signal wave_completed(wave_number: int, total_waves: int)
 signal remaining_enemy_count_changed(remaining_count: int)
 signal boss_health_changed(current_health: float, maximum_health: float, visible: bool)
 signal planet_completed(config: PlanetWaveConfig)
 signal wave_system_stopped(reason: StringName)
 signal wave_configuration_blocked(wave_number: int, message: String)
 
-enum State { IDLE, PREPARING, SPAWNING, CLEARING, BLOCKED, COMPLETED, STOPPED }
+enum State { IDLE, SPAWNING, CLEARING, BLOCKED, COMPLETED, STOPPED }
 
 @export var wave_config: PlanetWaveConfig
 @export var enemy_spawner_path: NodePath = NodePath("../EnemySpawner")
@@ -23,7 +25,6 @@ enum State { IDLE, PREPARING, SPAWNING, CLEARING, BLOCKED, COMPLETED, STOPPED }
 
 var _state: State = State.IDLE
 var _current_wave_index: int = 0
-var _preparation_time_left: float = 0.0
 var _spawn_time_left: float = 0.0
 var _spawn_queue: Array[WaveSpawnRequest] = []
 var _timed_spawn_requests: Array[WaveSpawnRequest] = []
@@ -40,7 +41,6 @@ var _pending_external_spawns: Dictionary = {}
 var _boss: BasicEnemy
 ## Once Frank is finally defeated, any later scheduled zombies also die.
 var _graveyard_boss_defeated: bool = false
-var _last_preparation_second: int = -1
 var _clear_check_queued: bool = false
 var _large_count_warning_emitted: bool = false
 var _last_special_events: Array[Dictionary] = []
@@ -48,6 +48,7 @@ var _executed_special_events: Array[Dictionary] = []
 var _spawn_rng := RandomNumberGenerator.new()
 var _weather_events: Dictionary = {}
 var _blood_moon_until_battle_end: bool = false
+var _completed_wave_numbers: Dictionary = {}
 var extra_weather_spawned: int = 0
 var extra_boss_spawned: int = 0
 var total_lifetime_spawned: int = 0
@@ -76,8 +77,6 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	match _state:
-		State.PREPARING:
-			_update_preparation(delta)
 		State.SPAWNING:
 			_update_spawning(delta)
 		State.CLEARING:
@@ -87,7 +86,7 @@ func _process(delta: float) -> void:
 
 
 ## Starts or restarts from Wave 1 using the assigned Resource.
-func start_wave_system() -> bool:
+func start_wave_system(starting_wave_number: int = 1) -> bool:
 	if wave_config == null:
 		push_error("WaveManager: No PlanetWaveConfig is assigned.")
 		return false
@@ -98,7 +97,7 @@ func start_wave_system() -> bool:
 		return false
 
 	_end_blood_moon()
-	_current_wave_index = 0
+	_current_wave_index = _find_wave_index(starting_wave_number)
 	_spawn_queue.clear()
 	_timed_spawn_requests.clear()
 	_scheduled_spawn_count = 0
@@ -106,12 +105,12 @@ func start_wave_system() -> bool:
 	_scheduled_spawn_budget = 0
 	_spent_spawn_budget = 0
 	_spawn_sequence = 0
-	_last_preparation_second = -1
 	_clear_check_queued = false
 	_boss = null
 	_graveyard_boss_defeated = false
 	_last_special_events.clear()
 	_executed_special_events.clear()
+	_completed_wave_numbers.clear()
 	extra_weather_spawned = 0
 	extra_boss_spawned = 0
 	total_lifetime_spawned = 0
@@ -127,11 +126,11 @@ func start_wave_system() -> bool:
 		_on_enemy_entered(child)
 	_enemy_spawner.call("set_spawning_enabled", true)
 	set_process(true)
-	_begin_preparation()
+	_begin_wave()
 	return true
 
 
-## Cancels countdowns, scheduled spawns and split death effects safely.
+## Cancels scheduled spawns and split death effects safely.
 func stop_wave_system(reason: StringName = &"stopped") -> void:
 	if _state == State.STOPPED or _state == State.COMPLETED:
 		return
@@ -150,39 +149,10 @@ func stop_wave_system(reason: StringName = &"stopped") -> void:
 	wave_system_stopped.emit(reason)
 
 
-func _begin_preparation(extra_delay: float = 0.0) -> void:
+func _begin_wave() -> void:
 	if _current_wave_index >= wave_config.waves.size():
 		_complete_planet()
 		return
-	var wave := wave_config.waves[_current_wave_index]
-	_state = State.PREPARING
-	_preparation_time_left = maxf(wave.preparation_duration, 0.0) + maxf(extra_delay, 0.0)
-	_last_preparation_second = -1
-	# A zero duration skips preparation entirely; planet-level inter-wave delays
-	# are added here only after the first wave's scheduled spawning finishes.
-	if _preparation_time_left <= 0.0:
-		_begin_wave()
-		return
-	wave_preparation_started.emit(wave.wave_number, wave_config.get_total_waves(), _preparation_time_left)
-	_emit_preparation_time()
-
-
-func _update_preparation(delta: float) -> void:
-	_preparation_time_left = maxf(_preparation_time_left - delta, 0.0)
-	_emit_preparation_time()
-	if _preparation_time_left <= 0.0:
-		_begin_wave()
-
-
-func _emit_preparation_time() -> void:
-	var displayed_seconds := ceili(_preparation_time_left)
-	if displayed_seconds == _last_preparation_second:
-		return
-	_last_preparation_second = displayed_seconds
-	preparation_time_changed.emit(displayed_seconds)
-
-
-func _begin_wave() -> void:
 	var wave := wave_config.waves[_current_wave_index]
 	_weather_events.clear()
 	if wave.configuration_pending:
@@ -204,12 +174,11 @@ func _begin_wave() -> void:
 	_spawn_time_left = maxf(wave.initial_spawn_delay, 0.0)
 	wave_started.emit(wave.wave_number, wave_config.get_total_waves(), wave.boss_wave)
 	_emit_remaining_count()
+	if wave.spawn_all_at_start:
+		_spawn_all_requests(wave)
+		return
 	if _spawn_queue.is_empty() and _timed_spawn_requests.is_empty():
-		if wave_config.advance_on_wave_clear or wave_config.inter_wave_delay > 0.0:
-			_finish_current_wave_spawning()
-		else:
-			_state = State.CLEARING
-			_schedule_clear_check()
+		_finish_current_wave_spawning()
 
 
 func _build_spawn_queue(wave: WaveDefinition) -> bool:
@@ -240,10 +209,14 @@ func _update_spawning(delta: float) -> void:
 	_update_graveyard_weather(wave)
 	_execute_due_timed_requests(wave)
 	if _spawn_queue.is_empty() and _timed_spawn_requests.is_empty():
-		if wave_config.advance_on_wave_clear or wave_config.inter_wave_delay > 0.0 or not wave.wait_for_spawn_phase_end or _spawn_phase_elapsed >= wave.get_effective_spawn_phase_duration():
+		if wave_config.advance_on_wave_clear or not wave.wait_for_spawn_phase_end or _spawn_phase_elapsed >= wave.get_effective_spawn_phase_duration():
 			_finish_current_wave_spawning()
 		return
 	if _spawn_queue.is_empty():
+		return
+	# Dragon Nest scheduled dragons have a strict shared concurrency cap. The
+	# request stays queued, so quotas and pending counts remain authoritative.
+	if _is_capped_dragon_request(_spawn_queue[0] as WaveSpawnRequest):
 		return
 	if wave.maximum_simultaneous_enemies > 0 and _alive_enemies.size() >= wave.maximum_simultaneous_enemies:
 		return
@@ -279,8 +252,19 @@ func _update_spawning(delta: float) -> void:
 	_spawn_time_left = maxf(wave.spawn_interval, 0.05)
 	_emit_remaining_count()
 	if _spawn_queue.is_empty() and _timed_spawn_requests.is_empty():
-		if wave_config.advance_on_wave_clear or wave_config.inter_wave_delay > 0.0 or not wave.wait_for_spawn_phase_end or _spawn_phase_elapsed >= wave.get_effective_spawn_phase_duration():
+		if wave_config.advance_on_wave_clear or not wave.wait_for_spawn_phase_end or _spawn_phase_elapsed >= wave.get_effective_spawn_phase_duration():
 			_finish_current_wave_spawning()
+
+
+func _spawn_all_requests(wave: WaveDefinition) -> void:
+	# Forest waves opt in; other planets keep their existing scheduler.
+	while not _spawn_queue.is_empty():
+		_execute_spawn_request(_spawn_queue.pop_front() as WaveSpawnRequest, wave)
+	_spawn_phase_elapsed = wave.get_effective_spawn_phase_duration()
+	_execute_due_timed_requests(wave)
+	_emit_remaining_count()
+	if _timed_spawn_requests.is_empty():
+		_finish_current_wave_spawning()
 
 
 func _execute_due_timed_requests(wave: WaveDefinition) -> void:
@@ -375,8 +359,9 @@ func _finish_current_wave_spawning() -> void:
 	if not _blood_moon_until_battle_end:
 		_end_blood_moon()
 	if _current_wave_index < wave_config.waves.size() - 1:
+		_mark_wave_completed(wave)
 		_current_wave_index += 1
-		_begin_preparation(wave_config.inter_wave_delay)
+		_begin_wave()
 		return
 	if wave.has_missing_reserved_boss():
 		_state = State.BLOCKED
@@ -401,6 +386,7 @@ func _on_enemy_entered(node: Node) -> void:
 	match StringName(enemy.get_meta("spawn_origin", &"scheduled")):
 		&"extra_weather": extra_weather_spawned += 1
 		&"giant_frank_resurrection": extra_boss_spawned += 1
+		&"dragon_nest_boss_summon": extra_boss_spawned += 1
 	if large_enemy_count_warning > 0 and _alive_enemies.size() >= large_enemy_count_warning and not _large_count_warning_emitted:
 		_large_count_warning_emitted = true
 		push_warning("WaveManager: Large active enemy count reached %d." % _alive_enemies.size())
@@ -482,10 +468,19 @@ func _evaluate_wave_clear() -> void:
 	if wave_config.advance_on_wave_clear and _current_wave_index < wave_config.waves.size() - 1:
 		if not _blood_moon_until_battle_end:
 			_end_blood_moon()
+		_mark_wave_completed(wave_config.waves[_current_wave_index])
 		_current_wave_index += 1
-		_begin_preparation()
+		_begin_wave()
 		return
+	_mark_wave_completed(wave_config.waves[_current_wave_index])
 	_complete_planet()
+
+
+func _mark_wave_completed(wave: WaveDefinition) -> void:
+	if wave == null or _completed_wave_numbers.has(wave.wave_number):
+		return
+	_completed_wave_numbers[wave.wave_number] = true
+	wave_completed.emit(wave.wave_number, wave_config.get_total_waves())
 
 ## Use the tracked living set after deferred death-split children have entered.
 ## Only the final Frozen wave qualifies: once the Mega Monster boss is the only
@@ -583,6 +578,32 @@ func get_total_waves() -> int:
 	return wave_config.get_total_waves() if wave_config != null else 0
 
 
+func _find_wave_index(requested_wave_number: int) -> int:
+	if wave_config == null:
+		return 0
+	for index in range(wave_config.waves.size()):
+		var wave := wave_config.waves[index]
+		if wave != null and wave.wave_number == requested_wave_number:
+			return index
+	return 0
+
+
+func _is_capped_dragon_request(request: WaveSpawnRequest) -> bool:
+	if wave_config == null or wave_config.planet_id != &"dragon_nest_planet" or request == null or request.entry == null:
+		return false
+	if request.entry.enemy_id not in [&"young_dragon", &"greater_dragon"]:
+		return false
+	var active_scheduled_dragons := 0
+	for value in _alive_enemies.values():
+		var enemy := value as BasicEnemy
+		if not is_instance_valid(enemy) or enemy.is_dying():
+			continue
+		# Boss summons and Greater Dragon escorts (Claude sync 94) do not use slots.
+		if enemy.enemy_id in [&"young_dragon", &"greater_dragon"] and not bool(enemy.get_meta("dragon_nest_boss_summon", false)) and not bool(enemy.get_meta("dragon_nest_escort", false)):
+			active_scheduled_dragons += 1
+	return active_scheduled_dragons >= DragonNestRules.SCHEDULED_DRAGON_LIMIT
+
+
 func get_alive_enemy_count() -> int:
 	return _alive_enemies.size()
 
@@ -652,7 +673,7 @@ func get_executed_special_events() -> Array[Dictionary]:
 
 
 func is_running() -> bool:
-	return _state in [State.PREPARING, State.SPAWNING, State.CLEARING]
+	return _state in [State.SPAWNING, State.CLEARING]
 
 
 func is_completed() -> bool:

@@ -3,9 +3,15 @@ extends ShipModule
 
 ## Amount of ore produced per second.
 @export var mining_rate: float = 1.0
+## Quiet, repetitive drill tick; configurable separately from ore production.
+@export_range(-60.0, 0.0, 1.0) var drill_sound_volume_db: float = -36.0
 
 ## Continuous power required by this mining module instance.
 @export var power_consumption: int = 2
+
+## Runtime, battle-only ore-per-second bonuses (for example Goblin Wheel).
+## Providers keep independent artifact effects composable and removable.
+var artifact_mining_rate_bonuses: Array[Callable] = []
 
 
 func get_module_category() -> StringName:
@@ -55,7 +61,26 @@ func _process(delta: float) -> void:
 func get_effective_ore_per_second() -> float:
 	var timer := get_node_or_null("MiningTimer") as Timer
 	var interval: float = timer.wait_time if timer != null else 1.0
-	return maxf(mining_rate, 0.0) / maxf(interval, 0.001) + ResearchManager.get_mining_output_bonus()
+	return maxf(mining_rate, 0.0) / maxf(interval, 0.001) + ResearchManager.get_mining_output_bonus() + get_artifact_mining_rate_bonus()
+
+
+func add_artifact_mining_rate_bonus(provider: Callable) -> void:
+	if provider.is_valid() and not artifact_mining_rate_bonuses.has(provider):
+		artifact_mining_rate_bonuses.append(provider)
+
+
+func remove_artifact_mining_rate_bonus(provider: Callable) -> void:
+	artifact_mining_rate_bonuses.erase(provider)
+
+
+func get_artifact_mining_rate_bonus() -> float:
+	var total := 0.0
+	for provider in artifact_mining_rate_bonuses.duplicate():
+		if provider.is_valid():
+			total += maxf(float(provider.call()), 0.0)
+		else:
+			artifact_mining_rate_bonuses.erase(provider)
+	return total
 
 
 ## Presentation hook for mining QTEs: jump straight to a boosted breakthrough
@@ -96,7 +121,10 @@ func _on_mining_timer_timeout() -> void:
 	if not mining_enabled:
 		return
 
-	ResourceManager.add_mission_ore(mining_rate + ResearchManager.get_mining_output_bonus() * $MiningTimer.wait_time, &"drill")
+	var output_per_second := ResearchManager.get_mining_output_bonus() + get_artifact_mining_rate_bonus()
+	ResourceManager.add_mission_ore(mining_rate + output_per_second * $MiningTimer.wait_time, &"drill")
+	# Presentation: a soft drill grind each production tick.
+	EnemySfx.play(self, preload("res://Assets/Audio/Mining/drill_tick.wav"), drill_sound_volume_db, 0.06)
 
 
 ## Whether this module is currently producing ore.

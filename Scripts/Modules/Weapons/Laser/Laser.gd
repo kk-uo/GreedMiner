@@ -48,7 +48,7 @@ func get_fire_rate() -> float:
 
 func get_effective_beam_width() -> float:
 	# Targeting range and beam collision/model width are independent stats.
-	return get_modified_projectile_range(beam_width)
+	return get_modified_beam_width(beam_width)
 
 
 func _ready() -> void:
@@ -122,27 +122,31 @@ func _physics_process(delta: float) -> void:
 
 ## Applies one damage tick to every enemy intersecting the full beam shape.
 func fire() -> void:
-	var effective_range := get_modified_attack_range(attack_range)
-	var beam_shape := RectangleShape2D.new()
-	beam_shape.size = Vector2(effective_range, get_effective_beam_width())
+	begin_artifact_attack()
+	var damaged_enemy_ids: Dictionary = {}
+	var path := _get_beam_world_path()
+	for index in range(path.size() - 1):
+		_damage_beam_segment(path[index], path[index + 1], damaged_enemy_ids)
+	end_artifact_attack()
 
-	var beam_direction := Vector2.RIGHT.rotated(_muzzle.global_rotation)
-	var beam_center := (
-		_muzzle.global_position
-		+ beam_direction * effective_range * 0.5
-	)
+
+func _damage_beam_segment(start: Vector2, finish: Vector2, damaged_enemy_ids: Dictionary) -> void:
+	var length := start.distance_to(finish)
+	if length <= 0.01:
+		return
+	var beam_shape := RectangleShape2D.new()
+	beam_shape.size = Vector2(length, get_effective_beam_width())
+	var angle := start.direction_to(finish).angle()
+	var beam_center := start.lerp(finish, 0.5)
 
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = beam_shape
-	query.transform = Transform2D(_muzzle.global_rotation, beam_center)
+	query.transform = Transform2D(angle, beam_center)
 	query.collision_mask = 1
 	query.collide_with_areas = true
 	query.collide_with_bodies = false
 
-	var results := get_world_2d().direct_space_state.intersect_shape(query, 256)
-	var damaged_enemy_ids: Dictionary = {}
-
-	for result in results:
+	for result in get_world_2d().direct_space_state.intersect_shape(query, 256):
 		var collider: Object = result.get("collider")
 		# Trees standing in the beam get burned too.
 		if collider is Node and (collider as Node).is_in_group(&"destructible_props"):
@@ -154,7 +158,7 @@ func fire() -> void:
 			continue
 
 		var enemy := collider as BasicEnemy
-		if not enemy.is_in_group("enemies"):
+		if not enemy.is_in_group("enemies") or not can_target_enemy(enemy):
 			continue
 
 		var enemy_id := enemy.get_instance_id()
@@ -167,10 +171,19 @@ func fire() -> void:
 
 func _update_beam_length() -> void:
 	_beam.width = get_effective_beam_width()
-	_beam.points = PackedVector2Array([
-		Vector2.ZERO,
-		Vector2(get_modified_attack_range(attack_range), 0.0),
-	])
+	var local_points := PackedVector2Array()
+	for point in _get_beam_world_path():
+		local_points.append(_muzzle.to_local(point))
+	_beam.points = local_points
+
+
+func _get_beam_world_path() -> PackedVector2Array:
+	return get_artifact_laser_path(
+		_muzzle.global_position,
+		Vector2.RIGHT.rotated(_muzzle.global_rotation),
+		get_modified_attack_range(attack_range),
+		current_target
+	)
 
 
 ## Hides the beam and prevents stored cooldown from causing delayed damage.

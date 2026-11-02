@@ -36,6 +36,7 @@ const SUBTITLES := {
 	&"demon_lord": "SOVEREIGN OF THE INFERNO",
 	&"giant_frank": "THE STITCHED COLOSSUS",
 	&"mega_monster": "KING OF THE BLIZZARD",
+	&"ancient_dragon": "CROWNED KING OF THE HOARD",
 }
 
 var _boss: BasicEnemy
@@ -78,6 +79,19 @@ const THEMES := {
 		"body": Color("A82A26"),
 		"top": Color("FF6A3D"),
 	},
+	&"ancient_dragon": {
+		"badge": &"dragon",
+		"chip": Color("FFF1B0"),
+		"body": Color("B07A1A"),
+		"top": Color("F2C14A"),
+	},
+	## Ancient Dragon phase two (Claude sync 90): the gold bar burns red.
+	&"ancient_dragon_rage": {
+		"badge": &"dragon",
+		"chip": Color("FFE07A"),
+		"body": Color("A8261C"),
+		"top": Color("F2783A"),
+	},
 	&"mega_monster": {
 		"badge": &"yeti",
 		"chip": Color("E8FBFF"),
@@ -113,6 +127,9 @@ func _process(delta: float) -> void:
 	modulate.a = move_toward(modulate.a, 1.0 if alive else 0.0, FADE_SPEED * delta)
 	visible = modulate.a > 0.001 or not _shards.is_empty()
 
+	if alive and _boss.get("phase_two") == true and _theme != THEMES[&"ancient_dragon_rage"]:
+		_theme = THEMES[&"ancient_dragon_rage"]
+		_subtitle = "THE HOARD BURNS"
 	var previous: float = _ratio
 	if alive:
 		_ratio = clampf(_boss.get_current_health() / maxf(_boss.max_health, 1.0), 0.0, 1.0)
@@ -283,8 +300,70 @@ func _draw_badge(center: Vector2) -> void:
 		_draw_demon_badge(center)
 	elif _theme.get("badge", &"stone") == &"frank":
 		_draw_frank_badge(center)
+	elif _theme.get("badge", &"stone") == &"dragon":
+		_draw_dragon_badge(center)
 	else:
 		_draw_stone_badge(center)
+
+
+## Ancient Dragon portrait: a crowned red dragon's head, front-on, on a gold
+## plate with a ring of coins, eyes glowing.
+func _draw_dragon_badge(center: Vector2) -> void:
+	var t: float = Time.get_ticks_msec() / 1000.0
+	var pulse: float = 0.5 + 0.5 * sin(t * 2.4)
+	var hexagon := PackedVector2Array()
+	for index in range(6):
+		hexagon.append(center + Vector2.RIGHT.rotated(PI / 6.0 + PI / 3.0 * float(index)) * BADGE_RADIUS)
+	draw_colored_polygon(Palette.offset_points(hexagon, Vector2(4.0, 6.0)), Palette.SHADOW_COLOR)
+	draw_colored_polygon(hexagon, Color("8A5A12"))
+	var rim := PackedVector2Array()
+	for point in hexagon:
+		rim.append(center + (point - center) * 0.92)
+	draw_colored_polygon(rim, Color("F2C14A"))
+	var inner := PackedVector2Array()
+	for point in hexagon:
+		inner.append(center + (point - center) * 0.8)
+	draw_colored_polygon(inner, Color("2A1410"))
+	# hoard glinting at the bottom of the plate
+	for k in range(7):
+		var p: Vector2 = center + Vector2(-21.0 + k * 7.0, 26.0 + absf(k - 3.0) * -1.5)
+		draw_circle(p, 4.0, Color("C98A1E"))
+		draw_circle(p - Vector2(1.0, 1.0), 2.2, Color("FFE9A0"))
+	var c: Vector2 = center + Vector2(0.0, 4.0)
+	# horns sweeping out and back
+	for side in [-1.0, 1.0]:
+		draw_colored_polygon(PackedVector2Array([c + Vector2(side * 8.0, -12.0), c + Vector2(side * 30.0, -26.0), c + Vector2(side * 22.0, -14.0), c + Vector2(side * 12.0, -5.0)]), Color("D9CBB0"))
+		draw_colored_polygon(PackedVector2Array([c + Vector2(side * 24.0, -24.0), c + Vector2(side * 30.0, -26.0), c + Vector2(side * 26.0, -19.0)]), Color("F2C14A"))
+		# cheek frills
+		draw_colored_polygon(PackedVector2Array([c + Vector2(side * 13.0, -2.0), c + Vector2(side * 26.0, 4.0), c + Vector2(side * 13.0, 9.0)]), Color("7A1C16"))
+	# head: broad brow narrowing to the snout
+	var head := PackedVector2Array([c + Vector2(-15.0, -12.0), c + Vector2(15.0, -12.0), c + Vector2(13.0, 6.0), c + Vector2(8.0, 20.0), c + Vector2(-8.0, 20.0), c + Vector2(-13.0, 6.0)])
+	draw_colored_polygon(head, Color("7A1C16"))
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-12.0, -10.0), c + Vector2(12.0, -10.0), c + Vector2(10.0, 5.0), c + Vector2(6.0, 17.0), c + Vector2(-6.0, 17.0), c + Vector2(-10.0, 5.0)]), Color("B8332A"))
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-9.0, -9.0), c + Vector2(0.0, -9.0), c + Vector2(-2.0, 6.0), c + Vector2(-7.0, 4.0)]), Color("D5503A"))
+	# snout ridge, nostrils
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-2.5, 0.0), c + Vector2(2.5, 0.0), c + Vector2(1.5, 14.0), c + Vector2(-1.5, 14.0)]), Color("C98A2B"))
+	draw_circle(c + Vector2(-4.0, 16.0), 1.6, Color("1a0d0b"))
+	draw_circle(c + Vector2(4.0, 16.0), 1.6, Color("1a0d0b"))
+	# glowing eyes
+	for side in [-1.0, 1.0]:
+		var eye: Vector2 = c + Vector2(side * 7.0, -3.0)
+		draw_circle(eye, 5.0, Color("FFD84A", 0.22 + 0.2 * pulse))
+		draw_colored_polygon(PackedVector2Array([eye + Vector2(-side * 4.0, -1.5), eye + Vector2(side * 4.0, -2.5), eye + Vector2(side * 2.0, 2.0)]), Color("FFD84A"))
+	# the crown
+	var crown_base: Vector2 = c + Vector2(0.0, -13.0)
+	var crown := PackedVector2Array([crown_base + Vector2(-14.0, 2.0), crown_base + Vector2(-15.0, -9.0), crown_base + Vector2(-8.0, -4.0), crown_base + Vector2(-4.0, -14.0),
+		crown_base + Vector2(0.0, -6.0), crown_base + Vector2(4.0, -14.0), crown_base + Vector2(8.0, -4.0), crown_base + Vector2(15.0, -9.0), crown_base + Vector2(14.0, 2.0)])
+	draw_colored_polygon(Palette.offset_points(crown, Vector2(1.0, 2.0)), Color("6A4410"))
+	draw_colored_polygon(crown, Color("F2C14A"))
+	draw_rect(Rect2(crown_base + Vector2(-14.0, -2.0), Vector2(28.0, 4.0)), Color("C98A1E"))
+	draw_circle(crown_base + Vector2(0.0, 0.0), 2.4, Color("E0304A"))
+	draw_circle(crown_base + Vector2(-8.0, 0.0), 1.6, Color("4FD18A"))
+	draw_circle(crown_base + Vector2(8.0, 0.0), 1.6, Color("5BA8F0"))
+	for x in [-15.0, -4.0, 4.0, 15.0]:
+		var tip_y := -14.0 if absf(x) < 5.0 else -9.0
+		draw_circle(crown_base + Vector2(x, tip_y), 1.6, Color("FFF1B0"))
+	draw_circle(crown_base + Vector2(-6.0, -6.0), 1.0 + pulse, Color(1, 1, 1, 0.5 * pulse))
 
 
 ## Goblin Giant Chariot portrait: an armoured war boar's head, front-on, on a

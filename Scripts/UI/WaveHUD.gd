@@ -10,7 +10,6 @@ extends VBoxContainer
 var _wave_number := 0
 var _total_waves := 0
 var _remaining := 0
-var _preparation_seconds := 0
 var _mode := &""
 var _blocked_message := ""
 
@@ -21,28 +20,11 @@ func _ready() -> void:
 
 func _on_language_changed(_locale: StringName) -> void:
 	match _mode:
-		&"preparation":
-			show_preparation(_wave_number, _total_waves, float(_preparation_seconds))
 		&"wave":
 			show_wave(_wave_number, _total_waves, status_label.visible)
 		&"blocked":
 			show_configuration_blocked(_wave_number, _blocked_message)
 	update_remaining(_remaining)
-
-
-func show_preparation(wave_number: int, total_waves: int, duration: float) -> void:
-	_mode = &"preparation"
-	_wave_number = wave_number
-	_total_waves = total_waves
-	_preparation_seconds = ceili(duration)
-	wave_label.text = "%d / %d" % [wave_number, total_waves]
-	status_label.text = tr("PREP  %d") % ceili(duration)
-	_set_status_visible(true)
-
-
-func update_preparation(seconds_remaining: int) -> void:
-	_preparation_seconds = seconds_remaining
-	status_label.text = tr("PREP  %d") % seconds_remaining
 
 
 func show_wave(wave_number: int, total_waves: int, boss_wave: bool) -> void:

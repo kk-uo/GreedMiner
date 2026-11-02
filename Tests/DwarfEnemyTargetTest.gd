@@ -72,6 +72,13 @@ func _run() -> void:
 	previous_hp = dwarf.hp
 	golem._on_attack_timer_timeout()
 	_check(is_equal_approx(dwarf.hp, previous_hp - golem.attack_damage), "large melee enemy hits when its body is beside the worker")
+	# Claude sync 100: a floating-point hair outside the reach (move_toward
+	# never lands exactly on it far from the origin) must still attack.
+	golem._stop_attacking()
+	golem._mining_target = null
+	golem.global_position = target_pos + Vector2(1.0, 0.0) * (golem._dwarf_attack_reach() + 0.0004)
+	golem._physics_process(0.016)
+	_check(golem._mining_target == dwarf and golem._is_attacking, "enemy a hair outside its reach still attacks the worker")
 	ship.free()
 	var weather := WeatherManager.new()
 	weather.name = "WeatherManager"

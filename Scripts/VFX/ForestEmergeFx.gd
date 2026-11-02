@@ -1,15 +1,10 @@
 extends Node2D
 
-## The ground bursting open where a treant tears itself out (ForestEnemy
-## spawns it on emergence): the earth splits with cracks, dirt clods and
-## leaves fly out, a hole stays for a few seconds and fades. World space,
-## drawn under the enemies. Presentation only.
+## Optional brief leaves and soil burst for a rising treant. No persistent
+## hole, dark disk or crack is drawn after the tree leaves its origin.
 ## Load with preload(); no class_name on purpose.
 
-const LIFE: float = 4.5
-const FADE: float = 1.2
-const DIRT := Color("3A2C1E")
-const HOLE := Color("2A1E14")
+const LIFE: float = 0.75
 const CLOD := Color("5A4632")
 const LEAF := Color("5C8A48")
 
@@ -46,14 +41,6 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var s := 17.0 * size
-	var open := 1.0 - pow(1.0 - clampf(_age / 0.45, 0.0, 1.0), 3.0)
-	var alpha := 1.0 - clampf((_age - (LIFE - FADE)) / FADE, 0.0, 1.0)
-	draw_colored_polygon(_blob(Vector2.ZERO, s * 1.7 * open, 3), Color(DIRT, alpha))
-	draw_colored_polygon(_blob(Vector2(-1, -1), s * 1.15 * open, 7), Color(HOLE, alpha))
-	for k in range(7):
-		var a := TAU * float(k) / 7.0 + 0.3
-		var dir := Vector2(cos(a), sin(a))
-		draw_line(dir * s * 1.0 * open, dir * s * 2.4 * open, Color(HOLE, 0.8 * alpha), maxf(1.5, s * 0.12))
 	for bit in _bits:
 		var t := clampf((_age - float(bit["delay"])) / 0.6, 0.0, 1.0)
 		if t <= 0.0 or t >= 1.0:
@@ -66,11 +53,3 @@ func _draw() -> void:
 		else:
 			draw_circle(p + Vector2(1.5, 2.0), s * 0.2 * (1.0 - 0.4 * t), Color(0, 0, 0, 0.2))
 			draw_circle(p, s * 0.2 * (1.0 - 0.4 * t), CLOD)
-
-
-func _blob(c: Vector2, r: float, seed: int) -> PackedVector2Array:
-	var p := PackedVector2Array()
-	for k in range(12):
-		var a := TAU * float(k) / 12.0
-		p.append(c + Vector2(cos(a), sin(a)) * maxf(r, 0.5) * (1.0 + 0.12 * sin(a * 3.0 + seed) + 0.07 * sin(a * 5.0 + seed * 2.0)))
-	return p

@@ -1,6 +1,7 @@
 extends Node2D
 
-## Drag from a mining module to a crystal. Right-click the module to recall.
+## Drag from a mining module to any battlefield point. Resource targets retain
+## their existing jobs; an empty-ground order sends the dwarf there and back.
 const DWARF := preload("res://Scripts/Mining/DwarfMiner.gd")
 ## Zombie graves are dug up by dwarves: releasing a drag on graves (no crystal
 ## under the cursor) digs every grave inside GraveDigSite.DIG_RADIUS.
@@ -72,8 +73,8 @@ func handle_input(event: InputEvent) -> bool:
 		var target := _crystal_at(point)
 		if target != null:
 			dispatch(selected, target)
-		elif not dispatch_to_trees(selected, point):
-			dispatch_to_graves(selected, point)
+		elif not dispatch_to_trees(selected, point) and not dispatch_to_graves(selected, point):
+			dispatch_to_point(selected, point)
 		return true
 	return false
 
@@ -103,13 +104,29 @@ func _crystal_at(point: Vector2) -> Node2D:
 func dispatch(module: MiningModule, crystal: Node2D) -> bool:
 	if not is_instance_valid(module) or not module.mining_enabled or not is_instance_valid(crystal) or not crystal.call("can_be_mined"):
 		return false
+	return _spawn_worker(module, crystal, Vector2.ZERO)
+
+
+## Empty ground is a valid waypoint. The worker walks there and returns
+## automatically; it does not mine, chop, or generate resources.
+func dispatch_to_point(module: MiningModule, point: Vector2) -> bool:
+	if field == null or not field.get_world_bounds().has_point(point):
+		return false
+	return _spawn_worker(module, null, point)
+
+
+func _spawn_worker(module: MiningModule, target: Node2D, guard_point: Vector2) -> bool:
+	if not is_instance_valid(module) or not module.mining_enabled:
+		return false
 	var use_extra := is_instance_valid(workers.get(module)) or float(cooldowns.get(module, 0.0)) > 0.0
 	if use_extra and (not ResearchManager.is_research_completed(&"mining_worker") or is_instance_valid(extra_workers.get(module)) or float(extra_cooldowns.get(module, 0.0)) > 0.0):
 		return false
 	var dwarf := DWARF.new()
 	dwarf.module = module
-	dwarf.crystal = crystal
-	dwarf.set("_target_site", crystal if crystal.has_method("release") else null)
+	dwarf.crystal = target
+	if target == null:
+		dwarf.guard_position = guard_point
+	dwarf.set("_target_site", target if target != null and target.has_method("release") else null)
 	dwarf.battle = battle
 	if use_extra:
 		extra_workers[module] = dwarf

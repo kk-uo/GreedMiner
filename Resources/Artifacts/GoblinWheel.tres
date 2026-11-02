@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1_definition"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/GoblinWheelEffect.gd" id="2_effect"]
+
+[resource]
+script = ExtResource("1_definition")
+artifact_id = &"goblin_wheel"
+display_name = "Goblin Wheel"
+rarity = "Legendary"
+description = "After every 3 completed waves, choose one of three offered battle buffs in a non-blocking wheel. Buffs stack until the battle ends."
+equip_target = 0
+acquisition_source = "Defeat the Verdant Planet boss"
+source_planet_id = &"goblin_planet"
+source_name = "Goblin Giant Chariot"
+effect_script = ExtResource("2_effect")
+effect_parameters = {
+"damage_percent": 0.05,
+"fire_rate": 0.05,
+"flat_damage": 1.0,
+"mining_rate": 0.5,
+"ship_health": 25.0,
+"waves_per_roll": 3,
+"weapon_range": 0.1
+}

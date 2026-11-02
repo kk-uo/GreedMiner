@@ -38,6 +38,7 @@ func _run() -> void:
 	await _test_close_throw()
 	await _test_throw_cycle()
 	await _test_berserk()
+	await _test_contact_attack()
 	await _test_death()
 
 	battle.queue_free()
@@ -132,7 +133,7 @@ func _ship_center() -> Vector2:
 
 func _test_defaults() -> void:
 	var c := CHARIOT_SCENE.instantiate() as GoblinGiantChariot
-	_expect_equal(c.max_health, 5000.0, "HP 5000")
+	_expect_equal(c.max_health, 4000.0, "HP 4000")
 	_expect_equal(c.throw_elite_count, 1, "throws 1 elite goblin")
 	_expect_true(c.elite_goblin_scene != null, "elite goblin scene assigned")
 	_expect_equal(c.move_speed, 15.0, "speed 15")
@@ -265,6 +266,26 @@ func _test_berserk() -> void:
 	await get_tree().create_timer(1.1).timeout
 	_expect_equal(releases[0], 0, "no goblins release after the 200px threshold")
 	canceling.queue_free()
+	await get_tree().process_frame
+
+
+## At the hull edge, a fractional-pixel remainder must not silence the ram.
+func _test_contact_attack() -> void:
+	var chariot := _spawn(Vector2(600.0, 0.0))
+	chariot._cooldown_left = 999.0
+	chariot._enter_berserk()
+	var outward := (ship.to_global(Vector2.RIGHT) - ship.to_global(Vector2.ZERO)).normalized()
+	var right_edge := ship.to_global(Vector2(Ship.SHIP_SIZE.x, Ship.SHIP_SIZE.y * 0.5))
+	chariot.global_position = right_edge + outward * (GoblinGiantChariot.FRONT_REACH + chariot.attack_range + 0.25)
+	var gap := chariot._distance_to_ship()
+	_expect_true(gap > chariot.attack_range and gap <= chariot.attack_range + BasicEnemy.ATTACK_RANGE_TOLERANCE, "setup is just outside exact range but within contact tolerance (%.3f)" % gap)
+	ship.current_hp = ship.max_hp
+	var hp_before := ship.current_hp
+	chariot._advance(0.0)
+	_expect_true(chariot._is_attacking and not chariot.attack_timer.is_stopped(), "chariot starts its attack timer at the hull edge")
+	await get_tree().create_timer(chariot.attack_interval + 0.2).timeout
+	_expect_true(ship.current_hp <= hp_before - chariot.attack_damage + 0.01, "chariot ram damages hull after one attack interval")
+	chariot.queue_free()
 	await get_tree().process_frame
 
 

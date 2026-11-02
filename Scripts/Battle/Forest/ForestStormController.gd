@@ -14,6 +14,9 @@ signal respawns_finished
 @export_range(10.0, 600.0, 1.0) var storm_interval: float = 90.0
 @export_range(0.0, 30.0, 0.5) var warning_duration: float = 6.0
 @export_range(1.0, 60.0, 0.5) var storm_duration: float = 12.0
+## Visual blend times; only presentation changes, not storm timing or regrowth.
+@export_range(0.1, 10.0, 0.1) var rain_fade_in_seconds: float = 3.0
+@export_range(0.1, 10.0, 0.1) var rain_fade_out_seconds: float = 4.0
 @export_range(0.1, 3.0, 0.1) var respawn_spread_duration: float = 0.8
 @export_range(1, 32, 1) var maximum_respawns_per_frame: int = 4
 
@@ -37,12 +40,17 @@ var _respawn_elapsed: float = 0.0
 
 class RainView extends Control:
 	var heavy: bool = false
+	var storm_blend: float = 0.0
+	var fade_in_seconds: float = 3.0
+	var fade_out_seconds: float = 4.0
 	var clock: float = 0.0
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	func _process(delta: float) -> void:
 		clock += delta
+		var seconds := fade_in_seconds if heavy else fade_out_seconds
+		storm_blend = move_toward(storm_blend, 1.0 if heavy else 0.0, delta / maxf(seconds, 0.01))
 		queue_redraw()
 	static func _rand(n: float) -> float:
 		return fposmod(sin(n * 12.9898 + 4.1414) * 43758.5453, 1.0)
@@ -52,7 +60,7 @@ class RainView extends Control:
 	func _draw() -> void:
 		var w := maxf(size.x, 1.0)
 		var h := maxf(size.y, 1.0)
-		var k := 1.0 if heavy else 0.0
+		var k := smoothstep(0.0, 1.0, storm_blend)
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.42, 0.54, 0.63, 0.08).lerp(Color(0.10, 0.15, 0.20, 0.24), k))
 		# Every drop lives a short random cycle and reappears somewhere new, with
 		# its own length, angle and brightness, so no columns or lattice show.
@@ -88,6 +96,8 @@ func _ready() -> void:
 	_time_until_storm = storm_interval
 	rain_view = RainView.new()
 	rain_view.name = "RainView"
+	rain_view.set("fade_in_seconds", rain_fade_in_seconds)
+	rain_view.set("fade_out_seconds", rain_fade_out_seconds)
 	add_child(rain_view)
 	storm_label = Label.new()
 	storm_label.name = "StormStatus"
@@ -126,8 +136,8 @@ func _process(delta: float) -> void:
 	if _time_until_storm <= 0.0:
 		start_storm()
 
-## Regrows every empty spot (staggered over respawn_spread_duration so the
-## forest visibly sprouts back). Returns how many trees regrow.
+## Regrows every empty spot over a short spread; permanently chopped origins
+## remain closed. Returns how many trees are regrowing.
 func start_storm() -> int:
 	if not is_instance_valid(battle) or battle.get("_battle_ended") == true:
 		return 0

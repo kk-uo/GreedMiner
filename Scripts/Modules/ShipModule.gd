@@ -48,8 +48,8 @@ func get_power_consumption() -> int:
 
 
 ## Returns power capacity contributed by this installed module.
-func get_power_capacity() -> int:
-	return 0
+func get_power_capacity() -> float:
+	return 0.0
 
 
 ## Returns future grid-expansion support contributed by this module.

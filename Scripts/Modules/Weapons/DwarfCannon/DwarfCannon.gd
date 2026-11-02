@@ -4,7 +4,7 @@ extends WeaponModule
 ## A slow, precise cannon that launches circular AOE projectiles.
 
 ## Damage applied to every enemy caught by one explosion.
-@export var basic_damage: float = 30.0
+@export var basic_damage: float = 20.0
 
 ## Seconds between cannon shots.
 @export var attack_interval: float = 2.0
@@ -124,22 +124,31 @@ func fire() -> void:
 	if projectile_scene == null:
 		push_error("DwarfCannon: Projectile scene is missing!")
 		return
+	begin_artifact_attack()
 
-	var projectile := projectile_scene.instantiate() as DwarfCannonProjectile
-
-	if projectile == null:
-		push_error("DwarfCannon: Invalid projectile scene!")
-		return
-
-	get_tree().current_scene.add_child(projectile)
-	projectile.global_position = _muzzle.global_position
-	projectile.direction = Vector2.RIGHT.rotated(_muzzle.global_rotation)
-	projectile.speed = projectile_speed
-	projectile.projectile_range = get_modified_projectile_range(projectile_range)
-	projectile.damage = get_modified_explosion_damage(get_damage())
-	projectile.source_weapon = self
+	var volley_count := maxi(projectile_count + get_artifact_projectile_count_bonus(), 1)
+	var base_direction := Vector2.RIGHT.rotated(_muzzle.global_rotation)
 	var artifact_pierces := get_artifact_projectile_pierces()
-	if artifact_pierces > 0:
-		projectile.enable_ghost_piercing(artifact_pierces)
-	projectile.explosion_radius = aoe_radius
+	var is_ghost_projectile := has_artifact_ghost_projectile()
+	for index in range(volley_count):
+		var projectile := projectile_scene.instantiate() as DwarfCannonProjectile
+		if projectile == null:
+			push_error("DwarfCannon: Invalid projectile scene!")
+			end_artifact_attack()
+			return
+		get_tree().current_scene.add_child(projectile)
+		var lateral_spacing := get_volley_lateral_spacing(get_modified_projectile_range(projectile_range))
+		var lateral_weight := float(index) - float(volley_count - 1) * 0.5
+		projectile.global_position = _muzzle.global_position + base_direction.orthogonal() * lateral_spacing * lateral_weight
+		projectile.direction = get_projectile_volley_direction(base_direction, index, volley_count)
+		projectile.speed = get_modified_projectile_speed(projectile_speed)
+		projectile.projectile_range = get_modified_projectile_range(projectile_range)
+		projectile.damage = get_modified_explosion_damage(get_damage())
+		projectile.source_weapon = self
+		if artifact_pierces > 0:
+			projectile.enable_ghost_piercing(artifact_pierces, is_ghost_projectile, is_ghost_projectile)
+		projectile.explosion_radius = aoe_radius
+		projectile_spawned.emit(projectile)
+	projectile_volley_fired.emit(_muzzle.global_position, base_direction, get_modified_projectile_speed(projectile_speed), get_modified_attack_range(attack_range))
 	_sound.play_shot()
+	end_artifact_attack()

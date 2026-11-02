@@ -8,6 +8,15 @@ extends Node
 ## on startup, so the player's last configuration survives restarts.
 
 const GRID_SIZE: int = 3
+## Expansion cells use a separate logical row so existing 3×3 save coordinates
+## and the (-1, -1) no-cell sentinel never change.
+const EXPANSION_ROW: int = 3
+const EXPANSION_POSITIONS: Array[Vector2i] = [
+	Vector2i(0, -1), Vector2i(1, -1), Vector2i(2, -1),
+	Vector2i(3, 0), Vector2i(3, 1), Vector2i(3, 2),
+	Vector2i(0, 3), Vector2i(1, 3), Vector2i(2, 3),
+	Vector2i(-1, 0), Vector2i(-1, 1), Vector2i(-1, 2),
+]
 const SAVE_SECTION: StringName = &"loadout"
 
 ## Emitted when the hull color scheme changes (Ship redraws itself).
@@ -44,10 +53,14 @@ signal cell_changed(cell: Vector2i, old_path: String, new_path: String)
 
 ## Emitted when two cells exchange their modules (chips travel with them).
 signal cells_swapped(cell_a: Vector2i, cell_b: Vector2i)
+signal expansion_changed
 
 ## Stores module scene paths by cell coordinates.
 ## Example: Vector2i(0, 1) -> machine_gun.tscn
 var installed_modules: Dictionary = {}
+## Indices into EXPANSION_POSITIONS. A researched slot is only usable after the
+## player chooses its location in the Hangar.
+var expanded_cell_indices: Array[int] = []
 
 
 func _ready() -> void:
@@ -64,11 +77,22 @@ func load_saved() -> void:
 	# Always restore true new-game defaults before importing a saved section.
 	# This also makes an in-session developer reset clear the previous loadout.
 	installed_modules.clear()
+	expanded_cell_indices.clear()
 	style_id = &"bone_iron"
 	hull_id = &"classic"
 	thruster_id = &"pod"
 	layout_rotation = 0.0
 	var data := ProgressionStore.get_section(SAVE_SECTION)
+	var saved_expansions: Variant = data.get("expanded_cells", [])
+	if saved_expansions is Array:
+		for value in saved_expansions:
+			# JSON.parse_string restores numeric array entries as floats. Accept
+			# whole-valued numbers, but reject strings and fractional indices.
+			if not (value is int or value is float):
+				continue
+			var index := int(value)
+			if float(index) == float(value) and index >= 0 and index < EXPANSION_POSITIONS.size() and not expanded_cell_indices.has(index) and expanded_cell_indices.size() < 2:
+				expanded_cell_indices.append(index)
 	var saved_style := StringName(String(data.get("style", "")))
 	if ShipHullVisual.STYLES.has(saved_style):
 		style_id = saved_style
@@ -100,7 +124,7 @@ func save() -> bool:
 	var cells := {}
 	for cell in installed_modules.keys():
 		cells["%d,%d" % [cell.x, cell.y]] = installed_modules[cell]
-	return ProgressionStore.set_section(SAVE_SECTION, {"cells": cells, "style": String(style_id), "hull": String(hull_id), "thruster": String(thruster_id), "rotation": layout_rotation})
+	return ProgressionStore.set_section(SAVE_SECTION, {"cells": cells, "expanded_cells": expanded_cell_indices.duplicate(), "style": String(style_id), "hull": String(hull_id), "thruster": String(thruster_id), "rotation": layout_rotation})
 
 
 ## Switches the hull color scheme (unknown ids are ignored). Call save() to keep it.
@@ -210,16 +234,61 @@ func has_module(row: int, column: int) -> bool:
 ## Validates the cell coordinates.
 func is_valid_cell(row: int, column: int) -> bool:
 	return (
+		(row == EXPANSION_ROW and expanded_cell_indices.has(column))
+		or (
 		row >= 0
 		and row < GRID_SIZE
 		and column >= 0
 		and column < GRID_SIZE
+		)
 	)
+
+
+func is_expansion_candidate(row: int, column: int) -> bool:
+	return row == EXPANSION_ROW and column >= 0 and column < EXPANSION_POSITIONS.size()
+
+
+func get_visual_cell_position(row: int, column: int) -> Vector2i:
+	if is_expansion_candidate(row, column):
+		return EXPANSION_POSITIONS[column]
+	return Vector2i(column, row)
+
+
+func get_expansion_index_at_visual(visual_column: int, visual_row: int) -> int:
+	return EXPANSION_POSITIONS.find(Vector2i(visual_column, visual_row))
+
+
+func get_all_cells() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for row in range(GRID_SIZE):
+		for column in range(GRID_SIZE):
+			result.append(Vector2i(row, column))
+	for index in expanded_cell_indices:
+		result.append(Vector2i(EXPANSION_ROW, index))
+	return result
+
+
+## Consumes one researched expansion permission, choosing an outer-ring cell.
+func add_expansion_cell(index: int) -> bool:
+	if index < 0 or index >= EXPANSION_POSITIONS.size() or expanded_cell_indices.has(index):
+		return false
+	if not ResearchManager.is_energy_slot_expansion_supported():
+		return false
+	if expanded_cell_indices.size() >= ResearchManager.get_ship_hull_slot_capacity():
+		return false
+	expanded_cell_indices.append(index)
+	if not save():
+		expanded_cell_indices.erase(index)
+		return false
+	expansion_changed.emit()
+	return true
 
 
 ## Rotates the ship layout to one of ROTATIONS. Call save() to keep it.
 func set_layout_rotation(degrees: float) -> void:
 	if not ROTATIONS.has(degrees) or is_equal_approx(degrees, layout_rotation):
+		return
+	if not is_zero_approx(degrees) and not ResearchManager.is_ship_rotation_unlocked():
 		return
 	layout_rotation = degrees
 	rotation_changed.emit(layout_rotation)

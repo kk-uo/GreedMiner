@@ -7,13 +7,14 @@ extends Node
 ## BattleMain adds one per battle and calls freeze() when the battle ends.
 
 ## Ore sources passed to ResourceManager.add_mission_ore(amount, source).
-const SOURCE_ORDER: Array[StringName] = [&"drill", &"dwarf", &"crystal", &"qte", &"chest", &"tree", &"bounty", &"other"]
+const SOURCE_ORDER: Array[StringName] = [&"drill", &"dwarf", &"crystal", &"qte", &"chest", &"treasure", &"tree", &"bounty", &"other"]
 const SOURCE_NAMES := {
 	&"drill": "Drilling",
 	&"dwarf": "Dwarf Mining",
 	&"crystal": "Crystals",
 	&"qte": "Mining Events",
 	&"chest": "Salvage Chests",
+	&"treasure": "Stolen Treasure",
 	&"tree": "Logging",
 	&"bounty": "Bounties",
 	&"other": "Other",
@@ -23,6 +24,11 @@ const SOURCE_NAMES := {
 var kills: Dictionary = {}
 ## weapon_type_id -> kills credited to that weapon type.
 var weapon_kills: Dictionary = {}
+## One entry per installed weapon (turret) instance: instance_id ->
+## {"id": weapon_type_id, "cell": Vector2i, "damage": float, "kills": int}.
+## Cells are looked up on the ship (refresh_turret_cells, done at freeze).
+var turret_damage: Dictionary = {}
+var _turret_refs: Dictionary = {}
 ## source -> ore added during the battle.
 var ore_by_source: Dictionary = {}
 ## Magic artifacts granted this battle: {"id", "name", "rarity"}. Still
@@ -56,7 +62,62 @@ func _process(delta: float) -> void:
 
 
 func freeze() -> void:
+	refresh_turret_cells()
 	frozen = true
+
+
+func total_turret_damage() -> float:
+	var total := 0.0
+	for entry in turret_damage.values():
+		total += float(entry["damage"])
+	return total
+
+
+## Turret rows for the result board, most damage first (ties: more kills,
+## then ship cell order). Turrets that dealt no damage are listed too.
+func turret_rows() -> Array[Dictionary]:
+	if not frozen:
+		refresh_turret_cells()
+	var rows: Array[Dictionary] = []
+	for key in turret_damage.keys():
+		var entry: Dictionary = turret_damage[key].duplicate()
+		if entry["id"] == &"":
+			continue
+		rows.append(entry)
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if not is_equal_approx(float(a["damage"]), float(b["damage"])):
+			return float(a["damage"]) > float(b["damage"])
+		if int(a["kills"]) != int(b["kills"]):
+			return int(a["kills"]) > int(b["kills"])
+		var ca: Vector2i = a["cell"]
+		var cb: Vector2i = b["cell"]
+		return ca.x < cb.x or (ca.x == cb.x and ca.y < cb.y))
+	return rows
+
+
+## Records which ship cell each tracked turret sits in (while it still exists).
+func refresh_turret_cells() -> void:
+	for key in _turret_refs.keys():
+		var weapon: Object = (_turret_refs[key] as WeakRef).get_ref()
+		if weapon == null or not is_instance_valid(weapon):
+			continue
+		var cell := _ship_cell_of(weapon as WeaponModule)
+		if cell.x >= 0:
+			turret_damage[key]["cell"] = cell
+		turret_damage[key]["id"] = (weapon as WeaponModule).weapon_type_id
+
+
+func _ship_cell_of(weapon: WeaponModule) -> Vector2i:
+	var node: Node = weapon.get_parent()
+	while node != null and not node is Ship:
+		node = node.get_parent()
+	var ship := node as Ship
+	if ship == null:
+		return Vector2i(-1, -1)
+	for cell in ShipLoadout.get_all_cells():
+		if ship.get_module_at(cell.x, cell.y) == weapon:
+			return cell
+	return Vector2i(-1, -1)
 
 
 func total_kills() -> int:
@@ -135,6 +196,31 @@ func _watch_weapons(root: Node) -> void:
 func _watch_weapon(weapon: WeaponModule) -> void:
 	if not weapon.enemy_defeated.is_connected(_on_weapon_kill):
 		weapon.enemy_defeated.connect(_on_weapon_kill.bind(weapon))
+	if not weapon.damage_dealt.is_connected(_on_weapon_damage):
+		weapon.damage_dealt.connect(_on_weapon_damage.bind(weapon))
+	_turret_entry(weapon)
+
+
+## Only weapons mounted on a ship count as turrets (not base or test props).
+func _turret_entry(weapon: WeaponModule) -> Dictionary:
+	var key := weapon.get_instance_id()
+	if not turret_damage.has(key):
+		var node: Node = weapon.get_parent()
+		while node != null and not node is Ship:
+			node = node.get_parent()
+		if node == null and weapon.is_inside_tree():
+			return {}
+		turret_damage[key] = {"id": weapon.weapon_type_id, "cell": Vector2i(-1, -1), "damage": 0.0, "kills": 0}
+		_turret_refs[key] = weakref(weapon)
+	return turret_damage[key]
+
+
+func _on_weapon_damage(amount: float, weapon: WeaponModule) -> void:
+	if frozen or not is_instance_valid(weapon):
+		return
+	var entry := _turret_entry(weapon)
+	if not entry.is_empty():
+		entry["damage"] = float(entry["damage"]) + amount
 
 
 func _on_enemy_died(enemy_id: StringName, _at: Vector2, enemy: BasicEnemy) -> void:
@@ -158,6 +244,9 @@ func _on_weapon_kill(_at: Vector2, _max_health: float, weapon: WeaponModule) -> 
 	if id == &"":
 		return
 	weapon_kills[id] = int(weapon_kills.get(id, 0)) + 1
+	var entry := _turret_entry(weapon)
+	if not entry.is_empty():
+		entry["kills"] = int(entry["kills"]) + 1
 
 
 func _on_ore_added(amount: float, source: StringName) -> void:

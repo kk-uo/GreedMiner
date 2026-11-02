@@ -7,13 +7,32 @@ extends ForestEnemy
 @export_range(0.5, 60.0, 0.1) var saw_interval: float = 8.0
 @export_range(0.1, 10.0, 0.1) var saw_windup: float = 1.3
 @export_range(0.0, 1000.0, 1.0) var dwarf_lure_range: float = 550.0
+@export_range(0.0, 200.0, 1.0) var saw_side_offset: float = 45.0
+@export_range(0.0, 200.0, 1.0) var saw_forward_offset: float = 45.0
 var _saw_cooldown: float = 0.0
 var _windup_left: float = 0.0
 var _locked_direction := Vector2.ZERO
+var _locked_aim := Vector2.ZERO
+
+## Presentation (user pick B, the treant on a hover saw-rig): heading of the
+## rig (turns to the locked aim while winding up), reload of the blades.
+const RELOAD_TIME: float = 1.4
+var _rig_rot: float = 0.0
+var _reload: float = 1.0
+var _rig_crown: Dictionary = {}
 
 func _ready() -> void:
 	super()
 	_saw_cooldown = saw_interval
+	_rig_rot = _facing
+
+
+func _process(delta: float) -> void:
+	super(delta)
+	var heading := _locked_direction.angle() if _windup_left > 0.0 and _locked_direction != Vector2.ZERO else _facing
+	_rig_rot = lerp_angle(_rig_rot, heading, 1.0 - exp(-delta * (6.0 if _windup_left > 0.0 else 2.5)))
+	_reload = minf(_reload + delta / RELOAD_TIME, 1.0)
+	queue_redraw()
 
 func _physics_process(delta: float) -> void:
 	var battle := get_tree().current_scene
@@ -33,6 +52,7 @@ func _physics_process(delta: float) -> void:
 		_begin_saw_windup()
 
 func _begin_saw_windup() -> void:
+	EnemySfx.play(self, preload("res://Assets/Audio/Enemies/Forest/boss_saw_windup.wav"), -5.0, 0.0)
 	var aim: Vector2 = (target_ship as Ship).to_global(Ship.SHIP_SIZE * 0.5)
 	var nearest := dwarf_lure_range
 	for node in get_tree().get_nodes_in_group("mining_dwarves"):
@@ -47,31 +67,42 @@ func _begin_saw_windup() -> void:
 			nearest = distance
 			aim = target
 	_locked_direction = global_position.direction_to(aim)
+	_locked_aim = aim
 	_windup_left = saw_windup
 	queue_redraw()
 
 func _fire_saw() -> void:
+	EnemySfx.play(self, preload("res://Assets/Audio/Enemies/Forest/boss_saw_fire.wav"), -4.0, 0.04)
 	_saw_cooldown = saw_interval
+	_reload = 0.0
 	if saw_scene == null or _locked_direction == Vector2.ZERO:
 		return
-	var saw := saw_scene.instantiate() as HostileProjectile
-	if saw == null:
-		return
-	saw.direction = _locked_direction
-	saw.target_ship = target_ship as Ship
 	var scene := get_tree().current_scene
-	(scene if scene != null else get_parent()).add_child(saw)
-	saw.global_position = global_position + _locked_direction * 32.0
+	var sideways := _locked_direction.orthogonal()
+	for side in [-1.0, 1.0]:
+		var saw := saw_scene.instantiate() as HostileProjectile
+		if saw == null:
+			continue
+		var launch_position: Vector2 = global_position + _locked_direction * saw_forward_offset + sideways * saw_side_offset * side
+		# Both saws converge on the target chosen at windup; moving the
+		# target afterward does not turn them into homing projectiles.
+		saw.direction = launch_position.direction_to(_locked_aim)
+		saw.target_ship = target_ship as Ship
+		(scene if scene != null else get_parent()).add_child(saw)
+		saw.global_position = launch_position
 	queue_redraw()
 
 func _get_visual_radius() -> float:
-	return 50.0
+	return 60.0 * ForestVisual.RIG_SCALE
 
 func _draw() -> void:
-	var hull := Rect2(-48.0, -28.0, 96.0, 56.0)
-	draw_rect(hull, _flash(Color("5D4936")))
-	draw_rect(Rect2(-42.0, -22.0, 84.0, 44.0), Color("344737"))
-	draw_circle(Vector2(0.0, 0.0), 19.0, Color("496B43"))
-	draw_circle(Vector2(36.0, 0.0), 16.0, Color("A7AAA2"))
+	if _rig_crown.is_empty():
+		_rig_crown = ForestVisual.build_tree_crown(ForestVisual.RIG_CROWN_RADIUS, ForestVisual.RIG_CROWN_SEED, false)
+	var rev := 0.0
 	if _windup_left > 0.0:
-		draw_line(_locked_direction * 32.0, _locked_direction * 600.0, Color(0.97, 0.45, 0.27, 0.55), 3.0)
+		rev = clampf(1.0 - _windup_left / maxf(saw_windup, 0.01), 0.0, 1.0)
+		# Aim line toward the locked target, brighter as the saws spin up.
+		var from := _locked_direction * 70.0 * ForestVisual.RIG_SCALE
+		var to := _locked_direction * 600.0
+		draw_line(from, to, Color(0.97, 0.45, 0.27, 0.25 + 0.4 * rev), 2.0 + 2.0 * rev)
+	ForestVisual.draw_saw_rig(self, _rig_crown, _rig_rot, _anim_time, rev, _reload, _is_flashing())

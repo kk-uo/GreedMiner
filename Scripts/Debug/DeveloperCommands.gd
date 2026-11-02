@@ -140,6 +140,32 @@ func unlock_weapon_fusion() -> Dictionary:
 	return _success("Weapon Fusion unlocked. Fusion weapons still start at Level 1.")
 
 
+## Maxes all implemented technology branches, including weapon and fusion
+## research, without spending Ore or changing unrelated unlock progression.
+func unlock_all_research() -> Dictionary:
+	if not is_available():
+		return _failure("Developer Mode is disabled.")
+	var completed := ResearchManager.complete_all_research_for_development()
+	if completed < 0:
+		return _failure("Could not save all research progress.")
+	if completed == 0:
+		return _success("All implemented research is already complete.")
+	return _success("Completed %d research project(s)." % completed, "Completed %d research project(s).", [completed])
+
+
+## Maxes base and fusion turret research without spending Ore or touching
+## mining, energy, shield, or ship research.
+func maximize_all_turrets() -> Dictionary:
+	if not is_available():
+		return _failure("Developer Mode is disabled.")
+	var upgraded := ResearchManager.maximize_weapon_research_for_development()
+	if upgraded < 0:
+		return _failure("Could not save turret levels.")
+	if upgraded == 0:
+		return _success("All turrets are already at maximum level.")
+	return _success("Maxed %d turret type(s)." % upgraded, "Maxed %d turret type(s).", [upgraded])
+
+
 ## Clears the versioned player save and asks each existing manager to rebuild
 ## its state from current new-game defaults. No manager owns a duplicate reset.
 func reset_all_progress() -> Dictionary:
@@ -154,6 +180,7 @@ func reset_all_progress() -> Dictionary:
 	WeaponUnlockManager.reload_progress()
 	ShipLoadout.load_saved()
 	ResearchManager.reload_progress()
+	ChipManager.reload_progress()
 	ArtifactManager.reload_progress()
 	return _success("All progression was reset.")
 

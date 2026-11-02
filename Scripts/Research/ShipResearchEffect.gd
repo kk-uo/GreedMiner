@@ -10,13 +10,17 @@ extends ResearchEffect
 ## planets cannot be located or deployed to until it is researched.
 @export var unlocked_planet_ids: Array[StringName] = []
 ## Extra power every Energy Module supplies (Energy Core research).
-@export_range(0, 10, 1) var power_bonus: int = 0
+@export_range(0.0, 10.0, 0.5) var power_bonus: float = 0.0
 ## Extra ship power that needs no Energy Module (built into the hull).
-@export_range(0, 10, 1) var base_power_bonus: int = 0
+@export_range(0.0, 10.0, 0.5) var base_power_bonus: float = 0.0
 ## Unlocks the Hangar's SHIP STYLE (colors and hull designs).
 @export var unlocks_ship_style: bool = false
 ## Allows selecting a turret for mouse-directed fire during battle.
 @export var unlocks_manual_turret_control: bool = false
+## Number of extra hull module cells this research permits the player to add.
+@export_range(0, 2, 1) var hull_slot_capacity_bonus: int = 0
+## Enables 45-degree ship layout rotation in the Hangar.
+@export var unlocks_ship_rotation: bool = false
 ## Extra ship-grid expansion capacity every Energy Module supplies. This is
 ## only an interface for the future hull slot-expansion research: it raises
 ## Ship.total_expansion_capacity but does not add any slot by itself.

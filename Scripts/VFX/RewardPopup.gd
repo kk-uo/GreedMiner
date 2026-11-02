@@ -18,6 +18,8 @@ var _sparks: Array[Dictionary] = []
 static func spawn(parent: Node, world_position: Vector2, ore_amount: float) -> void:
 	if parent == null or not parent.is_inside_tree():
 		return
+	# Presentation: an ore "clink" for every +N ore pickup (rate limited).
+	EnemySfx.play(world_position, preload("res://Assets/Audio/Mining/ore_collect.wav"), -13.0, 0.06)
 	var popup := RewardPopup.new()
 	popup.amount = ore_amount
 	popup.z_as_relative = false

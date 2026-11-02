@@ -51,7 +51,7 @@ every unit uses normal goblin AI. The legacy `CLUSTER` pattern still exists.
 ## Goblin Giant Chariot (wave 11 boss)
 
 `Scenes/Enemies/goblin_giant_chariot.tscn` / `Scripts/Enemies/GoblinGiantChariot.gd`.
-HP 3500, speed 10, contact damage 50, 20 % damage reduction, boss tier, 500 ore.
+HP 4000, speed 15, contact damage 30, 20 % damage reduction, boss tier, 500 ore.
 All tuning values are Inspector exports on the scene:
 
 | Export | Default | Meaning |

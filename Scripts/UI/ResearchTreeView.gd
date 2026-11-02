@@ -194,7 +194,10 @@ func _build_children() -> void:
 	_scroll = ScrollContainer.new()
 	_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_scroll.offset_bottom = -(STRIP_HEIGHT + STRIP_GAP)
-	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	# No scroll bars (user): drag the tree with the mouse; the wheel still
+	# scrolls. See TreeCanvas._gui_input.
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	add_child(_scroll)
 	var center := CenterContainer.new()
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -321,6 +324,20 @@ func _missing_prerequisites(node: ResearchTreeNode) -> Array[String]:
 		if not ResearchManager.is_research_completed(id):
 			var parent := tree.get_node(id)
 			missing.append(tr(parent.display_name) if parent != null else String(id))
+	for id in node.required_external_research_ids:
+		if not ResearchManager.is_research_completed(id):
+			var definition := ResearchManager.get_definition(id)
+			missing.append(tr(definition.display_name) if definition != null else String(id))
+	for planet_id in node.required_planet_clear_ids:
+		if not WeaponUnlockManager.has_completed_planet(planet_id):
+			var planet_index := PlanetSelect.get_planet_index(planet_id)
+			var planet_name := String(PlanetSelect.PLANETS[planet_index].get("name", planet_id)) if PlanetSelect.PLANETS[planet_index].get("id") == planet_id else String(planet_id)
+			missing.append(tr("Clear %s") % tr(planet_name))
+	if node.required_base_weapon_level > 0:
+		for weapon_id in WeaponFusionRegistry.BASE_WEAPONS:
+			if ResearchManager.get_weapon_research_level(weapon_id) < node.required_base_weapon_level:
+				missing.append(tr("All base weapons Level %d") % node.required_base_weapon_level)
+				break
 	return missing
 
 
@@ -382,10 +399,10 @@ static func node_info(node: ResearchTreeNode) -> Dictionary:
 				var planet_name := String(PlanetSelect.PLANETS[index].get("name", planet_id)) if PlanetSelect.PLANETS[index].get("id") == planet_id else String(planet_id)
 				names.append(planet_name.get_slice(" ", 0))
 			info["stat"] = " · ".join(names)
-		elif ship_effect.base_power_bonus > 0:
+		elif ship_effect.base_power_bonus > 0.0:
 			info["glyph"] = &"energy"
 			info["stat_icon"] = &"energy"
-			info["stat"] = TranslationServer.translate("+%d POWER") % ship_effect.base_power_bonus
+			info["stat"] = TranslationServer.translate("+%s POWER") % _number(ship_effect.base_power_bonus)
 		elif ship_effect.unlocks_ship_style:
 			info["glyph"] = &"style"
 			info["stat_icon"] = &"style"
@@ -394,10 +411,18 @@ static func node_info(node: ResearchTreeNode) -> Dictionary:
 			info["glyph"] = &"target"
 			info["stat_icon"] = &"plus"
 			info["stat"] = "MANUAL AIM"
+		elif ship_effect.hull_slot_capacity_bonus > 0:
+			info["glyph"] = &"slot"
+			info["stat_icon"] = &"plus"
+			info["stat"] = TranslationServer.translate("+%d slot") % ship_effect.hull_slot_capacity_bonus
+		elif ship_effect.unlocks_ship_rotation:
+			info["glyph"] = &"style"
+			info["stat_icon"] = &"style"
+			info["stat"] = "45°"
 		elif ship_effect.power_bonus > 0:
 			info["glyph"] = &"energy"
 			info["stat_icon"] = &"energy"
-			info["stat"] = TranslationServer.translate("+%d POWER") % ship_effect.power_bonus
+			info["stat"] = TranslationServer.translate("+%s POWER") % _number(ship_effect.power_bonus)
 		elif ship_effect.artifact_slots > 0:
 			info["glyph"] = &"magic"
 			info["stat_icon"] = &"gem"
@@ -683,15 +708,47 @@ class TreeCanvas:
 				return id
 		return &""
 
+	## Drag-to-pan: holding the left button and moving more than
+	## DRAG_THRESHOLD pans the scroll view; a press-release without moving is
+	## a click (selects the node under the cursor on release).
+	const DRAG_THRESHOLD: float = 6.0
+	var _pressing: bool = false
+	var _dragging: bool = false
+	var _press_at := Vector2.ZERO
+
 	func _gui_input(event: InputEvent) -> void:
 		if event is InputEventMouseMotion:
-			var hover := _node_at(event.position)
+			var motion := event as InputEventMouseMotion
+			if _pressing:
+				if not _dragging and motion.position.distance_to(_press_at) > DRAG_THRESHOLD:
+					_dragging = true
+					mouse_default_cursor_shape = Control.CURSOR_DRAG
+				if _dragging and view._scroll != null:
+					view._scroll.scroll_horizontal -= int(round(motion.relative.x))
+					view._scroll.scroll_vertical -= int(round(motion.relative.y))
+					accept_event()
+					return
+			var hover := _node_at(motion.position)
 			if hover != _hover:
 				_hover = hover
 				mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not hover.is_empty() else Control.CURSOR_ARROW
 				queue_redraw()
-		elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			var id := _node_at(event.position)
+		elif event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+			var button := event as InputEventMouseButton
+			if button.pressed:
+				_pressing = true
+				_dragging = false
+				_press_at = button.position
+				accept_event()
+				return
+			var was_drag := _dragging
+			_pressing = false
+			_dragging = false
+			if was_drag:
+				mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not _hover.is_empty() else Control.CURSOR_ARROW
+				accept_event()
+				return
+			var id := _node_at(button.position)
 			if not id.is_empty():
 				view.select_node(id)
 				accept_event()

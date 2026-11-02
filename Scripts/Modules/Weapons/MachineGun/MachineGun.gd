@@ -208,32 +208,31 @@ func fire() -> void:
 	if projectile_scene == null:
 		push_error("MachineGun: Projectile scene is missing!")
 		return
+	begin_artifact_attack()
 
-	# Create a projectile instance.
-	var projectile := projectile_scene.instantiate() as MachineGunProjectile
-
-	if projectile == null:
-		push_error("MachineGun: Invalid projectile scene!")
-		return
-
-	# Add the projectile to the main game scene.
-	# This prevents bullets from rotating with the turret.
-	get_tree().current_scene.add_child(projectile)
-
-	# Spawn the projectile at the muzzle.
-	projectile.global_position = _muzzle.global_position
-
-	# Fire in the direction the muzzle is facing.
-	projectile.direction = Vector2.RIGHT.rotated(
-		_muzzle.global_rotation
-	)
-
-	# Apply the machine gun's configured statistics.
-	projectile.damage = damage
-	projectile.source_weapon = self
+	var volley_count := maxi(projectile_count + get_artifact_projectile_count_bonus(), 1)
+	var base_direction := Vector2.RIGHT.rotated(_muzzle.global_rotation)
 	var artifact_pierces := get_artifact_projectile_pierces()
-	if artifact_pierces > 0:
-		projectile.enable_ghost_piercing(artifact_pierces)
-	projectile.speed = projectile_speed
-	projectile.projectile_range = get_modified_projectile_range(projectile_range)
+	var is_ghost_projectile := has_artifact_ghost_projectile()
+	for index in range(volley_count):
+		var projectile := projectile_scene.instantiate() as MachineGunProjectile
+		if projectile == null:
+			push_error("MachineGun: Invalid projectile scene!")
+			end_artifact_attack()
+			return
+		# World-space children do not inherit the turret's rotation.
+		get_tree().current_scene.add_child(projectile)
+		var lateral_spacing := get_volley_lateral_spacing(get_modified_projectile_range(projectile_range))
+		var lateral_weight := float(index) - float(volley_count - 1) * 0.5
+		projectile.global_position = _muzzle.global_position + base_direction.orthogonal() * lateral_spacing * lateral_weight
+		projectile.direction = get_projectile_volley_direction(base_direction, index, volley_count)
+		projectile.damage = damage
+		projectile.source_weapon = self
+		if artifact_pierces > 0:
+			projectile.enable_ghost_piercing(artifact_pierces, is_ghost_projectile, is_ghost_projectile)
+		projectile.speed = get_modified_projectile_speed(projectile_speed)
+		projectile.projectile_range = get_modified_projectile_range(projectile_range)
+		projectile_spawned.emit(projectile)
+	projectile_volley_fired.emit(_muzzle.global_position, base_direction, get_modified_projectile_speed(projectile_speed), get_modified_attack_range(attack_range))
 	_sound.play_shot()
+	end_artifact_attack()

@@ -111,6 +111,7 @@ func contains_world_point(point: Vector2) -> bool:
 func register_click() -> void:
 	if _broken:
 		return
+	EnemySfx.play(self, preload("res://Assets/Audio/Mining/pick_stone.wav"), -11.0, 0.1)
 	if _shake != null and _shake.is_valid():
 		_shake.kill()
 	rotation = _base_rotation

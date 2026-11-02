@@ -93,6 +93,7 @@ func _on_attack_timer_timeout() -> void:
 	super()
 	if _is_attacking:
 		_attack_pose_time = GoblinVisual.ATTACK_POSE_TIME
+		EnemySfx.play(self, SFX_ATTACK, -12.0)
 
 
 func _walk_step() -> float:
@@ -104,6 +105,10 @@ func _walk_step() -> float:
 const GOBLIN_GORE := preload("res://Scripts/VFX/GoblinGore.gd")
 const DROPPED_SHIELD := preload("res://Scripts/VFX/DroppedShield.gd")
 
+const SFX_ATTACK := preload("res://Assets/Audio/Enemies/Verdant/elite_goblin_attack.wav")
+const SFX_DEATH := preload("res://Assets/Audio/Enemies/Verdant/elite_goblin_death.wav")
+
 func _spawn_death_visual(death_position: Vector2) -> void:
 	GOBLIN_GORE.spawn(get_parent(), death_position, 1.4)
+	EnemySfx.play(death_position, SFX_DEATH, -10.0)
 	DROPPED_SHIELD.spawn(get_parent(), death_position, _facing)

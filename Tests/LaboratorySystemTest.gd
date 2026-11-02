@@ -75,7 +75,7 @@ func _test_weapon_damage_and_purchases() -> void:
 	_expect_equal(machine_gun.get_damage(), 5.0, "Machine Gun level 1 damage")
 	_expect_equal(machine_gun.attack_interval, 0.2, "Machine Gun attack interval unchanged")
 	_expect_equal(machine_gun.attack_range, 400.0, "Machine Gun range unchanged")
-	_expect_equal(cannon.get_damage(), 30.0, "Cannon begins at independent level 1")
+	_expect_equal(cannon.get_damage(), 20.0, "Cannon begins at independent level 1")
 
 	ResourceManager.stored_ore = 9000.0
 	var total_spent := 0
@@ -95,7 +95,7 @@ func _test_weapon_damage_and_purchases() -> void:
 
 	_expect_equal(total_spent, 9000, "total linear cost (200 x L) to reach Level 10")
 	_expect_equal(ResourceManager.stored_ore, 0.0, "ore deducted exactly once")
-	_expect_equal(cannon.get_damage(), 30.0, "Cannon research remains independent")
+	_expect_equal(cannon.get_damage(), 20.0, "Cannon research remains independent")
 	_expect_equal(ResearchManager.get_weapon_artifact_slot_count(&"machine_gun"), 1, "Machine Gun breakthrough unlocks one type-level artifact slot")
 	_expect_equal(ResearchManager.get_weapon_artifact_slot_count(&"dwarf_cannon"), 0, "Cannon artifact slot remains independently locked")
 	var new_machine_gun := MACHINE_GUN_SCENE.instantiate() as MachineGun

@@ -22,12 +22,16 @@ var _remaining_lifetime: float
 var _has_exploded: bool = false
 var _damage_applied: bool = false
 var _ghost: RefCounted
+var _ghost_visual_enabled: bool = false
 var _ghost_impacts: Array[Dictionary] = []
+var _homing_target: BasicEnemy
+var _homing_ignored: Dictionary = {}
 const GHOST_SHOT_ART := preload("res://Scripts/VFX/GhostShotArt.gd")
 var _ghost_time: float = 0.0
 
-func enable_ghost_piercing(initial_pierces: int) -> void:
-	_ghost = preload("res://Scripts/Modules/Weapons/GhostProjectileState.gd").new(initial_pierces)
+func enable_ghost_piercing(initial_pierces: int, replenish_on_kill: bool = true, ghost_visual: bool = true) -> void:
+	_ghost = preload("res://Scripts/Modules/Weapons/GhostProjectileState.gd").new(initial_pierces, replenish_on_kill)
+	_ghost_visual_enabled = ghost_visual
 
 
 func _ready() -> void:
@@ -55,7 +59,7 @@ func get_projectile_visual_scale() -> float:
 func _draw() -> void:
 	var visual_scale := get_projectile_visual_scale()
 	# Ghost Bullet: a translucent spirit-shell instead (presentation).
-	if _ghost != null:
+	if _ghost_visual_enabled:
 		if not _has_exploded:
 			GHOST_SHOT_ART.draw(self, direction, _ghost_time, 6.0 * visual_scale, float(get_instance_id() % 97))
 		return
@@ -69,6 +73,12 @@ func _physics_process(delta: float) -> void:
 	if _has_exploded:
 		return
 
+	if is_instance_valid(source_weapon):
+		var turn_rate := source_weapon.get_artifact_projectile_homing_turn_rate()
+		if turn_rate > 0.0:
+			var steering := source_weapon.get_homing_steering(global_position, direction, _homing_target, _homing_ignored, delta, turn_rate)
+			_homing_target = steering["target"] as BasicEnemy
+			direction = steering["direction"]
 	global_position += direction.normalized() * speed * delta
 	_remaining_lifetime -= delta
 	if _ghost != null:
@@ -89,8 +99,11 @@ func _on_area_entered(area: Area2D) -> void:
 		return
 	if _has_exploded or not area is BasicEnemy or (area as BasicEnemy).is_dying():
 		return
+	var collided_enemy := area as BasicEnemy
+	if is_instance_valid(source_weapon) and not source_weapon.can_target_enemy(collided_enemy):
+		return
 	if _ghost != null:
-		var enemy := area as BasicEnemy
+		var enemy := collided_enemy
 		if not _ghost.register_target(enemy):
 			return
 		_ghost_impacts.append({"target": enemy, "position": global_position})
@@ -98,7 +111,7 @@ func _on_area_entered(area: Area2D) -> void:
 			call_deferred("_resolve_ghost_impacts")
 		return
 
-	_direct_target = area as BasicEnemy
+	_direct_target = collided_enemy
 	_has_exploded = true
 	set_physics_process(false)
 	set_deferred("monitoring", false)
@@ -119,11 +132,17 @@ func _explode() -> void:
 func _resolve_ghost_impacts() -> void:
 	while not _ghost_impacts.is_empty() and not _has_exploded:
 		var impact: Dictionary = _ghost_impacts.pop_front()
+		# Validate before casting: casting a freed enemy is an error.
+		if not is_instance_valid(impact["target"]):
+			continue
 		var enemy := impact["target"] as BasicEnemy
-		if not is_instance_valid(enemy) or enemy.is_dying():
+		if enemy == null or enemy.is_dying():
 			continue
 		var killed := _explode_at(impact["position"], enemy)
-		if not _ghost.continue_after_hit(killed):
+		if _ghost.continue_after_hit(killed):
+			_homing_ignored[enemy.get_instance_id()] = true
+			_homing_target = null
+		else:
 			_has_exploded = true
 			queue_free()
 	_ghost_impacts.clear()
@@ -155,6 +174,8 @@ func _explode_at(impact_position: Vector2, direct_target: BasicEnemy) -> bool:
 
 		var enemy := collider as BasicEnemy
 		if not enemy.is_in_group("enemies"):
+			continue
+		if is_instance_valid(source_weapon) and not source_weapon.can_target_enemy(enemy):
 			continue
 
 		var enemy_id := enemy.get_instance_id()

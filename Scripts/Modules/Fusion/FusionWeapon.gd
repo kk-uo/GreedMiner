@@ -25,7 +25,8 @@ const SOUNDS := {
 ## How long a beam loop keeps sounding after its last damage tick.
 const BEAM_SOUND_HOLD: float = 0.15
 
-enum AttackKind { PROJECTILE, BEAM, WAVE }
+## SAW: melee, hits every enemy within attack_range of the module (no aiming).
+enum AttackKind { PROJECTILE, BEAM, WAVE, SAW }
 enum VisualKind { SCATTER, KNOCKBACK, LASER, SAWBLADE, FLAME, CANNON }
 
 @export var attack_kind: AttackKind = AttackKind.PROJECTILE
@@ -40,6 +41,9 @@ enum VisualKind { SCATTER, KNOCKBACK, LASER, SAWBLADE, FLAME, CANNON }
 @export var spread_degrees: float = 0.0
 @export var aoe_radius: float = 0.0
 @export var knockback_distance: float = 0.0
+## Projectile weapons may limit knockback to one enemy per bullet, even when
+## an artifact lets the bullet pierce and damage additional targets.
+@export var knockback_once_per_projectile: bool = false
 @export var post_knockback_aoe_radius: float = 0.0
 @export var post_knockback_damage_ratio: float = 0.0
 @export var leaves_fire: bool = false
@@ -53,6 +57,17 @@ enum VisualKind { SCATTER, KNOCKBACK, LASER, SAWBLADE, FLAME, CANNON }
 @export var wave_thickness: float = 20.0
 @export var wave_damage_per_second: float = 0.0
 @export var projectile_scene: PackedScene
+## SAW only: number of endless laser beams radiating from the saw (0 = none).
+## While any enemy is alive they spin around the module, sweeping the screen.
+@export var saw_beam_count: int = 0
+## Beam spin speed, radians per second.
+@export var saw_beam_turn_speed: float = 1.6
+## Beam damage per sweep hit, as a ratio of get_damage() (used when
+## saw_beam_damage is 0).
+@export var saw_beam_damage_ratio: float = 1.0
+## Fixed base beam damage per sweep hit, before research / artifact damage
+## modifiers. Laser Chainsaw uses 1 = one base Laser hit (sync 86).
+@export var saw_beam_damage: float = 0.0
 
 @onready var _turret: Node2D = $Turret
 @onready var _muzzle: Marker2D = $Turret/Muzzle
@@ -62,6 +77,12 @@ var current_target: BasicEnemy
 var _cooldown: float = 0.0
 var _visual_rotation: float = 0.0
 var _sound: WeaponSound
+## 0..1, set to 1 whenever the saw hits something (presentation).
+var saw_engaged: float = 0.0
+## Global angle of beam 0 and the 0..1 beam power (fades in while attacking).
+var saw_beam_angle: float = 0.0
+var saw_beam_power: float = 0.0
+var _saw_beam_last_angle: float = 0.0
 
 
 func get_damage() -> float:
@@ -85,6 +106,10 @@ func _process(delta: float) -> void:
 	queue_redraw()
 	if assembly_mode:
 		_deactivate()
+		saw_engaged = 0.0
+		return
+	if attack_kind == AttackKind.SAW:
+		_process_saw(delta)
 		return
 	var effective_range := get_modified_attack_range(attack_range)
 	var aim_position: Vector2
@@ -122,6 +147,10 @@ func _process(delta: float) -> void:
 
 
 func fire() -> void:
+	if attack_kind == AttackKind.SAW:
+		_fire_saw()
+		return
+	begin_artifact_attack()
 	_play_attack_sound()
 	if attack_kind == AttackKind.BEAM:
 		_fire_beam()
@@ -129,12 +158,13 @@ func fire() -> void:
 		_fire_wave()
 	else:
 		_fire_projectiles()
+	end_artifact_attack()
 
 
 func _fire_wave() -> void:
 	var wave := KNOCKBACK_WAVE.new()
 	wave.direction = Vector2.RIGHT.rotated(_muzzle.global_rotation)
-	wave.speed = projectile_speed
+	wave.speed = get_modified_projectile_speed(projectile_speed)
 	wave.maximum_distance = get_modified_attack_range(attack_range)
 	wave.wave_length = get_modified_projectile_range(projectile_range)
 	wave.wave_thickness = wave_thickness
@@ -151,25 +181,39 @@ func _fire_projectiles() -> void:
 	if projectile_scene == null:
 		push_error("FusionWeapon: projectile scene is missing.")
 		return
-	var count := maxi(projectile_count, 1)
+	var base_count := maxi(projectile_count, 1)
+	var count := base_count + get_artifact_projectile_count_bonus()
 	for index in range(count):
 		var projectile := projectile_scene.instantiate() as FusionProjectile
 		if projectile == null:
 			push_error("FusionWeapon: projectile must extend FusionProjectile.")
 			return
 		get_tree().current_scene.add_child(projectile)
-		projectile.global_position = _muzzle.global_position
+		# Twin Demon (Claude sync 97): added projectiles fly side by side with
+		# the original. A single-shot weapon spreads the pair symmetrically;
+		# a spread volley keeps its fan and adds the extras beside the centre.
+		var lateral := 0.0
+		var spacing := get_volley_lateral_spacing(get_modified_projectile_range(projectile_range))
+		if base_count == 1:
+			lateral = (float(index) - float(count - 1) * 0.5) * spacing
+		elif index >= base_count:
+			var extra := index - base_count
+			lateral = (1.0 if extra % 2 == 0 else -1.0) * float(extra / 2 + 1) * spacing
+		projectile.global_position = _muzzle.global_position + Vector2.RIGHT.rotated(_muzzle.global_rotation).orthogonal() * lateral
 		var offset := 0.0
-		if count > 1:
-			offset = deg_to_rad(lerpf(-spread_degrees, spread_degrees, float(index) / float(count - 1)))
+		# Preserve the complete original volley. Artifact-added projectiles are
+		# appended beside the centre instead of redistributing every old shot.
+		if index < base_count and base_count > 1:
+			offset = deg_to_rad(lerpf(-spread_degrees, spread_degrees, float(index) / float(base_count - 1)))
 		projectile.direction = Vector2.RIGHT.rotated(_muzzle.global_rotation + offset)
 		projectile.damage = get_modified_explosion_damage(get_damage()) if aoe_radius > 0.0 else get_damage()
-		projectile.speed = projectile_speed
+		projectile.speed = get_modified_projectile_speed(projectile_speed)
 		projectile.maximum_distance = get_modified_attack_range(attack_range)
 		projectile.projectile_range = get_modified_projectile_range(projectile_range)
 		projectile.pierces_all_targets = projectile_pierces_all_targets
 		projectile.aoe_radius = aoe_radius
 		projectile.knockback_distance = knockback_distance
+		projectile.knockback_once_per_projectile = knockback_once_per_projectile
 		projectile.post_knockback_aoe_radius = post_knockback_aoe_radius
 		projectile.post_knockback_damage_ratio = post_knockback_damage_ratio
 		projectile.post_knockback_damage = get_modified_explosion_damage(get_damage()) * post_knockback_damage_ratio
@@ -182,22 +226,151 @@ func _fire_projectiles() -> void:
 		projectile.source_weapon = self
 		var artifact_pierces := get_artifact_projectile_pierces()
 		if artifact_pierces > 0:
-			projectile.enable_ghost_piercing(artifact_pierces)
+			var is_ghost_projectile := has_artifact_ghost_projectile()
+			projectile.enable_ghost_piercing(artifact_pierces, is_ghost_projectile, is_ghost_projectile)
 		projectile.arm_from_current_position()
+		projectile_spawned.emit(projectile)
+	projectile_volley_fired.emit(_muzzle.global_position, Vector2.RIGHT.rotated(_muzzle.global_rotation), get_modified_projectile_speed(projectile_speed), get_modified_attack_range(attack_range))
 
 
-func _fire_beam() -> void:
-	var effective_range := get_modified_attack_range(attack_range)
-	var shape := RectangleShape2D.new()
-	shape.size = Vector2(effective_range, get_modified_projectile_range(beam_width))
-	var direction := Vector2.RIGHT.rotated(_muzzle.global_rotation)
+func _process_saw(delta: float) -> void:
+	saw_engaged = maxf(saw_engaged - delta / 0.25, 0.0)
+	if saw_beam_count > 0:
+		var attacking := _has_enemy_in_saw_reach()
+		saw_beam_power = move_toward(saw_beam_power, 1.0 if attacking else 0.0, delta / 0.3)
+		saw_beam_angle = fmod(saw_beam_angle + saw_beam_turn_speed * saw_beam_power * delta, TAU)
+	var rate := get_fire_rate()
+	if rate <= 0.0:
+		_cooldown = 0.0
+		return
+	_cooldown -= delta
+	while _cooldown <= 0.0:
+		_fire_saw()
+		_cooldown += 1.0 / rate
+
+
+## Melee tick: damages everything whose collision overlaps the saw circle.
+func _fire_saw() -> void:
+	if not is_inside_tree():
+		return
+	begin_artifact_attack()
+	var shape := CircleShape2D.new()
+	shape.radius = get_modified_attack_range(attack_range)
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = shape
-	query.transform = Transform2D(_muzzle.global_rotation, _muzzle.global_position + direction * effective_range * 0.5)
+	query.transform = Transform2D(0.0, global_position)
 	query.collision_mask = 1
 	query.collide_with_areas = true
 	query.collide_with_bodies = false
 	var hit_ids: Dictionary = {}
+	for result in get_world_2d().direct_space_state.intersect_shape(query, 256):
+		var collider: Object = result.get("collider")
+		if collider == null or hit_ids.has(collider.get_instance_id()):
+			continue
+		if collider is Node and (collider as Node).is_in_group(&"destructible_props"):
+			hit_ids[collider.get_instance_id()] = true
+			collider.call("take_damage", get_damage())
+			continue
+		var enemy := collider as BasicEnemy
+		if enemy == null or not enemy.is_in_group(&"enemies") or not can_target_enemy(enemy):
+			continue
+		hit_ids[enemy.get_instance_id()] = true
+		enemy.take_damage(get_damage(), false, true, self)
+	_fire_saw_beams(hit_ids)
+	if not hit_ids.is_empty():
+		saw_engaged = 1.0
+		_play_attack_sound()
+	elif saw_beam_power > 0.5:
+		_play_attack_sound()
+	end_artifact_attack()
+
+
+## Damages everything a spinning beam swept across since the previous tick
+## (sector test, so fast sweeps never skip a target). Melee hits this tick
+## are not hit twice.
+func _fire_saw_beams(hit_ids: Dictionary) -> void:
+	var last := _saw_beam_last_angle
+	_saw_beam_last_angle = saw_beam_angle
+	if saw_beam_count <= 0 or saw_beam_power < 0.5:
+		return
+	var swept := fposmod(saw_beam_angle - last, TAU)
+	var half_width := get_modified_beam_width(beam_width) * 0.5 + 14.0
+	var step := TAU / float(saw_beam_count)
+	var damage := get_saw_beam_damage()
+	var origin := global_position
+	var targets: Array = get_tree().get_nodes_in_group(&"enemies")
+	targets.append_array(get_tree().get_nodes_in_group(&"destructible_props"))
+	for node in targets:
+		var target := node as Node2D
+		if target == null or hit_ids.has(target.get_instance_id()):
+			continue
+		var enemy := target as BasicEnemy
+		if enemy != null and not can_target_enemy(enemy):
+			continue
+		var rel := target.global_position - origin
+		var distance := rel.length()
+		if distance < 1.0:
+			continue
+		var margin := atan2(half_width, distance)
+		var angle := rel.angle()
+		var hit := false
+		for k in range(saw_beam_count):
+			var start := last + step * float(k) - margin
+			if fposmod(angle - start, TAU) <= swept + margin * 2.0:
+				hit = true
+				break
+		if not hit:
+			continue
+		hit_ids[target.get_instance_id()] = true
+		if enemy != null:
+			enemy.take_damage(damage, false, true, self)
+		else:
+			target.call("take_damage", damage)
+
+
+## Damage one spinning beam deals to each enemy it sweeps over.
+func get_saw_beam_damage() -> float:
+	if saw_beam_damage > 0.0:
+		return get_modified_damage(saw_beam_damage)
+	return get_damage() * saw_beam_damage_ratio
+
+
+## Laser Chainsaw beams only fire while something is inside the saw's melee
+## radius (user balance change, Claude sync 85; they used to spin whenever
+## any enemy was alive anywhere on the map).
+func _has_enemy_in_saw_reach() -> bool:
+	var reach := get_modified_attack_range(attack_range)
+	var origin := global_position
+	for node in get_tree().get_nodes_in_group(&"enemies"):
+		var enemy := node as BasicEnemy
+		if enemy == null or enemy.is_dying() or not can_target_enemy(enemy):
+			continue
+		var limit := reach + enemy.get_collision_radius()
+		if origin.distance_squared_to(enemy.global_position) <= limit * limit:
+			return true
+	return false
+
+
+func _fire_beam() -> void:
+	var hit_ids: Dictionary = {}
+	var path := _get_beam_world_path()
+	for index in range(path.size() - 1):
+		_damage_beam_segment(path[index], path[index + 1], hit_ids)
+
+
+func _damage_beam_segment(start: Vector2, finish: Vector2, hit_ids: Dictionary) -> void:
+	var length := start.distance_to(finish)
+	if length <= 0.01:
+		return
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(length, get_modified_beam_width(beam_width))
+	var angle := start.direction_to(finish).angle()
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = shape
+	query.transform = Transform2D(angle, start.lerp(finish, 0.5))
+	query.collision_mask = 1
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
 	for result in get_world_2d().direct_space_state.intersect_shape(query, 256):
 		var collider: Object = result.get("collider")
 		if collider is Node and (collider as Node).is_in_group(&"destructible_props"):
@@ -206,7 +379,7 @@ func _fire_beam() -> void:
 				collider.call("take_damage", get_damage())
 			continue
 		var enemy := collider as BasicEnemy
-		if enemy == null or enemy.is_dying() or not enemy.is_in_group(&"enemies"):
+		if enemy == null or not enemy.is_in_group(&"enemies") or not can_target_enemy(enemy):
 			continue
 		if hit_ids.has(enemy.get_instance_id()):
 			continue
@@ -217,8 +390,20 @@ func _fire_beam() -> void:
 func _update_beam() -> void:
 	if _beam == null:
 		return
-	_beam.width = get_modified_projectile_range(beam_width)
-	_beam.points = PackedVector2Array([Vector2.ZERO, Vector2(get_modified_attack_range(attack_range), 0.0)])
+	_beam.width = get_modified_beam_width(beam_width)
+	var local_points := PackedVector2Array()
+	for point in _get_beam_world_path():
+		local_points.append(_muzzle.to_local(point))
+	_beam.points = local_points
+
+
+func _get_beam_world_path() -> PackedVector2Array:
+	return get_artifact_laser_path(
+		_muzzle.global_position,
+		Vector2.RIGHT.rotated(_muzzle.global_rotation),
+		get_modified_attack_range(attack_range),
+		current_target
+	)
 
 
 func _deactivate(release_target: bool = true) -> void:

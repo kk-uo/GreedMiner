@@ -21,10 +21,12 @@ const HOTSPOT_STAR_MAP: StringName = &"star_map"
 const HOTSPOT_LAB: StringName = &"lab"
 const HOTSPOT_WAREHOUSE: StringName = &"warehouse"
 const HOTSPOT_MAGIC_STALL: StringName = &"magic_stall"
+const HOTSPOT_MAGIC_SHOP: StringName = &"magic_shop"
 
 ## Dwarven vault door in the bottom-right wall that opens the Warehouse.
 const WarehouseVault := preload("res://Scripts/Base/WarehouseVault.gd")
 const RuneShrine := preload("res://Scripts/Base/RuneShrine.gd")
+const MerchantRug := preload("res://Scripts/Base/MerchantRug.gd")
 ## Solid rock around the hold and the mine tracks with ore carts.
 const CavernRock := preload("res://Scripts/Base/CavernRock.gd")
 const MineRails := preload("res://Scripts/Base/MineRails.gd")
@@ -40,6 +42,7 @@ const PAD_RECT := Rect2(562.0, 282.0, 156.0, 156.0)
 const STAR_MAP_CENTER := Vector2(960.0, 230.0)
 const STAR_MAP_RADIUS: float = 76.0
 const MAGIC_STALL_RECT := RuneShrine.HIT_RECT
+const MAGIC_SHOP_RECT := Rect2(365.0, 455.0, 116.0, 100.0)
 
 const WALL := Color("4A372B")
 const WALL_RIM := Color("6A4D3A")
@@ -156,7 +159,7 @@ func _process(delta: float) -> void:
 	_stall_wake = move_toward(_stall_wake, stall_target, delta / RuneShrine.WAKE_TIME)
 	if is_instance_valid(_crane_operator):
 		_crane_operator.facing = float(_crane_state()["angle"])
-	for hotspot in [HOTSPOT_HANGAR, HOTSPOT_STAR_MAP, HOTSPOT_LAB, HOTSPOT_WAREHOUSE, HOTSPOT_MAGIC_STALL]:
+	for hotspot in [HOTSPOT_HANGAR, HOTSPOT_STAR_MAP, HOTSPOT_LAB, HOTSPOT_WAREHOUSE, HOTSPOT_MAGIC_STALL, HOTSPOT_MAGIC_SHOP]:
 		var pinned: bool = hotspot in pinned_tags or (hotspot == HOTSPOT_MAGIC_STALL and artifact_guide_active)
 		var target := 1.0 if show_tags and (hovered == hotspot or pinned) else 0.0
 		_tag_alpha[hotspot] = move_toward(float(_tag_alpha.get(hotspot, 0.0)), target, delta / 0.18)
@@ -182,6 +185,8 @@ func get_hotspot_at(global_point: Vector2) -> StringName:
 		return HOTSPOT_WAREHOUSE
 	if MAGIC_STALL_RECT.grow(8.0).has_point(mock):
 		return HOTSPOT_MAGIC_STALL
+	if MAGIC_SHOP_RECT.grow(8.0).has_point(mock):
+		return HOTSPOT_MAGIC_SHOP
 	return HOTSPOT_NONE
 
 
@@ -196,6 +201,8 @@ func get_hotspot_center(hotspot: StringName) -> Vector2:
 			return to_global(mock_to_local(WarehouseVault.CENTER))
 		HOTSPOT_MAGIC_STALL:
 			return to_global(mock_to_local(MAGIC_STALL_RECT.get_center()))
+		HOTSPOT_MAGIC_SHOP:
+			return to_global(mock_to_local(MAGIC_SHOP_RECT.get_center()))
 		_:
 			return to_global(mock_to_local(PAD_RECT.get_center()))
 
@@ -245,11 +252,17 @@ func _draw_live() -> void:
 	_LIVE_BATCH.flush_to(_live)
 	_live.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * LAYOUT_SCALE)
 	RuneShrine.draw(_live, _time, _stall_wake, hovered == HOTSPOT_MAGIC_STALL, artifact_guide_active)
+	_draw_magic_shop_placeholder()
 	_live.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	WarehouseVault.draw(_live, LAYOUT_SCALE, _time, _vault_open, hovered == HOTSPOT_WAREHOUSE)
 	_live.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	_draw_name_tags()
 	_c = self
+
+
+func _draw_magic_shop_placeholder() -> void:
+	# Wandering merchant's rug stall (Claude sync 98); click area unchanged.
+	MerchantRug.draw(_live, _time, hovered == HOTSPOT_MAGIC_SHOP)
 
 
 func _draw_asteroid() -> void:
@@ -470,6 +483,7 @@ func _draw_name_tags() -> void:
 	_draw_tag(mock_to_local(ResearchLab.tag_mock_point()), "LAB", HOTSPOT_LAB)
 	_draw_tag(mock_to_local(WarehouseVault.CENTER + WarehouseVault.floor_direction() * 74.0), "WAREHOUSE", HOTSPOT_WAREHOUSE)
 	_draw_tag(mock_to_local(MAGIC_STALL_RECT.get_center() + Vector2(0.0, 66.0)), "MAGIC STALL", HOTSPOT_MAGIC_STALL)
+	_draw_tag(mock_to_local(MAGIC_SHOP_RECT.get_center() + Vector2(0.0, 66.0)), "SHOP" if ArtifactManager.is_shop_unlocked() else "SHOP · LOCKED", HOTSPOT_MAGIC_SHOP)
 
 
 ## Opacity of a facility's name tag right now (0..1).

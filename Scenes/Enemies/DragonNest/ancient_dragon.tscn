@@ -1,0 +1,37 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Enemies/DragonNest/AncientDragon.gd" id="1"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/DragonNest/dragon_fire_projectile.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://Scenes/Enemies/DragonNest/young_dragon.tscn" id="3"]
+
+[sub_resource type="CircleShape2D" id="Circle"]
+radius = 50.0
+
+[node name="AncientDragon" type="Area2D"]
+script = ExtResource("1")
+enemy_id = &"ancient_dragon"
+enemy_name = "Ancient Dragon"
+max_health = 150000.0
+move_speed = 12.0
+attack_damage = 20.0
+attack_interval = 3.0
+attack_range = 200.0
+reward_ore = 4000.0
+damage_reduction = 0.0
+attack_type = 1
+movement_type = 1
+enemy_tier = 2
+spawn_map_id = &"dragon_nest_planet"
+minimum_spawn_wave = 11
+spawn_patterns = 1
+projectile_scene = ExtResource("2")
+projectile_speed = 240.0
+projectile_spawn_offset = 54.0
+young_dragon_scene = ExtResource("3")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("Circle")
+
+[node name="AttackTimer" type="Timer" parent="."]
+
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

@@ -55,6 +55,12 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+## Clicks land on the planet disc, not the whole square (twin planets of a
+## shared star-map slot overlap their squares).
+func _has_point(point: Vector2) -> bool:
+	return point.distance_to(size * 0.5) <= 128.0
+
+
 func _gui_input(event: InputEvent) -> void:
 	if not event is InputEventMouseButton:
 		return
@@ -119,6 +125,8 @@ func _draw() -> void:
 			_draw_graveyard_planet(center, radius)
 		&"forest":
 			_draw_forest_planet(center, radius)
+		&"dragon_nest":
+			_draw_dragon_nest_planet(center, radius)
 		_:
 			_draw_rocky_planet(center, radius)
 
@@ -126,6 +134,8 @@ func _draw() -> void:
 	_draw_shadow_crescent(center, radius)
 	if visual_theme == &"graveyard":
 		_draw_graveyard_wisps(center, radius)
+	if visual_theme == &"dragon_nest":
+		_draw_orbiting_dragon(center, radius)
 
 	if not unlocked:
 		_draw_lock(center, radius)
@@ -133,7 +143,7 @@ func _draw() -> void:
 		_draw_locate_reticle(center, radius)
 
 ## Tree Planet (art direction A, "ancient grove"): an olive disc packed with
-## oak crowns, one winding river and rain streaks (it always rains there).
+## oak crowns and one winding river.
 func _draw_forest_planet(center: Vector2, radius: float) -> void:
 	var ground := Palette.planet(&"forest")
 	var disc := Palette.offset_points(Palette.regular_polygon(64, radius), center)
@@ -160,9 +170,85 @@ func _draw_forest_planet(center: Vector2, radius: float) -> void:
 			var shape := Palette.offset_points(Palette.regular_polygon(8, r * k, 0.3), at + Vector2(-0.22, -0.26) * r * float(layer))
 			for part in Geometry2D.intersect_polygons(shape, disc):
 				draw_colored_polygon(part, tones[layer])
-	for k in range(30):
-		var p := center + Vector2.RIGHT.rotated(rng.randf() * TAU) * radius * sqrt(rng.randf()) * 0.9
-		draw_line(p, p + Vector2(-3.0, -9.0), Color(0.86, 0.92, 0.94, 0.4), 1.2)
+
+
+## Dragon Nest: a dark volcanic world - winding rivers of molten gold, gold strewn in
+## little heaps, and a few ring castles the dragons have taken.
+func _draw_dragon_nest_planet(center: Vector2, radius: float) -> void:
+	var disc := Palette.offset_points(Palette.regular_polygon(64, radius), center)
+	draw_colored_polygon(disc, Color("2A211D"))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 31
+	for i in range(16):
+		var at := center + Vector2.RIGHT.rotated(rng.randf() * TAU) * radius * sqrt(rng.randf()) * 0.9
+		_draw_clipped(Palette.offset_points(Palette.regular_polygon(7, radius * rng.randf_range(0.12, 0.24), rng.randf()), at), disc, [Color("251D19"), Color("3A2D25"), Color("30261F")][i % 3])
+	# winding rivers of molten gold
+	for river in [[Vector2(-1.1, -0.35), Vector2(-0.4, -0.15), Vector2(0.05, -0.42), Vector2(0.6, -0.3), Vector2(1.1, -0.6)],
+			[Vector2(-1.1, 0.55), Vector2(-0.5, 0.35), Vector2(-0.05, 0.5), Vector2(0.45, 0.25), Vector2(1.1, 0.4)]]:
+		var line := PackedVector2Array()
+		for k in range(river.size() - 1):
+			for s_ in range(6):
+				var t := float(s_) / 6.0
+				line.append(center + (river[k] as Vector2).lerp(river[k + 1], t) * radius + Vector2(0, sin(t * PI) * radius * 0.05))
+		line.append(center + (river[river.size() - 1] as Vector2) * radius)
+		var inside := PackedVector2Array()
+		for p in line:
+			if p.distance_to(center) < radius * 0.97:
+				inside.append(p)
+		draw_polyline(inside, Color(1.0, 0.8, 0.3, 0.16), radius * 0.1)
+		draw_polyline(inside, Color("9A6414"), radius * 0.05)
+		draw_polyline(inside, Color("F2B53A"), radius * 0.032)
+		draw_polyline(inside, Color("FFE08A"), radius * 0.012)
+	# gold everywhere: loose coins and small heaps
+	for i in range(70):
+		var at := center + Vector2.RIGHT.rotated(rng.randf() * TAU) * radius * sqrt(rng.randf()) * 0.85
+		draw_circle(at, rng.randf_range(0.8, 1.5), Color("F2C14A") if i % 3 else Color("FFE9A0"))
+	for h in [Vector2(-0.55, 0.05), Vector2(-0.15, 0.18), Vector2(0.3, 0.02), Vector2(0.6, 0.62), Vector2(-0.35, -0.6), Vector2(0.15, 0.8), Vector2(-0.7, -0.3), Vector2(0.05, -0.18)]:
+		_draw_gold_heap(center + (h as Vector2) * radius, radius * 0.08, rng)
+	# ring castles
+	for castle in [[Vector2(-0.28, -0.32), 0.2], [Vector2(0.5, -0.05), 0.17], [Vector2(-0.3, 0.72), 0.15]]:
+		_draw_ring_castle(center + (castle[0] as Vector2) * radius, radius * float(castle[1]), disc)
+
+
+func _draw_ring_castle(at: Vector2, r: float, disc: PackedVector2Array) -> void:
+	_draw_clipped(Palette.offset_points(Palette.regular_polygon(20, r * 1.08, 0.0), at + Vector2(-2.0, 3.0)), disc, Color(0, 0, 0, 0.4))
+	_draw_clipped(Palette.offset_points(Palette.regular_polygon(20, r, 0.0), at), disc, Color("585A4E"))
+	_draw_clipped(Palette.offset_points(Palette.regular_polygon(20, r * 0.72, 0.0), at), disc, Color("2B221C"))
+	draw_circle(at + Vector2(r * 0.2, -r * 0.1), r * 0.16, Color("F2C14A"))
+	_draw_clipped(Palette.offset_points(Palette.regular_polygon(10, r * 0.3, 0.0), at), disc, Color("7A7C6C"))
+	for k in range(5):
+		var t := at + Vector2.RIGHT.rotated(TAU * float(k) / 5.0 + 0.4) * r * 0.9
+		_draw_clipped(Palette.offset_points(Palette.regular_polygon(10, r * 0.26, 0.0), t), disc, Color("3A3C34"))
+		_draw_clipped(Palette.offset_points(Palette.regular_polygon(10, r * 0.19, 0.0), t), disc, Color("943528"))
+
+
+func _draw_gold_heap(at: Vector2, r: float, rng: RandomNumberGenerator) -> void:
+	for k in range(3):
+		var o := Vector2.RIGHT.rotated(rng.randf() * TAU) * r * 0.45
+		draw_circle(at + o, r * 0.7, Color("7A4E10"))
+	for k in range(3):
+		var o := Vector2.RIGHT.rotated(rng.randf() * TAU) * r * 0.35
+		draw_circle(at + o - Vector2(0.6, 0.8), r * 0.55, Color("D99A26"))
+	draw_circle(at - Vector2(r * 0.25, r * 0.3), r * 0.35, Color("F2C14A"))
+	draw_circle(at + Vector2(r * 0.3, r * 0.1), maxf(r * 0.16, 1.2), [Color("E0304A"), Color("4FD18A"), Color("5BA8F0")][rng.randi() % 3])
+
+
+func _draw_clipped(shape: PackedVector2Array, disc: PackedVector2Array, color: Color) -> void:
+	for part in Geometry2D.intersect_polygons(shape, disc):
+		draw_colored_polygon(part, color)
+
+
+var _dragon_pen: MeshBatch2D
+
+## A small red dragon circling the planet.
+func _draw_orbiting_dragon(center: Vector2, radius: float) -> void:
+	if _dragon_pen == null:
+		_dragon_pen = MeshBatch2D.new()
+	var angle := -2.2 + _animation_time * 0.35
+	var at := center + Vector2.RIGHT.rotated(angle) * radius * 1.2
+	DragonNestArt.begin(_dragon_pen, Transform2D(angle + PI * 0.5, at))
+	DragonNestArt.dragon(_dragon_pen, 18.0, &"great", _animation_time, {"flap": 18.0, "flap_speed": 7.0, "shadow": false})
+	_dragon_pen.flush_to(self)
 
 
 ## Targeting reticle over a planet whose coordinates are not known yet. After

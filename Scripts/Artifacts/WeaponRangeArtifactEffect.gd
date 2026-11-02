@@ -17,6 +17,8 @@ func _ready() -> void:
 		weapon.add_artifact_range_bonus(Callable(self, "_get_range_bonus"))
 		weapon.add_artifact_flat_range_bonus(Callable(self, "_get_flat_range_bonus"))
 		weapon.add_artifact_projectile_range_bonus(Callable(self, "_get_projectile_range_bonus"))
+		if definition.effect_parameters.has("beam_width_multiplier"):
+			weapon.add_artifact_beam_width_multiplier(Callable(self, "_get_beam_width_multiplier"))
 		_aura = WeaponArtifactAura.new()
 		_aura.set("kind", definition.artifact_id)
 		weapon.add_child(_aura)
@@ -35,11 +37,16 @@ func _get_projectile_range_bonus() -> float:
 	return maxf(float(definition.effect_parameters.get("projectile_range_bonus", 0.0)), 0.0)
 
 
+func _get_beam_width_multiplier() -> float:
+	return maxf(float(definition.effect_parameters.get("beam_width_multiplier", 1.0)), 1.0)
+
+
 func cleanup() -> void:
 	if is_instance_valid(weapon):
 		weapon.remove_artifact_range_bonus(Callable(self, "_get_range_bonus"))
 		weapon.remove_artifact_flat_range_bonus(Callable(self, "_get_flat_range_bonus"))
 		weapon.remove_artifact_projectile_range_bonus(Callable(self, "_get_projectile_range_bonus"))
+		weapon.remove_artifact_beam_width_multiplier(Callable(self, "_get_beam_width_multiplier"))
 	if is_instance_valid(_aura):
 		_aura.queue_free()
 	queue_free()

@@ -14,9 +14,9 @@ signal cell_deselected
 
 ## Emitted whenever aggregate module energy statistics change.
 signal energy_changed(
-	total_power_capacity: int,
+	total_power_capacity: float,
 	total_power_consumption: int,
-	available_power: int,
+	available_power: float,
 	total_expansion_capacity: int
 )
 
@@ -25,6 +25,7 @@ signal module_operation_failed(reason: String)
 
 ## Emitted after the installed module set changes successfully.
 signal module_configuration_changed
+signal expansion_cell_requested(index: int)
 
 ## Emitted when combat systems enable or disable installed weapon attacks.
 signal weapon_attacks_enabled_changed(enabled: bool)
@@ -128,6 +129,10 @@ var _research_regeneration_elapsed: Dictionary = {}
 
 ## Stores all cells in the 3x3 grid.
 var _cells: Array = []
+var expansion_selection_enabled: bool = false:
+	set(value):
+		expansion_selection_enabled = value
+		queue_redraw()
 
 ## Currently selected cell.
 var _selected_cell: ShipCell = null
@@ -186,7 +191,7 @@ var energy_system: ShipEnergySystem = ShipEnergySystem.new()
 ## Human-readable result from the most recent rejected module operation.
 var last_module_error: String = ""
 
-var total_power_capacity: int:
+var total_power_capacity: float:
 	get:
 		return energy_system.total_power_capacity
 
@@ -194,7 +199,7 @@ var total_power_consumption: int:
 	get:
 		return energy_system.total_power_consumption
 
-var available_power: int:
+var available_power: float:
 	get:
 		return energy_system.available_power
 
@@ -216,6 +221,7 @@ func _ready() -> void:
 	ShipLoadout.hull_changed.connect(_on_hull_changed)
 	ShipLoadout.thruster_changed.connect(_on_thruster_changed)
 	ShipLoadout.rotation_changed.connect(apply_layout_rotation)
+	ShipLoadout.expansion_changed.connect(_on_expansion_changed)
 
 	# Keep world rendering centered and consistently scaled in every scene.
 	world_camera.position = SHIP_SIZE * 0.5
@@ -275,6 +281,15 @@ func _on_thruster_changed(_thruster_id: StringName) -> void:
 
 ## Rebuilds the outline when the player picks another hull design.
 func _on_hull_changed(_hull_id: StringName) -> void:
+	_rebuild_hull()
+
+
+func _on_expansion_changed() -> void:
+	_selected_cell = null
+	_initialize_cells()
+	for key in _module_instances:
+		var module: ShipModule = _module_instances[key]
+		_cell(key.x, key.y).module_type = _detect_module_type(module)
 	_rebuild_hull()
 
 
@@ -354,10 +369,40 @@ func get_healing_position() -> Vector2:
 ## A result of zero means the queried shape overlaps the ship rectangle.
 func get_distance_to_hull(world_position: Vector2, object_radius: float = 0.0) -> float:
 	var local := to_local(world_position)
-	var rect := Rect2(Vector2.ZERO, SHIP_SIZE)
-	var dx := maxf(maxf(rect.position.x - local.x, 0.0), local.x - rect.end.x)
-	var dy := maxf(maxf(rect.position.y - local.y, 0.0), local.y - rect.end.y)
-	return maxf(Vector2(dx, dy).length() - maxf(object_radius, 0.0), 0.0)
+	var nearest := INF
+	for position in _hull_cells:
+		var rect := Rect2(Vector2(position) * CELL_SIZE, Vector2.ONE * CELL_SIZE)
+		var dx := maxf(maxf(rect.position.x - local.x, 0.0), local.x - rect.end.x)
+		var dy := maxf(maxf(rect.position.y - local.y, 0.0), local.y - rect.end.y)
+		nearest = minf(nearest, Vector2(dx, dy).length())
+	return maxf(nearest - maxf(object_radius, 0.0), 0.0)
+
+
+## Closest exposed hull edge, including any researched outer cells. Keeping this
+## on Ship lets all melee enemies share the same irregular-hull geometry.
+func get_nearest_hull_boundary_world(world_position: Vector2) -> Vector2:
+	var local := to_local(world_position)
+	var occupied := {}
+	for cell in _hull_cells:
+		occupied[cell] = true
+	var nearest := Vector2.ZERO
+	var nearest_distance := INF
+	for cell in _hull_cells:
+		var origin := Vector2(cell) * CELL_SIZE
+		for edge in [
+			[Vector2i(-1, 0), origin, origin + Vector2(0.0, CELL_SIZE)],
+			[Vector2i(1, 0), origin + Vector2(CELL_SIZE, 0.0), origin + Vector2.ONE * CELL_SIZE],
+			[Vector2i(0, -1), origin, origin + Vector2(CELL_SIZE, 0.0)],
+			[Vector2i(0, 1), origin + Vector2(0.0, CELL_SIZE), origin + Vector2.ONE * CELL_SIZE],
+		]:
+			if occupied.has(cell + edge[0]):
+				continue
+			var point: Vector2 = Geometry2D.get_closest_point_to_segment(local, edge[1], edge[2])
+			var distance := local.distance_squared_to(point)
+			if distance < nearest_distance:
+				nearest_distance = distance
+				nearest = point
+	return to_global(nearest)
 
 
 ## Gives installed defensive modules one pre-damage opportunity to cancel an
@@ -392,7 +437,7 @@ func _draw() -> void:
 	ShipHullVisual.draw_hull(self, _hull_geometry, _hull_cells, CELL_SIZE)
 
 	for cell_position in _hull_cells:
-		var cell: ShipCell = _cells[cell_position.y][cell_position.x]
+		var cell: ShipCell = _cell_at_visual(cell_position.x, cell_position.y)
 		var cell_rect := Rect2(Vector2(cell_position) * CELL_SIZE, Vector2.ONE * CELL_SIZE)
 
 		# Empty cells show a mounting socket so the grid stays readable.
@@ -408,6 +453,20 @@ func _draw() -> void:
 			var frame := Palette.rounded_rect_points(cell_rect.grow(-4.0), 6.0)
 			frame.append(frame[0])
 			draw_polyline(frame, Palette.ACCENT, 3.0)
+	if expansion_selection_enabled:
+		for index in range(ShipLoadout.EXPANSION_POSITIONS.size()):
+			if ShipLoadout.expanded_cell_indices.has(index):
+				continue
+			var origin := Vector2(ShipLoadout.EXPANSION_POSITIONS[index]) * CELL_SIZE
+			var ghost := Rect2(origin + Vector2.ONE * 4.0, Vector2.ONE * (CELL_SIZE - 8.0))
+			draw_rect(ghost, Color(Palette.ACCENT, 0.11), true)
+			for side in [
+				[ghost.position, Vector2(ghost.end.x, ghost.position.y)],
+				[Vector2(ghost.end.x, ghost.position.y), ghost.end],
+				[ghost.end, Vector2(ghost.position.x, ghost.end.y)],
+				[Vector2(ghost.position.x, ghost.end.y), ghost.position],
+			]:
+				draw_dashed_line(side[0], side[1], Color(Palette.ACCENT, 0.8), 2.0, 7.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
@@ -420,9 +479,8 @@ func get_hull_cells() -> Array[Vector2i]:
 ## Recomputes hull outline, thruster pods and rune studs from the cell set.
 func _rebuild_hull() -> void:
 	_hull_cells.clear()
-	for row in range(_cells.size()):
-		for column in range((_cells[row] as Array).size()):
-			_hull_cells.append(Vector2i(column, row))
+	for logical_cell in ShipLoadout.get_all_cells():
+		_hull_cells.append(ShipLoadout.get_visual_cell_position(logical_cell.x, logical_cell.y))
 	_hull_geometry = ShipHullVisual.build(_hull_cells, CELL_SIZE)
 	queue_redraw()
 
@@ -500,6 +558,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	var local_mouse_position: Vector2 = to_local(
 		get_global_mouse_position()
 	)
+	if expansion_selection_enabled:
+		var visual_column := floori(local_mouse_position.x / CELL_SIZE)
+		var visual_row := floori(local_mouse_position.y / CELL_SIZE)
+		var expansion_index := ShipLoadout.get_expansion_index_at_visual(visual_column, visual_row)
+		if expansion_index >= 0 and not ShipLoadout.expanded_cell_indices.has(expansion_index):
+			expansion_cell_requested.emit(expansion_index)
+			get_viewport().set_input_as_handled()
+			return
 
 	# Find the clicked cell.
 	var cell: ShipCell = _get_cell_at(local_mouse_position)
@@ -540,7 +606,7 @@ func clear_selection() -> void:
 func select_cell(row: int, column: int) -> void:
 	if not ShipLoadout.is_valid_cell(row, column):
 		return
-	_selected_cell = _cells[row][column]
+	_selected_cell = _cell(row, column)
 	cell_selected.emit(row, column)
 	queue_redraw()
 
@@ -580,8 +646,9 @@ func get_selected_column() -> int:
 
 ## Returns the center of a cell in ship-local coordinates.
 func get_cell_center(row: int, column: int) -> Vector2:
-	var x: float = column * CELL_SIZE + CELL_SIZE / 2.0
-	var y: float = row * CELL_SIZE + CELL_SIZE / 2.0
+	var position := ShipLoadout.get_visual_cell_position(row, column)
+	var x: float = position.x * CELL_SIZE + CELL_SIZE / 2.0
+	var y: float = position.y * CELL_SIZE + CELL_SIZE / 2.0
 
 	return Vector2(x, y)
 
@@ -605,7 +672,7 @@ func install_module(
 	if module_type == ModuleType.Empty:
 		return _reject_module_operation("Cannot install an empty module.")
 
-	var cell: ShipCell = _cells[row][column]
+	var cell: ShipCell = _cell(row, column)
 	if cell.module_type != ModuleType.Empty:
 		return _reject_module_operation("Cell is already occupied.")
 
@@ -684,7 +751,7 @@ func replace_module(
 	if is_instance_valid(old_module):
 		old_module.queue_free()
 
-	_cells[row][column].module_type = ModuleType.Empty
+	_cell(row, column).module_type = ModuleType.Empty
 	_commit_module(replacement, module_scene, module_type, row, column, true)
 	return true
 
@@ -714,7 +781,7 @@ func _commit_module(
 
 	var key := Vector2i(row, column)
 	_module_instances[key] = module
-	_cells[row][column].module_type = module_type
+	_cell(row, column).module_type = module_type
 
 	if persist_loadout and not module_scene.resource_path.is_empty():
 		ShipLoadout.install_module(row, column, module_scene.resource_path)
@@ -748,20 +815,20 @@ func swap_modules(row_a: int, column_a: int, row_b: int, column_b: int) -> bool:
 
 	var module_a: ShipModule = _module_instances[key_a]
 	var module_b: ShipModule = _module_instances.get(key_b, null)
-	var type_a: int = _cells[row_a][column_a].module_type
-	var type_b: int = _cells[row_b][column_b].module_type
+	var type_a: int = _cell(row_a, column_a).module_type
+	var type_b: int = _cell(row_b, column_b).module_type
 
 	_module_instances.erase(key_a)
 	_module_instances.erase(key_b)
 	_module_instances[key_b] = module_a
-	_cells[row_b][column_b].module_type = type_a
+	_cell(row_b, column_b).module_type = type_a
 	_slide_module(module_a, get_cell_center(row_b, column_b))
 	if module_b != null:
 		_module_instances[key_a] = module_b
-		_cells[row_a][column_a].module_type = type_b
+		_cell(row_a, column_a).module_type = type_b
 		_slide_module(module_b, get_cell_center(row_a, column_a))
 	else:
-		_cells[row_a][column_a].module_type = ModuleType.Empty
+		_cell(row_a, column_a).module_type = ModuleType.Empty
 
 	ShipLoadout.swap_cells(key_a, key_b)
 
@@ -804,8 +871,8 @@ func fuse_modules(source: Vector2i, target: Vector2i, result_scene: PackedScene)
 		source_module.queue_free()
 	if is_instance_valid(target_module):
 		target_module.queue_free()
-	_cells[source.x][source.y].module_type = ModuleType.Empty
-	_cells[target.x][target.y].module_type = ModuleType.Empty
+	_cell(source.x, source.y).module_type = ModuleType.Empty
+	_cell(target.x, target.y).module_type = ModuleType.Empty
 	_commit_module(result, result_scene, ModuleType.Weapon, target.x, target.y, false)
 	ShipLoadout.fuse_cells(source, target, result_scene.resource_path)
 	_recalculate_energy()
@@ -862,7 +929,7 @@ func remove_module(row: int, column: int) -> bool:
 	if is_instance_valid(module):
 		module.queue_free()
 
-	_cells[row][column].module_type = ModuleType.Empty
+	_cell(row, column).module_type = ModuleType.Empty
 	ShipLoadout.remove_module(row, column)
 	_recalculate_energy()
 	_recalculate_health_stats(false)
@@ -878,35 +945,36 @@ func remove_module(row: int, column: int) -> bool:
 ## Recreates installed modules from ShipLoadout.
 func load_installed_modules() -> void:
 	var prepared_modules: Array[Dictionary] = []
-	for row in range(GRID_SIZE):
-		for column in range(GRID_SIZE):
-			var scene_path: String = ShipLoadout.get_module(row, column)
-			if scene_path.is_empty():
-				continue
+	for cell in ShipLoadout.get_all_cells():
+		var row := cell.x
+		var column := cell.y
+		var scene_path: String = ShipLoadout.get_module(row, column)
+		if scene_path.is_empty():
+			continue
 
-			var module_scene := load(scene_path) as PackedScene
-			if module_scene == null:
-				push_warning("Ship: Cannot load module: " + scene_path)
-				continue
+		var module_scene := load(scene_path) as PackedScene
+		if module_scene == null:
+			push_warning("Ship: Cannot load module: " + scene_path)
+			continue
 
-			var module := _instantiate_ship_module(module_scene)
-			if module == null:
-				continue
+		var module := _instantiate_ship_module(module_scene)
+		if module == null:
+			continue
 
-			var detected_type := _detect_module_type(module)
-			if detected_type == ModuleType.Empty:
-				module.free()
-				push_warning("Ship: Unsupported module type: " + scene_path)
-				continue
+		var detected_type := _detect_module_type(module)
+		if detected_type == ModuleType.Empty:
+			module.free()
+			push_warning("Ship: Unsupported module type: " + scene_path)
+			continue
 
-			prepared_modules.append({
-				"module": module,
-				"scene": module_scene,
-				"type": detected_type,
-				"row": row,
-				"column": column,
-				"priority": 0 if module.get_module_category() == ShipModule.CATEGORY_ENERGY else 1,
-			})
+		prepared_modules.append({
+			"module": module,
+			"scene": module_scene,
+			"type": detected_type,
+			"row": row,
+			"column": column,
+			"priority": 0 if module.get_module_category() == ShipModule.CATEGORY_ENERGY else 1,
+		})
 
 	# Energy providers load first. Existing loadouts are restored without silently
 	# deleting legacy modules; an invalid legacy profile is reported afterward.
@@ -928,7 +996,7 @@ func load_installed_modules() -> void:
 	var restored_profile := energy_system.calculate_profile(restored_modules)
 	if int(restored_profile.energy_module_count) < 1:
 		_reject_module_operation("Existing loadout has no Energy Module; loadout preserved.")
-	elif int(restored_profile.total_power_consumption) > int(restored_profile.total_power_capacity):
+	elif float(restored_profile.total_power_consumption) > float(restored_profile.total_power_capacity):
 		_reject_module_operation(
 			"Existing loadout exceeds power capacity; loadout preserved."
 		)
@@ -936,13 +1004,10 @@ func load_installed_modules() -> void:
 
 ## Ensures a new ship starts with one Basic Energy Module without overwriting.
 func _ensure_required_energy_loadout() -> void:
-	for row in range(GRID_SIZE):
-		for column in range(GRID_SIZE):
-			var scene_path := ShipLoadout.get_module(row, column)
-			if scene_path.is_empty():
-				continue
-			if _scene_path_is_energy_module(scene_path):
-				return
+	for cell in ShipLoadout.get_all_cells():
+		var scene_path := ShipLoadout.get_module(cell.x, cell.y)
+		if not scene_path.is_empty() and _scene_path_is_energy_module(scene_path):
+			return
 
 	var target := DEFAULT_ENERGY_CELL
 	if ShipLoadout.has_module(target.x, target.y):
@@ -1023,9 +1088,9 @@ func _validate_energy_profile(modules: Array[ShipModule]) -> bool:
 	var profile := energy_system.calculate_profile(modules)
 	if int(profile.energy_module_count) < 1:
 		return _reject_module_operation("At least one Energy Module is required.")
-	if int(profile.total_power_consumption) > int(profile.total_power_capacity):
+	if float(profile.total_power_consumption) > float(profile.total_power_capacity):
 		return _reject_module_operation(
-			"Insufficient Power: required %d, capacity %d." % [
+			"Insufficient Power: required %s, capacity %s." % [
 				profile.total_power_consumption,
 				profile.total_power_capacity,
 			]
@@ -1040,17 +1105,17 @@ func _validate_removal_energy_profile(modules: Array[ShipModule]) -> bool:
 	if int(profile.energy_module_count) < 1:
 		return _reject_module_operation("At least one Energy Module is required.")
 	var current_profile := energy_system.calculate_profile(_get_installed_ship_modules())
-	var current_deficit: int = maxi(
-		0,
-		int(current_profile.total_power_consumption) - int(current_profile.total_power_capacity)
+	var current_deficit: float = maxf(
+		0.0,
+		float(current_profile.total_power_consumption) - float(current_profile.total_power_capacity)
 	)
-	var proposed_deficit: int = maxi(
-		0,
-		int(profile.total_power_consumption) - int(profile.total_power_capacity)
+	var proposed_deficit: float = maxf(
+		0.0,
+		float(profile.total_power_consumption) - float(profile.total_power_capacity)
 	)
 	if proposed_deficit > 0 and (current_deficit == 0 or proposed_deficit > current_deficit):
 		return _reject_module_operation(
-			"Insufficient Power: required %d, capacity %d." % [
+			"Insufficient Power: required %s, capacity %s." % [
 				profile.total_power_consumption,
 				profile.total_power_capacity,
 			]
@@ -1196,9 +1261,9 @@ func _recalculate_health_stats(fill_to_maximum: bool = false) -> void:
 
 
 func _on_energy_totals_changed(
-	power_capacity: int,
+	power_capacity: float,
 	power_consumption: int,
-	remaining_power: int,
+	remaining_power: float,
 	expansion_capacity: int
 ) -> void:
 	energy_changed.emit(
@@ -1319,6 +1384,23 @@ func _initialize_cells() -> void:
 			cell_row.append(cell)
 
 		_cells.append(cell_row)
+	var expansion_cells: Array[ShipCell] = []
+	for index in range(ShipLoadout.EXPANSION_POSITIONS.size()):
+		expansion_cells.append(ShipCell.new(ShipLoadout.EXPANSION_ROW, index, ModuleType.Empty))
+	_cells.append(expansion_cells)
+
+
+func _cell(row: int, column: int) -> ShipCell:
+	return _cells[row][column] if ShipLoadout.is_valid_cell(row, column) else null
+
+
+func _cell_at_visual(visual_column: int, visual_row: int) -> ShipCell:
+	if visual_row >= 0 and visual_row < GRID_SIZE and visual_column >= 0 and visual_column < GRID_SIZE:
+		return _cell(visual_row, visual_column)
+	var expansion_index := ShipLoadout.get_expansion_index_at_visual(visual_column, visual_row)
+	if expansion_index < 0:
+		return null
+	return _cell(ShipLoadout.EXPANSION_ROW, expansion_index)
 
 
 # ==========================================
@@ -1327,30 +1409,9 @@ func _initialize_cells() -> void:
 
 ## Finds the cell at a ship-local position.
 func _get_cell_at(local_position: Vector2) -> ShipCell:
-
-	# Check whether the position is inside the grid.
-	var ship_rect: Rect2 = Rect2(
-		Vector2.ZERO,
-		SHIP_SIZE
-	)
-
-	if not ship_rect.has_point(local_position):
-		return null
-
-	# Convert the position into grid coordinates.
-	var column: int = floori(
-		local_position.x / CELL_SIZE
-	)
-
-	var row: int = floori(
-		local_position.y / CELL_SIZE
-	)
-
-	# Validate the calculated coordinates.
-	if not ShipLoadout.is_valid_cell(row, column):
-		return null
-
-	return _cells[row][column]
+	var column := floori(local_position.x / CELL_SIZE)
+	var row := floori(local_position.y / CELL_SIZE)
+	return _cell_at_visual(column, row)
 
 
 # ==========================================

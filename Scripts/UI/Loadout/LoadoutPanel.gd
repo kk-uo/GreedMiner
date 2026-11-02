@@ -17,10 +17,13 @@ signal install_requested(module_id: StringName)
 signal remove_requested
 ## A module card was dragged; BaseMain follows the mouse and drops it on a slot.
 signal drag_started(module_id: StringName)
+## The left storage picker (artifact / chip grid) opened or closed.
+signal storage_toggled(open: bool)
 
 const PANEL_WIDTH: float = 340.0
 ## Mouse travel (px) before a press on a card turns into a drag.
 const DRAG_THRESHOLD: float = 8.0
+const ArtifactSort := preload("res://Scripts/Artifacts/MagicArtifactSort.gd")
 
 enum View { LIST, DETAIL, STYLE }
 
@@ -33,8 +36,8 @@ var _slot_column: int = -1
 ## Catalog id of the module in the selected slot, or empty.
 var _slot_module_id: StringName = &""
 
-var _power_used: int = 0
-var _power_capacity: int = 0
+var _power_used: float = 0.0
+var _power_capacity: float = 0.0
 
 var _slot_pill_label: Label
 var _slot_pill: PanelContainer
@@ -50,6 +53,7 @@ var _last_built_view: String = ""
 const ArtifactVisual := preload("res://Scripts/UI/Artifacts/ArtifactVisual.gd")
 const ScrollKeeper := preload("res://Scripts/UI/ScrollKeeper.gd")
 const StoragePicker := preload("res://Scripts/UI/Loadout/StoragePicker.gd")
+const ArtifactTags := preload("res://Scripts/UI/Artifacts/ArtifactTags.gd")
 ## Ship artifact slot whose picker is open in the list view (-1 = none).
 var _artifact_picker_slot: int = -1
 ## Module artifact socket whose picker is open in detail view, or -1.
@@ -101,12 +105,12 @@ func set_slot(row: int, column: int, installed_id: StringName) -> void:
 		show_list()
 
 
-func set_power(used: int, capacity: int) -> void:
+func set_power(used: float, capacity: float) -> void:
 	_power_used = used
 	_power_capacity = capacity
 	if _power_bar != null:
 		_power_bar.set_values(used, capacity)
-		_power_label.text = "%d / %d" % [used, capacity]
+		_power_label.text = "%s / %s" % [ModuleCatalog.format_number(used), ModuleCatalog.format_number(capacity)]
 		_rebuild()
 
 
@@ -146,7 +150,7 @@ func can_install(module_id: StringName) -> bool:
 	var new_stats := ModuleCatalog.get_stats(module_id)
 	var old_stats := ModuleCatalog.get_stats(_slot_module_id) if _slot_module_id != &"" else {}
 	var used := _power_used + int(new_stats.get("power_cost", 0)) - int(old_stats.get("power_cost", 0))
-	var capacity := _power_capacity + int(new_stats.get("power_capacity", 0)) - int(old_stats.get("power_capacity", 0))
+	var capacity := _power_capacity + float(new_stats.get("power_capacity", 0.0)) - float(old_stats.get("power_capacity", 0.0))
 	return used <= capacity
 
 
@@ -426,7 +430,7 @@ func _make_card(entry: Dictionary) -> Control:
 	text.add_child(_label(name_text, 16, Palette.UI_TEXT if unlocked else Palette.UI_MUTED))
 	if not unlocked:
 		icon.modulate = Color(1.0, 1.0, 1.0, 0.45)
-		card.tooltip_text = "Locked · %s" % ModuleCatalog.get_unlock_requirement(id)
+		card.tooltip_text = tr("Locked · %s") % tr(ModuleCatalog.get_unlock_requirement(id))
 
 	var pill := PowerPill.new()
 	pill.setup(ModuleCatalog.get_stats(id))
@@ -568,6 +572,10 @@ func _make_rotation_button(degrees: float) -> Button:
 	var selected := is_equal_approx(ShipLoadout.layout_rotation, degrees)
 	var button := Button.new()
 	button.text = "%d°" % roundi(degrees)
+	if not is_zero_approx(degrees) and not ResearchManager.is_ship_rotation_unlocked():
+		button.text += "  ·  LOCKED"
+		button.disabled = true
+		button.tooltip_text = "Research Ship Rotation in the Laboratory (Ship)"
 	button.custom_minimum_size = Vector2(0.0, 46.0)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.focus_mode = Control.FOCUS_NONE
@@ -851,7 +859,7 @@ func _build_detail() -> void:
 	_body.add_child(HSeparator.new())
 	if not module_unlocked:
 		var requirement := _label(
-			"LOCKED  //  %s" % ModuleCatalog.get_unlock_requirement(id).to_upper(),
+			tr("LOCKED  //  %s") % tr(ModuleCatalog.get_unlock_requirement(id)).to_upper(),
 			12,
 			Palette.UI_MUTED
 		)
@@ -929,7 +937,7 @@ func _stat_rows(id: StringName, stats: Dictionary, category: String, turret_cell
 				rows.append(StatRow.make("BLAST RADIUS", ModuleCatalog.format_number(aoe), aoe / ModuleCatalog.get_stat_max("aoe_radius")))
 			rows.append(StatRow.make("DPS", ModuleCatalog.format_number(damage * rate), damage * rate / dps_max))
 		"energy":
-			rows.append(StatRow.make("POWER", "+%d" % int(stats.get("power_capacity", 0)), 1.0))
+			rows.append(StatRow.make("POWER", "+%s" % ModuleCatalog.format_number(stats.get("power_capacity", 0.0)), 1.0))
 		"mining":
 			var ore := float(stats.get("mining_rate", 0.0))
 			rows.append(StatRow.make("ORE", "%s / s" % ModuleCatalog.format_number(ore), ore / ModuleCatalog.get_stat_max("mining_rate")))
@@ -987,6 +995,10 @@ func is_picker_open() -> bool:
 	return _artifact_picker_slot >= 0 or _module_artifact_picker_slot >= 0
 
 
+func is_storage_open() -> bool:
+	return _storage != null and _storage.visible
+
+
 ## Cells of the open storage picker (exposed for tests).
 func get_picker_rows() -> Array[Node]:
 	return _storage.get_cells() if _storage != null and _storage.visible else ([] as Array[Node])
@@ -1005,6 +1017,8 @@ func _refresh_storage() -> void:
 	if not shown:
 		_reset_pickers()
 	_storage.visible = shown
+	if shown != was_visible:
+		storage_toggled.emit(shown)
 	if shown and not was_visible:
 		_storage.modulate.a = 0.0
 		_storage.create_tween().tween_property(_storage, "modulate:a", 1.0, 0.14)
@@ -1018,15 +1032,16 @@ func _fill_ship_artifact_storage(slot_index: int) -> bool:
 	if not current.is_empty():
 		entries.append(_artifact_remove_entry(current, func() -> void:
 			ArtifactManager.unequip_ship_artifact(slot_index)
-			_close_picker()
+			_after_artifact_pick()
 		))
-	for artifact_id in ArtifactManager.get_owned_artifact_ids():
+	for artifact_id in _sorted_owned_artifact_ids():
 		var definition := ArtifactManager.get_definition(artifact_id)
 		if definition == null or definition.equip_target != MagicArtifactDefinition.EquipTarget.SHIP or artifact_id == current:
 			continue
 		entries.append(_artifact_entry(definition, func() -> void:
 			ArtifactManager.equip_ship_artifact(slot_index, artifact_id)
-			_close_picker()
+			_advance_ship_artifact_picker()
+			_after_artifact_pick()
 		))
 	_storage.show_entries("ARTIFACTS", "SHIP SLOT %d" % (slot_index + 1), entries, "Collect artifacts on planets; they are kept at the Magic Stall.")
 	return true
@@ -1043,9 +1058,9 @@ func _fill_module_artifact_storage(slot_index: int) -> bool:
 	if not current.is_empty():
 		entries.append(_artifact_remove_entry(current, func() -> void:
 			ArtifactManager.unequip_module_artifact(cell, slot_index)
-			_close_picker()
+			_after_artifact_pick()
 		))
-	for artifact_id in ArtifactManager.get_owned_artifact_ids():
+	for artifact_id in _sorted_owned_artifact_ids():
 		var definition := ArtifactManager.get_definition(artifact_id)
 		# Use the same cell-aware rule as the actual equip command. Fusion
 		# weapons inherit compatibility from both of their source modules and
@@ -1054,10 +1069,49 @@ func _fill_module_artifact_storage(slot_index: int) -> bool:
 			continue
 		entries.append(_artifact_entry(definition, func() -> void:
 			ArtifactManager.equip_module_artifact(cell, artifact_id, slot_index)
-			_close_picker()
+			_advance_module_artifact_picker(cell)
+			_after_artifact_pick()
 		))
 	_storage.show_entries("ARTIFACTS", "%s · SLOT %d" % [_cell_label(cell), slot_index + 1], entries, "No compatible artifact is currently owned.")
 	return true
+
+
+func _sorted_owned_artifact_ids() -> Array[StringName]:
+	var ids := ArtifactManager.get_owned_artifact_ids()
+	ids.sort_custom(func(a: StringName, b: StringName) -> bool:
+		return ArtifactSort.less_by_rarity_and_source(
+			ArtifactManager.get_definition(a), ArtifactManager.get_definition(b)
+		)
+	)
+	return ids
+
+
+## Equipping / removing keeps the artifact picker open (Claude sync 96): the
+## view and the grid refresh in place; close with ✕ or by clicking the slot.
+func _after_artifact_pick() -> void:
+	_rebuild()
+
+
+## After an equip the picker hops to the next empty unlocked slot (if any),
+## so several artifacts can be equipped in a row.
+func _advance_ship_artifact_picker() -> void:
+	if _artifact_picker_slot < 0 or ArtifactManager.get_ship_artifact(_artifact_picker_slot).is_empty():
+		return
+	for step in range(1, ArtifactManager.SHIP_SLOT_COUNT):
+		var slot_index := (_artifact_picker_slot + step) % ArtifactManager.SHIP_SLOT_COUNT
+		if ArtifactManager.is_ship_slot_unlocked(slot_index) and ArtifactManager.get_ship_artifact(slot_index).is_empty():
+			_artifact_picker_slot = slot_index
+			return
+
+
+func _advance_module_artifact_picker(cell: Vector2i) -> void:
+	if _module_artifact_picker_slot < 0 or ArtifactManager.get_module_artifact(cell, _module_artifact_picker_slot).is_empty():
+		return
+	for step in range(1, ArtifactManager.MODULE_SLOT_COUNT):
+		var slot_index := (_module_artifact_picker_slot + step) % ArtifactManager.MODULE_SLOT_COUNT
+		if ArtifactManager.is_module_artifact_slot_unlocked(cell, slot_index) and ArtifactManager.get_module_artifact(cell, slot_index).is_empty():
+			_module_artifact_picker_slot = slot_index
+			return
 
 
 func _artifact_entry(definition: MagicArtifactDefinition, callback: Callable) -> Dictionary:
@@ -1069,6 +1123,7 @@ func _artifact_entry(definition: MagicArtifactDefinition, callback: Callable) ->
 	return {
 		"kind": &"artifact", "id": definition.artifact_id, "rarity": rarity,
 		"tag": "IN USE" if in_use else "",
+		"tags": ArtifactTags.tags_for(definition.artifact_id),
 		"name": definition.display_name.to_upper(),
 		"detail": definition.description.strip_edges() if not definition.description.strip_edges().is_empty() else "  ".join(stats),
 		"note": ArtifactVisual.rarity_name(rarity) + ("  ·  equipped elsewhere; moves here" if in_use else ""),
@@ -1195,30 +1250,31 @@ class LockIcon extends Control:
 
 ## Segmented power budget bar.
 class PowerBar extends Control:
-	var used: int = 0
-	var capacity: int = 0
+	var used: float = 0.0
+	var capacity: float = 0.0
 
 	func _init() -> void:
 		custom_minimum_size = Vector2(0.0, 12.0)
 		size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	func set_values(new_used: int, new_capacity: int) -> void:
+	func set_values(new_used: float, new_capacity: float) -> void:
 		used = new_used
 		capacity = new_capacity
 		queue_redraw()
 
 	func _draw() -> void:
-		var segments := maxi(capacity, 1)
+		var segments := maxi(ceili(capacity), 1)
 		var gap := 4.0
 		var width := (size.x - gap * float(segments - 1)) / float(segments)
 		for index in range(segments):
 			var color := Palette.MECH
-			if index < used:
+			if float(index) < used:
 				color = Palette.UI_TEXT
 			if used > capacity:
 				color = Palette.THREAT
-			Palette.draw_rounded_rect(self, Rect2(float(index) * (width + gap), 0.0, width, size.y), 3.0, color)
+			var segment_width := width * clampf(capacity - float(index), 0.0, 1.0)
+			Palette.draw_rounded_rect(self, Rect2(float(index) * (width + gap), 0.0, segment_width, size.y), 3.0, color)
 
 
 ## Pill showing a module's power use (or "+N" for energy producers).
@@ -1226,8 +1282,8 @@ class PowerPill extends Control:
 	var text: String = ""
 
 	func setup(stats: Dictionary) -> void:
-		var capacity := int(stats.get("power_capacity", 0))
-		text = ("+%d" % capacity) if capacity > 0 else str(int(stats.get("power_cost", 0)))
+		var capacity := float(stats.get("power_capacity", 0.0))
+		text = ("+%s" % ModuleCatalog.format_number(capacity)) if capacity > 0.0 else str(int(stats.get("power_cost", 0)))
 		custom_minimum_size = Vector2(44.0, 22.0)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tooltip_text = "Power"

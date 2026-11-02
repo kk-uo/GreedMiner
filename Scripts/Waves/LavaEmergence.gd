@@ -66,6 +66,7 @@ func emerge_pack() -> int:
 		var at := base + Vector2.RIGHT.rotated(_rng.randf() * TAU) * _rng.randf_range(0.0, 14.0)
 		_emerge_one(at, float(index) * STAGGER)
 	pack_emerged.emit(count, center)
+	EnemySfx.play(center, preload("res://Assets/Audio/Volcanic/lava_emerge.wav"), -5.0, 0.06)
 	return count
 
 

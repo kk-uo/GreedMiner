@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/TwinDemonEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"twin_demon"
+display_name = "Twin Demon"
+rarity = "Legendary"
+description = "Each bullet/projectile attack from the equipped turret fires one additional projectile. Beams, waves, saws and continuous flame are unaffected."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon"])
+acquisition_source = "Volcanic Planet mining salvage chest"
+source_planet_id = &"volcanic_planet"
+source_name = "Mining salvage chest"
+mining_chest_reward = true
+mining_chest_planet_ids = Array[StringName]([&"volcanic_planet"])
+effect_script = ExtResource("2")
+effect_parameters = {"extra_projectiles": 1}

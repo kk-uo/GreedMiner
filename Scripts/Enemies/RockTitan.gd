@@ -67,6 +67,7 @@ func _on_attack_timer_timeout() -> void:
 	if _is_attacking:
 		_slam_left = StoneVisual.TITAN_SLAM_TIME
 		_shake_camera(SLAM_SHAKE, 0.3)
+		EnemySfx.play(self, SFX_ATTACK, -5.0, 0.04)
 		var forward := Vector2.RIGHT.rotated(_facing)
 		StoneDust.spawn(get_parent(), _titan_point(Vector2(128.0, 0.0)), 16, 22.0, 120.0, 1.5, forward, 1.3)
 
@@ -82,6 +83,8 @@ func _draw() -> void:
 
 
 const ROCKY_FINALE := preload("res://Scripts/Battle/RockyFinale.gd")
+const SFX_ATTACK := preload("res://Assets/Audio/Enemies/Rocky/rock_titan_attack.wav")
+const SFX_DEATH := preload("res://Assets/Audio/Enemies/Rocky/rock_titan_death.wav")
 
 
 ## The first defeat plays the Rocky Planet finale (it owns the camera).
@@ -96,6 +99,7 @@ func _perform_death_effect() -> void:
 		ArtifactManager.grant_artifact(first_kill_artifact_id)
 	# The boss finisher (BasicEnemy) shakes the camera now.
 	TitanCollapse.spawn(get_parent(), global_position, StoneVisual.TITAN_VISUAL_RADIUS)
+	EnemySfx.play(global_position, SFX_DEATH, -3.0, 0.0)
 	if ROCKY_FINALE.should_play(self):
 		get_tree().current_scene.call("play_rocky_finale", global_position)
 		return

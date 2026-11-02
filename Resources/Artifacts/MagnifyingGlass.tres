@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/WeaponRangeArtifactEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"magnifying_glass"
+display_name = "Magnifying Glass"
+rarity = "Epic"
+description = "The equipped weapon's projectile size is increased by 100%. Laser beam visual and collision width become 10 times the original width."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon", &"flamethrower", &"laser"])
+acquisition_source = "Magic Shop"
+acquisition_method = 3
+source_planet_id = &"magic_shop"
+source_name = "Magic Shop"
+shop_price_ore = -1
+effect_script = ExtResource("2")
+effect_parameters = {"projectile_range_bonus": 1.0, "beam_width_multiplier": 10.0}

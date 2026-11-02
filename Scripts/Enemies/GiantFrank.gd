@@ -128,14 +128,32 @@ func _ready() -> void:
 	first_death_started.connect(func() -> void:
 		if _death_effects_enabled and get_parent() != null:
 			RESURRECTION_FX.play(get_parent(), self))
+	# Presentation: boss sounds for each step of the death / resurrection.
+	first_death_started.connect(func() -> void: EnemySfx.play(self, SFX_FALL, -4.0, 0.0))
+	grave_awakening_started.connect(func(_p: Array[Vector2]) -> void: EnemySfx.play(self, SFX_GRAVES, -4.0, 0.0))
+	zombies_summoned.connect(func(_n: int) -> void: EnemySfx.play(self, SFX_ZOMBIES, -5.0, 0.0))
+	lightning_struck.connect(func(_at: Vector2) -> void:
+		EnemySfx.play(self, SFX_THUNDER, -2.0, 0.0)
+		EnemySfx.play(self, SFX_RISE, -4.0, 0.0))
+	boss_final_death.connect(func() -> void: EnemySfx.play(global_position, SFX_DEATH, -2.0, 0.0))
 
 
 func _on_attack_timer_timeout() -> void:
 	super()
 	if _is_attacking:
 		_attack_pose_time = UndeadVisual.ATTACK_POSE_TIME
+		EnemySfx.play(self, SFX_ATTACK, -6.0, 0.04)
 
 
 func _advance_presentation(delta: float) -> void:
 	_anim_time += delta
 	_attack_pose_time = maxf(_attack_pose_time - delta, 0.0)
+
+
+const SFX_ATTACK := preload("res://Assets/Audio/Enemies/Graveyard/frank_attack.wav")
+const SFX_FALL := preload("res://Assets/Audio/Enemies/Graveyard/frank_fall.wav")
+const SFX_GRAVES := preload("res://Assets/Audio/Enemies/Graveyard/frank_graves.wav")
+const SFX_ZOMBIES := preload("res://Assets/Audio/Enemies/Graveyard/frank_zombies.wav")
+const SFX_RISE := preload("res://Assets/Audio/Enemies/Graveyard/frank_rise.wav")
+const SFX_DEATH := preload("res://Assets/Audio/Enemies/Graveyard/frank_death.wav")
+const SFX_THUNDER := preload("res://Assets/Audio/Weather/thunder.wav")

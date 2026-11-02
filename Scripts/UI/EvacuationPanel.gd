@@ -36,6 +36,8 @@ var _click_count: int = 0
 var _completed: bool = false
 var _battle_active: bool = true
 var _external_lock: bool = false
+var _wave_gate_locked: bool = false
+var _required_wave: int = 3
 
 ## 1.0 right after a press, eases back to 0.0 as the dome springs up.
 var _press_amount: float = 0.0
@@ -148,8 +150,27 @@ func reset_attempt() -> void:
 
 func set_external_lock(locked: bool) -> void:
 	_external_lock = locked
-	tooltip_text = tr("Send a mining dwarf to cut the roots") if locked else tr("Press %d times to evacuate") % REQUIRED_CLICKS
+	_update_tooltip()
 	queue_redraw()
+
+
+## Battle progression gate, separate from the forest boss's root lock.
+func set_wave_gate_locked(locked: bool, required_wave: int = 3) -> void:
+	_wave_gate_locked = locked
+	_required_wave = required_wave
+	if locked:
+		reset_attempt()
+	_update_tooltip()
+	queue_redraw()
+
+
+func _update_tooltip() -> void:
+	if _wave_gate_locked:
+		tooltip_text = tr("Evacuation unlocks after Wave %d ends") % _required_wave
+	elif _external_lock:
+		tooltip_text = tr("Send a mining dwarf to cut the roots")
+	else:
+		tooltip_text = tr("Press %d times to evacuate") % REQUIRED_CLICKS
 
 
 func get_click_count() -> int:
@@ -165,7 +186,7 @@ func _is_pressable() -> bool:
 		var weather := get_tree().get_first_node_in_group("battle_weather_manager") as WeatherManager
 		if weather != null and weather.is_input_frozen():
 			return false
-	return _battle_active and not _completed and not _external_lock
+	return _battle_active and not _completed and not _external_lock and not _wave_gate_locked
 
 
 func _draw() -> void:
@@ -173,7 +194,7 @@ func _draw() -> void:
 	if _shake > 0.0:
 		center += Vector2(sin(_time * 90.0), cos(_time * 77.0)) * _shake
 
-	var disabled := (not _battle_active or _external_lock) and not _completed
+	var disabled := (not _battle_active or _external_lock or _wave_gate_locked) and not _completed
 
 	# No housing plate: the button sits directly on the battlefield,
 	# grounded by the standard hard shadow.
@@ -253,6 +274,9 @@ func _draw_labels(dome_center: Vector2, disabled: bool) -> void:
 	elif _external_lock:
 		big = "--"
 		small = "ROOTED"
+	elif _wave_gate_locked:
+		big = str(_required_wave)
+		small = "WAVE LOCK"
 	elif disabled:
 		big = "--"
 		small = "OFFLINE"

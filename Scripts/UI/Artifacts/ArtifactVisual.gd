@@ -15,6 +15,10 @@ const STAT_FORMATS := {
 	&"regeneration_delay": [&"clock", "s"],
 	&"shockwave_radius": [&"ring", ""],
 	&"knockback_distance": [&"push", ""],
+	&"attacks_per_arm": [&"clock", ""],
+	&"arm_damage": [&"burst", ""],
+	&"radius": [&"ring", "px"],
+	&"slow_fraction": [&"ring", "%"],
 }
 
 
@@ -44,6 +48,8 @@ static func stat_chips(definition: MagicArtifactDefinition) -> Array:
 			continue
 		var format: Array = STAT_FORMATS.get(key, [&"burst", ""])
 		var value: float = float(definition.effect_parameters[key])
+		if key == &"slow_fraction":
+			value *= 100.0
 		var text := str(int(round(value))) if absf(value - round(value)) < 0.05 else "%.1f" % value
 		chips.append([format[0], text + String(format[1])])
 	return chips
@@ -63,6 +69,8 @@ static func draw_icon(canvas: CanvasItem, center: Vector2, size: float, artifact
 			_goblin_flag(canvas, silhouette)
 		&"goblin_horn":
 			_goblin_horn(canvas, silhouette)
+		&"goblin_wheel":
+			_goblin_wheel(canvas, silhouette)
 		&"demon_prism":
 			_demon_prism(canvas, silhouette)
 		&"ghost_bullet":
@@ -83,6 +91,34 @@ static func draw_icon(canvas: CanvasItem, center: Vector2, size: float, artifact
 			_snow_eyeball(canvas, silhouette)
 		&"true_ice":
 			_true_ice(canvas, silhouette)
+		&"goblin_tooth":
+			_goblin_tooth(canvas, silhouette)
+		&"bat_eyeball":
+			_bat_eyeball(canvas, silhouette)
+		&"dragon_wing":
+			_dragon_wing(canvas, silhouette)
+		&"sturdy_stone":
+			_sturdy_stone(canvas, silhouette)
+		&"twin_demon":
+			_twin_demon(canvas, silhouette)
+		&"zombie_arm":
+			_zombie_arm(canvas, silhouette)
+		&"blizzard_bottle":
+			_blizzard_bottle(canvas, silhouette)
+		&"amplifier":
+			_amplifier(canvas, silhouette)
+		&"fairy_curse":
+			_fairy_curse(canvas, silhouette)
+		&"fast_hourglass":
+			_hourglass(canvas, silhouette, true)
+		&"slow_hourglass":
+			_hourglass(canvas, silhouette, false)
+		&"heavy_shell":
+			_heavy_shell(canvas, silhouette)
+		&"magnifying_glass":
+			_magnifying_glass(canvas, silhouette)
+		&"treant_soul":
+			_treant_soul(canvas, silhouette)
 		_:
 			_gem(canvas, rarity_color(rarity), silhouette)
 	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -190,6 +226,26 @@ static func _goblin_horn(canvas: CanvasItem, silhouette: bool) -> void:
 	for k in range(3):
 		var r := 6.0 + 5.0 * float(k)
 		canvas.draw_arc(Vector2(14, -4), r, -0.7, 0.7, 10, Color(Palette.GOBLIN_SKIN_LIGHT, 0.9 - 0.25 * float(k)), 2.0)
+
+
+## Goblin Wheel: six patched-together prize sectors with a bone pointer.
+static func _goblin_wheel(canvas: CanvasItem, silhouette: bool) -> void:
+	if silhouette:
+		canvas.draw_circle(Vector2.ZERO, 25.0, SILHOUETTE)
+		canvas.draw_colored_polygon(PackedVector2Array([Vector2(-6, -24), Vector2(6, -24), Vector2(0, -34)]), SILHOUETTE)
+		return
+	canvas.draw_circle(Vector2(2.5, 3.0), 25.0, Color(0, 0, 0, 0.3))
+	var colors := [Color("6E9C45"), Color("D59A37"), Color("9D5EB5"), Color("B84A35"), Color("4E83A8"), Color("D5C34A")]
+	for index in range(6):
+		var points := PackedVector2Array([Vector2.ZERO])
+		for step in range(7):
+			var angle := TAU * (float(index) + float(step) / 6.0) / 6.0
+			points.append(Vector2.RIGHT.rotated(angle) * 24.0)
+		canvas.draw_colored_polygon(points, colors[index])
+	canvas.draw_circle(Vector2.ZERO, 25.0, Palette.GOBLIN_LEATHER, false, 3.0)
+	canvas.draw_circle(Vector2.ZERO, 6.0, Palette.GOBLIN_BONE)
+	canvas.draw_circle(Vector2.ZERO, 2.5, Palette.GOBLIN_EYE)
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-6, -26), Vector2(6, -26), Vector2(0, -15)]), Palette.SHOT_CORE)
 
 
 ## Demon Prism: a tall black-crimson triangular prism with two small horns,
@@ -569,3 +625,360 @@ static func _true_ice(canvas: CanvasItem, silhouette: bool) -> void:
 	for p in [Vector2(16, -16), Vector2(-17, 13)]:
 		canvas.draw_line(p - Vector2(3, 0), p + Vector2(3, 0), Color.WHITE, 1.2)
 		canvas.draw_line(p - Vector2(0, 3), p + Vector2(0, 3), Color.WHITE, 1.2)
+
+
+static func _goblin_tooth(canvas: CanvasItem, silhouette: bool) -> void:
+	var tooth := PackedVector2Array([Vector2(-11, -21), Vector2(10, -18), Vector2(15, -7), Vector2(10, 7), Vector2(-2, 23), Vector2(-5, 7), Vector2(-15, -7)])
+	if silhouette:
+		canvas.draw_colored_polygon(tooth, SILHOUETTE)
+		return
+	canvas.draw_colored_polygon(Palette.offset_points(tooth, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+	canvas.draw_colored_polygon(tooth, Color("B9A77E"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-11, -21), Vector2(4, -17), Vector2(8, -7), Vector2(3, 7), Vector2(-2, 20), Vector2(-5, 6), Vector2(-12, -7)]), Palette.GOBLIN_BONE)
+	canvas.draw_line(Vector2(-13, -13), Vector2(12, -10), Palette.GOBLIN_LEATHER, 4.0)
+	canvas.draw_circle(Vector2(-5, -12), 2.0, Palette.GOBLIN_EYE)
+	canvas.draw_polyline(PackedVector2Array([Vector2(5, -4), Vector2(1, 3), Vector2(3, 10)]), Color("8D7B5A"), 1.5)
+
+
+static func _bat_eyeball(canvas: CanvasItem, silhouette: bool) -> void:
+	var left_wing := PackedVector2Array([Vector2(-8, -5), Vector2(-27, -17), Vector2(-22, 1), Vector2(-28, 15), Vector2(-8, 8)])
+	var right_wing := PackedVector2Array([Vector2(8, -5), Vector2(27, -17), Vector2(22, 1), Vector2(28, 15), Vector2(8, 8)])
+	if silhouette:
+		canvas.draw_colored_polygon(left_wing, SILHOUETTE)
+		canvas.draw_colored_polygon(right_wing, SILHOUETTE)
+		canvas.draw_circle(Vector2.ZERO, 14.0, SILHOUETTE)
+		return
+	canvas.draw_colored_polygon(left_wing, Color("3A204D"))
+	canvas.draw_colored_polygon(right_wing, Color("3A204D"))
+	canvas.draw_polyline(left_wing, Color("8A5EAA"), 1.6)
+	canvas.draw_polyline(right_wing, Color("8A5EAA"), 1.6)
+	canvas.draw_circle(Vector2(2.5, 3.0), 14.0, Color(0, 0, 0, 0.3))
+	canvas.draw_circle(Vector2.ZERO, 14.0, Color("E9D9D6"))
+	canvas.draw_circle(Vector2(2, 0), 8.0, Color("B53C78"))
+	canvas.draw_circle(Vector2(2, 0), 3.5, Color("160D20"))
+	canvas.draw_circle(Vector2(-1, -3), 2.0, Color.WHITE)
+
+
+static func _dragon_wing(canvas: CanvasItem, silhouette: bool) -> void:
+	var wing := PackedVector2Array([Vector2(-19, 19), Vector2(-13, -16), Vector2(-5, -24), Vector2(0, -8), Vector2(11, -20), Vector2(10, -2), Vector2(24, -10), Vector2(16, 9), Vector2(4, 19), Vector2(-6, 11)])
+	if silhouette:
+		canvas.draw_colored_polygon(wing, SILHOUETTE)
+		return
+	canvas.draw_colored_polygon(Palette.offset_points(wing, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+	canvas.draw_colored_polygon(wing, Color("7A1D24"))
+	# Membrane panels between the wing fingers: three simple triangles (one
+	# zig-zag polygon crossed itself and failed to triangulate).
+	for panel in [
+		[Vector2(-13, -16), Vector2(0, -8), Vector2(-6, 9)],
+		[Vector2(0, -8), Vector2(10, -2), Vector2(4, 16)],
+		[Vector2(10, -2), Vector2(15, 8), Vector2(4, 16)],
+	]:
+		canvas.draw_colored_polygon(PackedVector2Array(panel), Color("C43A32"))
+	canvas.draw_polyline(PackedVector2Array([Vector2(-19, 19), Vector2(-13, -16), Vector2(-6, 9), Vector2(0, -8), Vector2(4, 16), Vector2(10, -2), Vector2(15, 8)]), Color("E76B43"), 2.0)
+	canvas.draw_line(Vector2(-19, 19), Vector2(4, 19), Color("4B151A"), 3.0)
+
+
+## A dense shield-shaped boulder with a projectile passing through it.
+static func _sturdy_stone(canvas: CanvasItem, silhouette: bool) -> void:
+	var stone := PackedVector2Array([Vector2(-19, -16), Vector2(-3, -23), Vector2(15, -18), Vector2(22, -3), Vector2(15, 17), Vector2(0, 24), Vector2(-17, 16), Vector2(-23, 0)])
+	if silhouette:
+		canvas.draw_colored_polygon(stone, SILHOUETTE)
+		return
+	canvas.draw_colored_polygon(Palette.offset_points(stone, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+	canvas.draw_colored_polygon(stone, Color("4B5057"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-17, -14), Vector2(-3, -20), Vector2(12, -16), Vector2(18, -4), Vector2(11, 12), Vector2(-1, 18), Vector2(-14, 12), Vector2(-19, 0)]), Color("7C848B"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-14, -13), Vector2(-3, -18), Vector2(8, -15), Vector2(-2, -8)]), Color("B8C0C4"))
+	# Two exit marks make the extra penetration readable at inventory scale.
+	canvas.draw_line(Vector2(-26, 2), Vector2(25, 2), Palette.SHOT_CORE, 3.0)
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(25, 2), Vector2(16, -3), Vector2(16, 7)]), Palette.SHOT_CORE)
+	canvas.draw_circle(Vector2(-3, 2), 4.0, Color("30343A"))
+
+
+## Mirrored volcanic demon faces representing the extra twin projectile.
+static func _twin_demon(canvas: CanvasItem, silhouette: bool) -> void:
+	var left := PackedVector2Array([Vector2(-25, -12), Vector2(-15, -24), Vector2(-12, -13), Vector2(-2, -18), Vector2(-3, 16), Vector2(-14, 24), Vector2(-24, 12)])
+	var right := PackedVector2Array()
+	for point in left:
+		right.append(Vector2(-point.x, point.y))
+	if silhouette:
+		canvas.draw_colored_polygon(left, SILHOUETTE)
+		canvas.draw_colored_polygon(right, SILHOUETTE)
+		return
+	canvas.draw_colored_polygon(Palette.offset_points(left, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+	canvas.draw_colored_polygon(Palette.offset_points(right, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+	canvas.draw_colored_polygon(left, Color("8F1D25"))
+	canvas.draw_colored_polygon(right, Color("B52B24"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-22, -11), Vector2(-16, -20), Vector2(-13, -10), Vector2(-5, -15), Vector2(-6, 11), Vector2(-14, 19), Vector2(-21, 9)]), Color("E14A2E"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(22, -11), Vector2(16, -20), Vector2(13, -10), Vector2(5, -15), Vector2(6, 11), Vector2(14, 19), Vector2(21, 9)]), Color("F36B36"))
+	for x in [-14.0, 14.0]:
+		canvas.draw_circle(Vector2(x, -2), 2.6, Palette.SHOT_CORE)
+		canvas.draw_line(Vector2(x - signf(x) * 4.0, 9), Vector2(x + signf(x) * 3.0, 12), Color("321016"), 2.0)
+
+
+# ------------------------------------------------------------ Zombie Arm / Blizzard Bottle (Claude sync 91)
+
+## Zombie Arm: a rotting green forearm clawing up out of a torn sleeve, a bit
+## of bone showing through a stitched wound.
+static func _zombie_arm(canvas: CanvasItem, silhouette: bool) -> void:
+	var sleeve := PackedVector2Array([Vector2(-17, 27), Vector2(-16, 12), Vector2(-12, 16), Vector2(-9, 9), Vector2(-5, 15), Vector2(-1, 10), Vector2(3, 16), Vector2(7, 12), Vector2(9, 27)])
+	var forearm := PackedVector2Array([Vector2(-12, 15), Vector2(-3, -7), Vector2(9, -4), Vector2(3, 16)])
+	var palm := _blob(Vector2(6, -11), Vector2(9, 7.5), 14, 0.05, 0.7)
+	var fingers := [
+		[Vector2(-1, -15), Vector2(-4, -22), Vector2(-3, -28)],
+		[Vector2(3, -17), Vector2(2, -25), Vector2(5, -31)],
+		[Vector2(8, -17), Vector2(11, -25), Vector2(15, -29)],
+		[Vector2(12, -14), Vector2(18, -19), Vector2(23, -20)],
+	]
+	var thumb := [Vector2(0, -8), Vector2(-7, -10), Vector2(-11, -16)]
+	if silhouette:
+		canvas.draw_colored_polygon(sleeve, SILHOUETTE)
+		canvas.draw_colored_polygon(forearm, SILHOUETTE)
+		canvas.draw_colored_polygon(palm, SILHOUETTE)
+		for finger in fingers + [thumb]:
+			canvas.draw_polyline(PackedVector2Array(finger), SILHOUETTE, 5.0)
+		return
+	canvas.draw_circle(Vector2(2, -6), 25.0, Color("9BD45A", 0.10))
+	for poly in [sleeve, forearm, palm]:
+		canvas.draw_colored_polygon(Palette.offset_points(poly, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+	# Forearm, palm, fingers.
+	canvas.draw_colored_polygon(forearm, Color("55733F"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-10, 14), Vector2(-2, -5), Vector2(4, -4), Vector2(-3, 15)]), Color("7FA05F"))
+	for finger in fingers + [thumb]:
+		canvas.draw_polyline(PackedVector2Array(finger), Color("55733F"), 5.0)
+		canvas.draw_polyline(PackedVector2Array(finger), Color("7FA05F"), 3.2)
+		# Cracked yellow nails.
+		canvas.draw_circle(finger[2], 1.7, Color("E8DDAA"))
+	canvas.draw_colored_polygon(palm, Color("55733F"))
+	canvas.draw_colored_polygon(_blob(Vector2(4.5, -12.5), Vector2(6.5, 5), 12, 0.05, 0.7), Color("7FA05F"))
+	canvas.draw_colored_polygon(_blob(Vector2(2, -14), Vector2(3, 1.8), 10, 0.0), Color("A9C77E"))
+	# Wound with bone and stitches.
+	canvas.draw_colored_polygon(_blob(Vector2(0, 4), Vector2(3.6, 5.5), 10, 0.1, 2.0), Color("5A1E22"))
+	canvas.draw_line(Vector2(-0.5, 0.5), Vector2(1.5, 7.5), Color("EDE3C8"), 2.4)
+	for k in range(3):
+		var y := -3.0 + float(k) * 3.4
+		canvas.draw_line(Vector2(-9.5 + float(k) * 1.3, y + 6.0), Vector2(-5.5 + float(k) * 1.3, y + 8.5), Color("2B2A1E"), 1.3)
+	canvas.draw_line(Vector2(-9, 7), Vector2(-5, 13.5), Color("2B2A1E"), 1.1)
+	# Dripping ooze.
+	canvas.draw_circle(Vector2(8, 3), 1.6, Color("B9F06A"))
+	canvas.draw_line(Vector2(8, 0), Vector2(8, 3), Color("B9F06A"), 1.4)
+	# Torn sleeve.
+	canvas.draw_colored_polygon(sleeve, Color("4A3A2E"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-15, 25), Vector2(-14.5, 15), Vector2(-12, 18), Vector2(-9, 12), Vector2(-5, 18), Vector2(-4, 25)]), Color("6B5440"))
+	canvas.draw_line(Vector2(-16, 21), Vector2(8, 21), Color("2E241C"), 1.4)
+
+
+## Blizzard Bottle: a corked flask holding a swirling snowstorm, flakes
+## escaping from the neck.
+static func _blizzard_bottle(canvas: CanvasItem, silhouette: bool) -> void:
+	var body_center := Vector2(0, 7)
+	var neck := Palette.rounded_rect_points(Rect2(-5.5, -19, 11, 12), 1.5)
+	var lip := Palette.rounded_rect_points(Rect2(-8, -21, 16, 4.5), 2.0)
+	var cork := Palette.rounded_rect_points(Rect2(-4.5, -28, 9, 8), 2.0)
+	if silhouette:
+		canvas.draw_circle(body_center, 18.0, SILHOUETTE)
+		for poly in [neck, lip, cork]:
+			canvas.draw_colored_polygon(poly, SILHOUETTE)
+		return
+	canvas.draw_circle(body_center, 26.0, Color("7FD8FF", 0.12))
+	canvas.draw_circle(body_center + Vector2(2.5, 3.0), 18.0, Color(0, 0, 0, 0.3))
+	# Storm inside the glass.
+	canvas.draw_circle(body_center, 18.0, Color("1F4C6E"))
+	canvas.draw_circle(body_center + Vector2(0, 2), 15.5, Color("2E6A93"))
+	canvas.draw_arc(body_center, 11.0, PI * 0.15, PI * 1.35, 18, Color("DFF4FF", 0.85), 2.4)
+	canvas.draw_arc(body_center + Vector2(1, 1), 6.5, PI * 1.1, PI * 2.4, 14, Color("DFF4FF", 0.8), 2.0)
+	canvas.draw_arc(body_center + Vector2(1.5, 1.5), 2.5, PI * 0.0, PI * 1.3, 8, Color.WHITE, 1.6)
+	for flake in [Vector2(-9, 13), Vector2(10, 2), Vector2(4, 16), Vector2(-11, 1), Vector2(12, 12)]:
+		canvas.draw_circle(body_center + flake * 0.85, 1.3, Color.WHITE)
+	# Frost crusting the bottom of the glass.
+	canvas.draw_arc(body_center, 16.5, PI * 0.18, PI * 0.82, 14, Color("EAF8FF", 0.9), 3.0)
+	# Glass rim and shine.
+	canvas.draw_colored_polygon(neck, Color("8CC8E8", 0.55))
+	canvas.draw_line(Vector2(-3, -18), Vector2(-3, -9), Color(1, 1, 1, 0.55), 1.4)
+	canvas.draw_arc(body_center, 18.0, 0.0, TAU, 32, Color("DFF4FF"), 2.0)
+	canvas.draw_arc(body_center, 14.0, PI * 1.05, PI * 1.45, 10, Color(1, 1, 1, 0.75), 2.6)
+	canvas.draw_colored_polygon(lip, Color("BFE6FF"))
+	canvas.draw_colored_polygon(cork, Color("8A5A34"))
+	canvas.draw_colored_polygon(Palette.rounded_rect_points(Rect2(-4.5, -28, 4, 8), 2.0), Color("B07A48"))
+	# Flakes escaping from the neck.
+	for spec in [[Vector2(11, -24), 4.0], [Vector2(-12, -19), 3.0], [Vector2(16, -15), 2.4]]:
+		var c: Vector2 = spec[0]
+		var r: float = spec[1]
+		for k in range(3):
+			var a := PI * float(k) / 3.0 + 0.3
+			var d := Vector2(cos(a), sin(a)) * r
+			canvas.draw_line(c - d, c + d, Color.WHITE, 1.4)
+	canvas.draw_polyline(PackedVector2Array([Vector2(3, -28), Vector2(7, -31), Vector2(12, -30)]), Color(1, 1, 1, 0.5), 1.4)
+
+
+# ------------------------------------------------------------ shop / tree artifacts (Claude sync 97)
+
+static func _shadowed(canvas: CanvasItem, polys: Array) -> void:
+	for poly in polys:
+		canvas.draw_colored_polygon(Palette.offset_points(poly, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.3))
+
+
+## Amplifier: a brass loudspeaker horn blasting violet sound rings.
+static func _amplifier(canvas: CanvasItem, silhouette: bool) -> void:
+	var box := Palette.rounded_rect_points(Rect2(-22, -9, 12, 18), 2.5)
+	var horn := PackedVector2Array([Vector2(-11, -7), Vector2(8, -19), Vector2(8, 19), Vector2(-11, 7)])
+	if silhouette:
+		canvas.draw_colored_polygon(box, SILHOUETTE)
+		canvas.draw_colored_polygon(horn, SILHOUETTE)
+		for k in range(2):
+			canvas.draw_arc(Vector2(6, 0), 18.0 + 7.0 * k, -0.8, 0.8, 10, SILHOUETTE, 3.5)
+		return
+	_shadowed(canvas, [box, horn])
+	canvas.draw_colored_polygon(box, Color("5A4A3A"))
+	canvas.draw_colored_polygon(horn, Color("B8862E"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-11, -7), Vector2(8, -19), Vector2(8, -9), Vector2(-11, -2)]), Color("E8B54A"))
+	canvas.draw_line(Vector2(8, -19), Vector2(8, 19), Color("FFE08A"), 2.5)
+	canvas.draw_circle(Vector2(-16, 0), 3.0, Color("2E2620"))
+	for k in range(3):
+		var r := 14.0 + 6.0 * float(k)
+		canvas.draw_arc(Vector2(6, 0), r, -0.75, 0.75, 12, Color("C9A2FF", 0.95 - 0.25 * float(k)), 2.6)
+	canvas.draw_string(ThemeDB.fallback_font, Vector2(-20, -13), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("E9DCFF"))
+
+
+## Fairy's Curse: a pink fairy with butterfly wings and a little cursed
+## violet skull in its hands, glitter all round.
+static func _fairy_curse(canvas: CanvasItem, silhouette: bool) -> void:
+	var wings := [
+		_blob(Vector2(-11, -9), Vector2(11, 8), 12, 0.05, 0.2),
+		_blob(Vector2(11, -9), Vector2(11, 8), 12, 0.05, 1.2),
+		_blob(Vector2(-8, 9), Vector2(8, 6), 10, 0.05, 2.0),
+		_blob(Vector2(8, 9), Vector2(8, 6), 10, 0.05, 3.0),
+	]
+	if silhouette:
+		for w in wings:
+			canvas.draw_colored_polygon(w, SILHOUETTE)
+		canvas.draw_circle(Vector2(0, -2), 6.0, SILHOUETTE)
+		return
+	canvas.draw_circle(Vector2(0, 0), 26.0, Color("FF8AD8", 0.12))
+	for w in wings:
+		canvas.draw_colored_polygon(w, Color("FF9AD6", 0.75))
+	for w in [wings[0], wings[1]]:
+		canvas.draw_polyline(w, Color("FFD6F0"), 1.4)
+	# Body and head.
+	canvas.draw_colored_polygon(_blob(Vector2(0, 4), Vector2(3.2, 9), 10, 0.0), Color("8C3E7A"))
+	canvas.draw_circle(Vector2(0, -8), 4.2, Color("FFD9C2"))
+	canvas.draw_circle(Vector2(-1.4, -8.4), 0.9, Color("3A1430"))
+	canvas.draw_circle(Vector2(1.4, -8.4), 0.9, Color("3A1430"))
+	# The curse: a small violet skull glowing in front.
+	canvas.draw_circle(Vector2(0, 10), 7.5, Color("B06BFF", 0.35))
+	canvas.draw_circle(Vector2(0, 9), 4.6, Color("D9C8FF"))
+	canvas.draw_rect(Rect2(-2.5, 12, 5, 3), Color("D9C8FF"))
+	canvas.draw_circle(Vector2(-1.7, 8.8), 1.2, Color("3A1450"))
+	canvas.draw_circle(Vector2(1.7, 8.8), 1.2, Color("3A1450"))
+	for spark in [Vector2(-20, -18), Vector2(19, 2), Vector2(-17, 14), Vector2(15, -21)]:
+		canvas.draw_line(spark - Vector2(2.5, 0), spark + Vector2(2.5, 0), Color.WHITE, 1.4)
+		canvas.draw_line(spark - Vector2(0, 2.5), spark + Vector2(0, 2.5), Color.WHITE, 1.4)
+
+
+## Fast / Slow Hourglass: same glass, cyan with speed streaks vs amber with a
+## ticking clock arc.
+static func _hourglass(canvas: CanvasItem, silhouette: bool, fast: bool) -> void:
+	var top_cap := Palette.rounded_rect_points(Rect2(-15, -24, 30, 6), 2.0)
+	var bottom_cap := Palette.rounded_rect_points(Rect2(-15, 18, 30, 6), 2.0)
+	var glass := PackedVector2Array([Vector2(-11, -18), Vector2(11, -18), Vector2(2, 0), Vector2(11, 18), Vector2(-11, 18), Vector2(-2, 0)])
+	if silhouette:
+		for poly in [top_cap, bottom_cap, glass]:
+			canvas.draw_colored_polygon(poly, SILHOUETTE)
+		return
+	var frame := Color("2F6E8C") if fast else Color("7A4A22")
+	var frame_hi := Color("7FD8FF") if fast else Color("D99A4A")
+	var sand := Color("9FE8FF") if fast else Color("F2C25A")
+	if fast:
+		for k in range(3):
+			var y := -10.0 + 10.0 * float(k)
+			canvas.draw_line(Vector2(-27, y), Vector2(-16, y), Color("BFF0FF", 0.85), 2.2)
+	else:
+		canvas.draw_arc(Vector2(0, 0), 27.0, -PI * 0.3, PI * 1.05, 24, Color("F2C25A", 0.55), 2.2)
+		canvas.draw_colored_polygon(PackedVector2Array([Vector2(24, 18), Vector2(27, 11), Vector2(19, 14)]), Color("F2C25A", 0.8))
+	_shadowed(canvas, [glass, top_cap, bottom_cap])
+	canvas.draw_colored_polygon(glass, Color("DDF3FF", 0.28))
+	# Sand: fast = mostly fallen through, slow = mostly still on top.
+	if fast:
+		canvas.draw_colored_polygon(PackedVector2Array([Vector2(-4, -6), Vector2(4, -6), Vector2(1, 0), Vector2(-1, 0)]), sand)
+		canvas.draw_colored_polygon(PackedVector2Array([Vector2(-10, 17), Vector2(10, 17), Vector2(5, 7), Vector2(-5, 7)]), sand)
+		canvas.draw_line(Vector2(0, 0), Vector2(0, 8), sand, 2.0)
+	else:
+		canvas.draw_colored_polygon(PackedVector2Array([Vector2(-10, -17), Vector2(10, -17), Vector2(2.5, -2), Vector2(-2.5, -2)]), sand)
+		canvas.draw_colored_polygon(PackedVector2Array([Vector2(-4, 17), Vector2(4, 17), Vector2(0, 14)]), sand)
+		for y in [3.0, 7.0, 11.0]:
+			canvas.draw_circle(Vector2(0, y), 0.9, sand)
+	canvas.draw_polyline(glass + PackedVector2Array([glass[0]]), Color(1, 1, 1, 0.65), 1.6)
+	canvas.draw_line(Vector2(-7, -15), Vector2(-3, -6), Color(1, 1, 1, 0.6), 1.6)
+	for cap in [top_cap, bottom_cap]:
+		canvas.draw_colored_polygon(cap, frame)
+	canvas.draw_line(Vector2(-13, -22), Vector2(13, -22), frame_hi, 1.6)
+	canvas.draw_line(Vector2(-13, 20), Vector2(13, 20), frame_hi, 1.6)
+	for x in [-14.0, 14.0]:
+		canvas.draw_line(Vector2(x, -18), Vector2(x, 18), frame, 2.4)
+
+
+## Heavy Shell: a fat iron cannon shell with a red-hot nose and weight bands.
+static func _heavy_shell(canvas: CanvasItem, silhouette: bool) -> void:
+	var body := PackedVector2Array([Vector2(-20, -11), Vector2(6, -11), Vector2(16, -7), Vector2(22, 0), Vector2(16, 7), Vector2(6, 11), Vector2(-20, 11)])
+	var base := Palette.rounded_rect_points(Rect2(-24, -12.5, 6, 25), 1.5)
+	if silhouette:
+		canvas.draw_colored_polygon(body, SILHOUETTE)
+		canvas.draw_colored_polygon(base, SILHOUETTE)
+		return
+	canvas.draw_circle(Vector2(18, 0), 10.0, Color("FF6A2A", 0.22))
+	_shadowed(canvas, [body, base])
+	canvas.draw_colored_polygon(body, Color("3A3D42"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(-20, -11), Vector2(6, -11), Vector2(16, -7), Vector2(12, -4), Vector2(-20, -5)]), Color("6B7078"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(12, -8.5), Vector2(16, -7), Vector2(22, 0), Vector2(16, 7), Vector2(12, 8.5)]), Color("E0552A"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(16, -4), Vector2(22, 0), Vector2(16, 4)]), Color("FFC061"))
+	canvas.draw_colored_polygon(base, Color("8A6420"))
+	for x in [-12.0, -6.0]:
+		canvas.draw_line(Vector2(x, -11), Vector2(x, 11), Color("23262A"), 2.4)
+	for y in [-6.0, 0.0, 6.0]:
+		canvas.draw_circle(Vector2(1, y), 1.2, Color("9AA0A8"))
+	# Weight marks.
+	canvas.draw_line(Vector2(-18, 19), Vector2(14, 19), Color("FFC061", 0.8), 2.4)
+	canvas.draw_line(Vector2(-14, 23), Vector2(10, 23), Color("FFC061", 0.6), 2.0)
+
+
+## Magnifying Glass: brass lens with a bullet shown huge inside.
+static func _magnifying_glass(canvas: CanvasItem, silhouette: bool) -> void:
+	var handle := PackedVector2Array([Vector2(8, 10), Vector2(12, 6), Vector2(25, 19), Vector2(21, 23)])
+	if silhouette:
+		canvas.draw_circle(Vector2(-4, -4), 17.0, SILHOUETTE)
+		canvas.draw_colored_polygon(handle, SILHOUETTE)
+		return
+	_shadowed(canvas, [handle])
+	canvas.draw_circle(Vector2(-1.5, -1), 17.0, Color(0, 0, 0, 0.3))
+	canvas.draw_colored_polygon(handle, Color("6B3E1E"))
+	canvas.draw_line(Vector2(11, 8), Vector2(23, 20), Color("A8683A"), 2.0)
+	canvas.draw_circle(Vector2(-4, -4), 17.0, Color("B8862E"))
+	canvas.draw_circle(Vector2(-4, -4), 13.5, Color("BFE6FF"))
+	# The magnified bullet.
+	canvas.draw_rect(Rect2(-12, -8, 12, 8), Palette.SHOT)
+	canvas.draw_circle(Vector2(-12, -4), 4.0, Palette.SHOT)
+	canvas.draw_circle(Vector2(0, -4), 4.0, Palette.SHOT_CORE)
+	canvas.draw_arc(Vector2(-4, -4), 10.5, PI * 1.05, PI * 1.5, 10, Color(1, 1, 1, 0.85), 2.4)
+	canvas.draw_arc(Vector2(-4, -4), 17.0, 0.0, TAU, 32, Color("FFE08A"), 1.6)
+
+
+## Treant Soul: a green spirit flame with two bright eyes, ringed by leaves.
+static func _treant_soul(canvas: CanvasItem, silhouette: bool) -> void:
+	var flame := PackedVector2Array([Vector2(0, -25), Vector2(7, -13), Vector2(14, -2), Vector2(13, 10), Vector2(5, 17), Vector2(-5, 17), Vector2(-13, 10), Vector2(-14, -2), Vector2(-6, -9), Vector2(-3, -17)])
+	if silhouette:
+		canvas.draw_colored_polygon(flame, SILHOUETTE)
+		return
+	canvas.draw_circle(Vector2(0, 2), 25.0, Color("8BE06A", 0.12))
+	# Leaves around the base.
+	for k in range(5):
+		var a := PI * 0.15 + PI * 0.7 * float(k) / 4.0
+		var c := Vector2(cos(a), sin(a)) * 19.0 + Vector2(0, 2)
+		var v := Vector2.from_angle(a) * 6.5
+		canvas.draw_colored_polygon(PackedVector2Array([c - v, c + v.orthogonal() * 0.5, c + v, c - v.orthogonal() * 0.5]), Color("4E8A2E"))
+		canvas.draw_line(c - v * 0.8, c + v * 0.8, Color("8BC34A"), 1.0)
+	canvas.draw_colored_polygon(Palette.offset_points(flame, Vector2(2.5, 3.0)), Color(0, 0, 0, 0.25))
+	canvas.draw_colored_polygon(flame, Color("3E8E3A"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(0, -18), Vector2(8, -4), Vector2(9, 8), Vector2(3, 13), Vector2(-4, 13), Vector2(-9, 7), Vector2(-9, -2), Vector2(-3, -8)]), Color("7FD05A"))
+	canvas.draw_colored_polygon(PackedVector2Array([Vector2(0, -8), Vector2(4, 2), Vector2(2, 9), Vector2(-3, 9), Vector2(-4, 2)]), Color("D8FFB0"))
+	for x in [-4.5, 4.5]:
+		canvas.draw_circle(Vector2(x, 2), 2.4, Color("1E3A16"))
+		canvas.draw_circle(Vector2(x, 1.6), 1.0, Color("EFFFD8"))

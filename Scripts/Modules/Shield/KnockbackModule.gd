@@ -131,6 +131,7 @@ func _is_eligible_enemy(enemy: BasicEnemy) -> bool:
 		enemy != null
 		and is_instance_valid(enemy)
 		and not enemy.is_dying()
+		and not enemy.is_flying_enemy()
 		and enemy.enemy_tier != BasicEnemy.EnemyTier.BOSS
 		and enemy.enemy_tier in [
 			BasicEnemy.EnemyTier.COMMON,

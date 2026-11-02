@@ -40,6 +40,8 @@ func _apply_tick() -> void:
 		var enemy := hit.get("collider") as BasicEnemy
 		if enemy == null or enemy.is_dying() or hit_ids.has(enemy.get_instance_id()):
 			continue
+		if is_instance_valid(source_weapon) and not source_weapon.can_target_enemy(enemy):
+			continue
 		hit_ids[enemy.get_instance_id()] = true
 		enemy.take_damage(damage, false, true, source_weapon if is_instance_valid(source_weapon) else null)
 

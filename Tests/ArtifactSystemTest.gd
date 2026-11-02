@@ -3,7 +3,7 @@ extends Node
 ## Headless integration coverage for permanent ownership/equipment, Rock Titan
 ## first-kill grants, base access, save migration and Stone Heart combat rules.
 
-const TEST_SAVE_PATH := "user://greedminer_artifact_system_test.json"
+var _test_save_path: String = ""
 const BASE_SCENE: PackedScene = preload("res://Scenes/Base/base_main.tscn")
 const BATTLE_SCENE: PackedScene = preload("res://Scenes/Battle/BattleMain.tscn")
 const TITAN_SCENE: PackedScene = preload("res://Scenes/Enemies/rock_titan.tscn")
@@ -20,8 +20,10 @@ func _ready() -> void:
 
 
 func _run() -> void:
+	var temp_dir := OS.get_environment("TMPDIR")
+	_test_save_path = temp_dir.path_join("greedminer_artifact_system_test_%d.json" % Time.get_ticks_usec()) if not temp_dir.is_empty() else "user://greedminer_artifact_system_test.json"
 	_remove_test_save()
-	ProgressionStore.set_save_path_for_testing(TEST_SAVE_PATH)
+	ProgressionStore.set_save_path_for_testing(_test_save_path)
 	ProgressionStore.reset_all_progress()
 	ShipLoadout.load_saved()
 	ResearchManager.reload_progress()
@@ -280,8 +282,8 @@ func _cleanup() -> void:
 
 
 func _remove_test_save() -> void:
-	if FileAccess.file_exists(TEST_SAVE_PATH):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SAVE_PATH))
+	if not _test_save_path.is_empty() and FileAccess.file_exists(_test_save_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(_test_save_path))
 
 
 func _expect_true(value: bool, description: String) -> void:

@@ -1,0 +1,248 @@
+[gd_resource type="Resource" script_class="PlanetWaveConfig" format=3 uid="uid://c5583aviclhb2"]
+
+[ext_resource type="Script" uid="uid://b5ij4fdghypy1" path="res://Scripts/Waves/SpecialSpawnEventRule.gd" id="2_n0cb7"]
+[ext_resource type="Script" uid="uid://cbpn6xvsjha4g" path="res://Scripts/Waves/PlanetWaveConfig.gd" id="config"]
+[ext_resource type="Script" uid="uid://d4jnmrbo34g3l" path="res://Scripts/Waves/EnemySpawnEntry.gd" id="entry"]
+[ext_resource type="Script" uid="uid://6boj7f2no6e8" path="res://Scripts/Waves/WaveDefinition.gd" id="wave"]
+
+[sub_resource type="Resource" id="w1_k"]
+script = ExtResource("entry")
+enemy_id = &"kobold"
+spawn_count = 8
+
+[sub_resource type="Resource" id="w1_l"]
+script = ExtResource("entry")
+enemy_id = &"nest_lizard"
+spawn_count = 3
+
+[sub_resource type="Resource" id="w1"]
+script = ExtResource("wave")
+spawn_interval = 0.9
+maximum_simultaneous_enemies = 24
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("w1_k"), SubResource("w1_l")])
+
+[sub_resource type="Resource" id="w2_k"]
+script = ExtResource("entry")
+enemy_id = &"kobold"
+spawn_count = 8
+
+[sub_resource type="Resource" id="w2_l"]
+script = ExtResource("entry")
+enemy_id = &"nest_lizard"
+spawn_count = 4
+
+[sub_resource type="Resource" id="w2_y"]
+script = ExtResource("entry")
+enemy_id = &"young_dragon"
+
+[sub_resource type="Resource" id="w2"]
+script = ExtResource("wave")
+wave_number = 2
+spawn_interval = 0.9
+maximum_simultaneous_enemies = 24
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("w2_k"), SubResource("w2_l"), SubResource("w2_y")])
+
+[sub_resource type="Resource" id="w3_k"]
+script = ExtResource("entry")
+enemy_id = &"kobold"
+spawn_count = 10
+
+[sub_resource type="Resource" id="w3_l"]
+script = ExtResource("entry")
+enemy_id = &"nest_lizard"
+spawn_count = 4
+
+[sub_resource type="Resource" id="w3_y"]
+script = ExtResource("entry")
+enemy_id = &"young_dragon"
+
+[sub_resource type="Resource" id="w3"]
+script = ExtResource("wave")
+wave_number = 3
+spawn_interval = 0.9
+maximum_simultaneous_enemies = 24
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("w3_k"), SubResource("w3_l"), SubResource("w3_y")])
+
+[sub_resource type="Resource" id="w4_k"]
+script = ExtResource("entry")
+enemy_id = &"kobold"
+spawn_count = 9
+
+[sub_resource type="Resource" id="w4_l"]
+script = ExtResource("entry")
+enemy_id = &"nest_lizard"
+spawn_count = 5
+
+[sub_resource type="Resource" id="w4_y"]
+script = ExtResource("entry")
+enemy_id = &"young_dragon"
+
+[sub_resource type="Resource" id="w4"]
+script = ExtResource("wave")
+wave_number = 4
+spawn_interval = 0.9
+maximum_simultaneous_enemies = 24
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("w4_k"), SubResource("w4_l"), SubResource("w4_y")])
+
+[sub_resource type="Resource" id="w5_k"]
+script = ExtResource("entry")
+enemy_id = &"kobold"
+spawn_count = 9
+
+[sub_resource type="Resource" id="w5_l"]
+script = ExtResource("entry")
+enemy_id = &"nest_lizard"
+spawn_count = 4
+
+[sub_resource type="Resource" id="w5_g"]
+script = ExtResource("entry")
+enemy_id = &"greater_dragon"
+
+[sub_resource type="Resource" id="w5"]
+script = ExtResource("wave")
+wave_number = 5
+spawn_interval = 0.9
+maximum_simultaneous_enemies = 24
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("w5_k"), SubResource("w5_l"), SubResource("w5_g")])
+
+[sub_resource type="Resource" id="w6_k"]
+script = ExtResource("entry")
+enemy_id = &"kobold"
+spawn_count = 10
+
+[sub_resource type="Resource" id="w6_l"]
+script = ExtResource("entry")
+enemy_id = &"nest_lizard"
+spawn_count = 5
+
+[sub_resource type="Resource" id="w6_g"]
+script = ExtResource("entry")
+enemy_id = &"greater_dragon"
+
+[sub_resource type="Resource" id="w6"]
+script = ExtResource("wave")
+wave_number = 6
+spawn_interval = 0.9
+maximum_simultaneous_enemies = 24
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("w6_k"), SubResource("w6_l"), SubResource("w6_g")])
+
+[sub_resource type="Resource" id="w7_k"]
+script = ExtResource("entry")
+enemy_id = &"kobold"
+spawn_count = 10
+
+[sub_resource type="Resource" id="w7_l"]
+script = ExtResource("entry")
+enemy_id = &"nest_lizard"
+spawn_count = 5
+
+[sub_resource type="Resource" id="w7_g"]
+script = ExtResource("entry")
+enemy_id = &"greater_dragon"
+
+[sub_resource type="Resource" id="w7"]
+script = ExtResource("wave")
+wave_number = 7
+spawn_interval = 0.9
+maximum_simultaneous_enemies = 24
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("w7_k"), SubResource("w7_l"), SubResource("w7_g")])
+
+[sub_resource type="Resource" id="w8_k"]
+script = ExtResource("entry")
+enemy_id = &"kobold"
+spawn_count = 10
+
+[sub_resource type="Resource" id="w8_l"]
+script = ExtResource("entry")
+enemy_id = &"nest_lizard"
+spawn_count = 5
+
+[sub_resource type="Resource" id="w8_g"]
+script = ExtResource("entry")
+enemy_id = &"greater_dragon"
+
+[sub_resource type="Resource" id="w8"]
+script = ExtResource("wave")
+wave_number = 8
+spawn_interval = 0.9
+maximum_simultaneous_enemies = 24
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("w8_k"), SubResource("w8_l"), SubResource("w8_g")])
+
+[sub_resource type="Resource" id="w9_k"]
+script = ExtResource("entry")
+enemy_id = &"kobold"
+spawn_count = 11
+
+[sub_resource type="Resource" id="w9_l"]
+script = ExtResource("entry")
+enemy_id = &"nest_lizard"
+spawn_count = 5
+
+[sub_resource type="Resource" id="w9_g"]
+script = ExtResource("entry")
+enemy_id = &"greater_dragon"
+
+[sub_resource type="Resource" id="w9"]
+script = ExtResource("wave")
+wave_number = 9
+spawn_interval = 0.9
+maximum_simultaneous_enemies = 24
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("w9_k"), SubResource("w9_l"), SubResource("w9_g")])
+
+[sub_resource type="Resource" id="w10_k"]
+script = ExtResource("entry")
+enemy_id = &"kobold"
+spawn_count = 12
+
+[sub_resource type="Resource" id="w10_l"]
+script = ExtResource("entry")
+enemy_id = &"nest_lizard"
+spawn_count = 6
+
+[sub_resource type="Resource" id="w10_y"]
+script = ExtResource("entry")
+enemy_id = &"young_dragon"
+spawn_count = 2
+
+[sub_resource type="Resource" id="w10_g"]
+script = ExtResource("entry")
+enemy_id = &"greater_dragon"
+
+[sub_resource type="Resource" id="w10"]
+script = ExtResource("wave")
+wave_number = 10
+spawn_interval = 0.9
+maximum_simultaneous_enemies = 24
+interleave_enemy_types = true
+enemy_entries = Array[ExtResource("entry")]([SubResource("w10_k"), SubResource("w10_l"), SubResource("w10_y"), SubResource("w10_g")])
+
+[sub_resource type="Resource" id="w11_boss"]
+script = ExtResource("entry")
+enemy_id = &"ancient_dragon"
+spawn_first = true
+is_boss = true
+
+[sub_resource type="Resource" id="w11"]
+script = ExtResource("wave")
+wave_number = 11
+spawn_interval = 1.0
+maximum_simultaneous_enemies = 8
+boss_wave = true
+boss_summons_consume_wave_quota = false
+enemy_entries = Array[ExtResource("entry")]([SubResource("w11_boss")])
+
+[resource]
+script = ExtResource("config")
+planet_id = &"dragon_nest_planet"
+display_name = "Dragon Nest"
+advance_on_wave_clear = true
+waves = Array[ExtResource("wave")]([SubResource("w1"), SubResource("w2"), SubResource("w3"), SubResource("w4"), SubResource("w5"), SubResource("w6"), SubResource("w7"), SubResource("w8"), SubResource("w9"), SubResource("w10"), SubResource("w11")])

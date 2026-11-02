@@ -34,14 +34,15 @@ const PLANETS: Array[Dictionary] = [
 		"locate_cost": 500,
 		"enemies": ["Snow Monster", "Mega Monster"],
 		"theme": &"frozen",
+		# Frozen and Volcanic share one star-map slot as a twin system that
+		# orbits itself; the player clicks either planet (Claude sync 88).
+		"pair": &"fire_ice",
 	},
 	{
 		"id": &"volcanic_planet",
 		"name": "VOLCANIC PLANET",
 		"description": "An unstable volcanic world.",
-		# Keep every gameplay/progression dependency registered while temporarily
-		# removing this destination from the player-facing star-map carousel.
-		"hidden_from_star_map": true,
+		"pair": &"fire_ice",
 		# Lava Planet uses this existing Volcanic Planet identity. Its eleventh
 		# wave intentionally stops at the reserved future-boss integration point.
 		"unlocked": true,
@@ -70,10 +71,23 @@ const PLANETS: Array[Dictionary] = [
 		"enemies": ["Fairy", "Treant", "Big Treant", "Chainsaw Spaceship Treant"],
 		"theme": &"forest",
 	},
+	{
+		"id": &"dragon_nest_planet",
+		"name": "DRAGON NEST",
+		"description": "A low-density dragon stronghold with three optional treasure hoards and an Ancient Dragon.",
+		"unlocked": true,
+		"playable": true,
+		"enemies": ["Kobold", "Nest Lizard", "Young Dragon", "Greater Dragon", "Ancient Dragon"],
+		"theme": &"dragon_nest",
+	},
 ]
 
 const PLANET_VISUAL_SIZE: Vector2 = Vector2(320.0, 320.0)
 const CAROUSEL_DURATION: float = 0.42
+## Twin-system slot: the two planets orbit their shared slot centre.
+const TWIN_ORBIT := Vector2(122.0, 34.0)
+const TWIN_SCALE: float = 0.62
+const TWIN_SPIN: float = 0.45
 
 ## Testable transition target; normal gameplay keeps the existing battle scene.
 @export_file("*.tscn") var battle_scene_path: String = BATTLE_SCENE_PATH
@@ -95,6 +109,13 @@ var selected_index: int = 0
 var _planet_visuals: Array[PlanetVisual] = []
 var _star_map_planets: Array[Dictionary] = []
 var _carousel_tween: Tween
+## Carousel slots: each lists the visible-planet indices it holds (one, or
+## two for a twin system). _scroll is the (fractional) slot in the centre.
+var _slots: Array = []
+var _planet_slot: Array[int] = []
+var _pair_choice: Dictionary = {}
+var _scroll: float = 0.0
+var _orbit_time: float = 0.0
 var _transitioning: bool = false
 var _background_time: float = 0.0
 
@@ -104,7 +125,9 @@ func _ready() -> void:
 	# to. Hidden destinations safely fall back to Rocky without changing the
 	# saved expedition ID or any completion/location data.
 	_star_map_planets = get_visible_planets()
+	_build_slots()
 	selected_index = get_visible_planet_index(ResourceManager.current_expedition_planet_id)
+	_pair_choice[_planet_slot[selected_index]] = selected_index
 	_build_planet_visuals()
 	_connect_once(left_button.pressed, _on_left_pressed)
 	_connect_once(right_button.pressed, _on_right_pressed)
@@ -145,8 +168,37 @@ static func get_visible_planet_index(planet_id: StringName) -> int:
 	return 0
 
 
+## Groups visible planets into carousel slots (twins by their "pair" id).
+func _build_slots() -> void:
+	_slots.clear()
+	_planet_slot.clear()
+	var pair_slot: Dictionary = {}
+	for planet_index in range(_star_map_planets.size()):
+		var pair := StringName(_star_map_planets[planet_index].get("pair", &""))
+		if pair != &"" and pair_slot.has(pair):
+			var slot_index: int = pair_slot[pair]
+			(_slots[slot_index] as Array).append(planet_index)
+			_planet_slot.append(slot_index)
+			continue
+		if pair != &"":
+			pair_slot[pair] = _slots.size()
+		_planet_slot.append(_slots.size())
+		_slots.append([planet_index])
+
+
+func get_slot_count() -> int:
+	return _slots.size()
+
+
+## Visible-planet indices sharing the selected planet's slot (tests / UI).
+func get_selected_slot_planets() -> Array:
+	return _slots[_planet_slot[selected_index]] if selected_index < _planet_slot.size() else []
+
+
 func _process(delta: float) -> void:
 	_background_time = fmod(_background_time + delta, TAU * 100.0)
+	_orbit_time = fmod(_orbit_time + delta * TWIN_SPIN, TAU)
+	_apply_layout()
 	queue_redraw()
 
 
@@ -160,6 +212,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_right"):
 		_on_right_pressed()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_up") or event.is_action_pressed("ui_down"):
+		# Switch between the two planets of a twin system.
+		var twins: Array = get_selected_slot_planets()
+		if twins.size() > 1:
+			_select_planet(int(twins[(twins.find(selected_index) + 1) % twins.size()]))
+			get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed:
 		var mouse_event := event as InputEventMouseButton
 		if mouse_event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -198,6 +256,17 @@ func _draw() -> void:
 	draw_arc(orbit_center, 214.0, 0.0, TAU, 140, Color(Palette.UI_MUTED, 0.12), 2.0)
 	draw_line(Vector2(size.x * 0.12, orbit_center.y), Vector2(size.x * 0.88, orbit_center.y), Color(Palette.UI_MUTED, 0.10), 2.0)
 
+	# Twin systems: the shared orbit the two planets travel along.
+	for slot_index in range(_slots.size()):
+		if (_slots[slot_index] as Array).size() < 2:
+			continue
+		var pose := _slot_pose(slot_index)
+		var ring := PackedVector2Array()
+		for step in range(65):
+			var a := TAU * float(step) / 64.0
+			ring.append(pose["center"] + Vector2(cos(a) * TWIN_ORBIT.x, sin(a) * TWIN_ORBIT.y) * float(pose["scale"]))
+		draw_polyline(ring, Color(Palette.ACCENT, 0.12 + 0.28 * float(pose["focus"])), 2.0)
+
 
 func _build_planet_visuals() -> void:
 	for child in planet_layer.get_children():
@@ -220,11 +289,17 @@ func _connect_once(source_signal: Signal, callback: Callable) -> void:
 
 
 func _on_left_pressed() -> void:
-	_select_planet(posmod(selected_index - 1, _star_map_planets.size()))
+	_select_slot(posmod(_planet_slot[selected_index] - 1, _slots.size()))
 
 
 func _on_right_pressed() -> void:
-	_select_planet(posmod(selected_index + 1, _star_map_planets.size()))
+	_select_slot(posmod(_planet_slot[selected_index] + 1, _slots.size()))
+
+
+## Moves to a slot; a twin system reopens on the planet last chosen there.
+func _select_slot(slot_index: int) -> void:
+	var planets: Array = _slots[slot_index]
+	_select_planet(int(_pair_choice.get(slot_index, planets[0])))
 
 
 func _on_planet_pressed(planet_index: int) -> void:
@@ -236,53 +311,78 @@ func _select_planet(planet_index: int) -> void:
 		return
 
 	selected_index = clampi(planet_index, 0, _star_map_planets.size() - 1)
+	_pair_choice[_planet_slot[selected_index]] = selected_index
 	_update_planet_information()
 	_layout_planets(true)
 
 
+## Scrolls the carousel so the selected planet's slot is centred. Poses are
+## applied every frame by _apply_layout (twins keep orbiting).
 func _layout_planets(animated: bool = true) -> void:
-	if _planet_visuals.is_empty():
+	if _planet_visuals.is_empty() or _slots.is_empty():
 		return
-
 	if _carousel_tween != null and _carousel_tween.is_valid():
 		_carousel_tween.kill()
-
-	var center := Vector2(size.x * 0.5, size.y * 0.39)
-	var horizontal_spacing := minf(size.x * 0.285, 455.0)
-	var planet_count := _planet_visuals.size()
-
-	if animated:
+	var target := float(_planet_slot[selected_index])
+	var count := float(_slots.size())
+	var delta := wrapf(target - _scroll, -count * 0.5, count * 0.5)
+	if animated and absf(delta) > 0.001:
 		_carousel_tween = create_tween()
-		_carousel_tween.set_parallel(true)
 		_carousel_tween.set_trans(Tween.TRANS_QUINT)
 		_carousel_tween.set_ease(Tween.EASE_OUT)
+		_carousel_tween.tween_property(self, "_scroll", _scroll + delta, CAROUSEL_DURATION)
+	else:
+		_scroll = target
+	_apply_layout()
 
-	for planet_index in range(planet_count):
-		var visual := _planet_visuals[planet_index]
-		var offset := planet_index - selected_index
-		if offset > planet_count / 2:
-			offset -= planet_count
-		elif offset < -planet_count / 2:
-			offset += planet_count
 
-		var is_selected := offset == 0
-		var target_center := center + Vector2(float(offset) * horizontal_spacing, 0.0)
-		var target_position := target_center - PLANET_VISUAL_SIZE * 0.5
-		var target_scale := Vector2.ONE if is_selected else Vector2.ONE * 0.62
-		var target_color := Color.WHITE if is_selected else Color(0.72, 0.68, 0.62, 0.75)
-		var target_selection := 1.0 if is_selected else 0.0
-		visual.z_index = 5 if is_selected else 1
+## Where a slot sits now: centre, scale, and focus (1 when centred).
+func _slot_pose(slot_index: int) -> Dictionary:
+	var center := Vector2(size.x * 0.5, size.y * 0.39)
+	var horizontal_spacing := minf(size.x * 0.285, 455.0)
+	var count := float(_slots.size())
+	var offset := wrapf(float(slot_index) - _scroll, -count * 0.5, count * 0.5)
+	var focus := clampf(1.0 - absf(offset), 0.0, 1.0)
+	return {
+		"center": center + Vector2(offset * horizontal_spacing, 0.0),
+		"scale": lerpf(0.62, 1.0, focus),
+		"focus": focus,
+	}
 
-		if animated:
-			_carousel_tween.tween_property(visual, "position", target_position, CAROUSEL_DURATION)
-			_carousel_tween.tween_property(visual, "scale", target_scale, CAROUSEL_DURATION)
-			_carousel_tween.tween_property(visual, "modulate", target_color, CAROUSEL_DURATION)
-			_carousel_tween.tween_property(visual, "selection_amount", target_selection, CAROUSEL_DURATION)
-		else:
-			visual.position = target_position
-			visual.scale = target_scale
-			visual.modulate = target_color
-			visual.selection_amount = target_selection
+
+func _apply_layout() -> void:
+	if _planet_visuals.is_empty() or _slots.is_empty():
+		return
+	var dim := Color(0.72, 0.68, 0.62, 0.75)
+	for slot_index in range(_slots.size()):
+		var planets: Array = _slots[slot_index]
+		var pose := _slot_pose(slot_index)
+		var focus: float = pose["focus"]
+		var slot_scale: float = pose["scale"]
+		var slot_center: Vector2 = pose["center"]
+		var tint := dim.lerp(Color.WHITE, focus)
+		if planets.size() == 1:
+			var visual := _planet_visuals[int(planets[0])]
+			visual.position = slot_center - PLANET_VISUAL_SIZE * 0.5
+			visual.scale = Vector2.ONE * slot_scale
+			visual.modulate = tint
+			visual.selection_amount = focus
+			visual.z_index = 5 if focus > 0.5 else 1
+			continue
+		var chosen := int(_pair_choice.get(slot_index, planets[0]))
+		for twin in range(planets.size()):
+			var planet_index := int(planets[twin])
+			var visual := _planet_visuals[planet_index]
+			var angle := _orbit_time + PI * float(twin)
+			var depth := sin(angle)
+			var at := slot_center + Vector2(cos(angle) * TWIN_ORBIT.x, depth * TWIN_ORBIT.y) * slot_scale
+			var is_chosen := planet_index == chosen
+			var twin_scale := slot_scale * TWIN_SCALE * (1.0 + 0.1 * depth) * (1.1 if is_chosen and focus > 0.5 else 1.0)
+			visual.position = at - PLANET_VISUAL_SIZE * 0.5
+			visual.scale = Vector2.ONE * twin_scale
+			visual.modulate = tint if is_chosen else tint.lerp(dim, 0.45 * focus)
+			visual.selection_amount = focus if is_chosen else 0.0
+			visual.z_index = (6 if focus > 0.5 else 2) + (1 if depth > 0.0 else 0)
 
 
 func _update_planet_information() -> void:
@@ -293,6 +393,8 @@ func _update_planet_information() -> void:
 	var is_located := bool(launch_status.located)
 	planet_name_label.text = tr(String(planet["name"]))
 	description_label.text = tr(String(planet["description"]))
+	if get_selected_slot_planets().size() > 1:
+		description_label.text += "\n" + tr("FIRE & ICE TWINS  ·  CLICK A PLANET TO SWITCH CHALLENGE")
 	var in_range := bool(launch_status.get("in_range", true))
 	status_label.text = ("LOCATED" if is_located else "UNCHARTED") if is_unlocked else "LOCKED"
 	if is_unlocked and not in_range:
@@ -385,9 +487,10 @@ func _get_deploy_button_text(status: Dictionary) -> String:
 
 func _build_position_indicator() -> String:
 	var indicator := ""
-	for planet_index in range(_star_map_planets.size()):
-		indicator += "◆" if planet_index == selected_index else "◇"
-		if planet_index < _star_map_planets.size() - 1:
+	var current := _planet_slot[selected_index] if selected_index < _planet_slot.size() else 0
+	for slot_index in range(_slots.size()):
+		indicator += "◆" if slot_index == current else "◇"
+		if slot_index < _slots.size() - 1:
 			indicator += "   "
 	return indicator
 

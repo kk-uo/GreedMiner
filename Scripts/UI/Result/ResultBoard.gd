@@ -135,18 +135,26 @@ func _build() -> void:
 	if not rows.is_empty() and bool(rows[0]["boss"]):
 		boss_row = rows.pop_front()
 	var delay := 0.45
+	# With a turret damage report the enemy cards take one row and the report
+	# fills the lower left (it replaces the best-weapon sticky note).
+	var turrets: Array[Dictionary] = stats.turret_rows() if stats != null else []
+	var report := not turrets.is_empty()
+	var top_h := 360.0 if report else 560.0
 	if not boss_row.is_empty():
-		_enemy_card(Rect2(160, 150, 330, 500), -0.035, boss_row, true, delay)
+		_enemy_card(Rect2(160, 150, 330, 360 if report else 500), -0.035, boss_row, true, delay)
 		delay += 0.18
-	var area := Rect2(520, 150, 460, 560) if not boss_row.is_empty() else Rect2(160, 150, 820, 560)
-	delay = _enemy_grid(area, rows, not boss_row.is_empty(), delay)
+	var area := Rect2(520, 150, 460, top_h) if not boss_row.is_empty() else Rect2(160, 150, 820, top_h)
+	delay = _enemy_grid(area, rows, not boss_row.is_empty(), delay, 1 if report else 2)
 	if boss_row.is_empty() and rows.is_empty():
 		var empty := _painter(Rect2(area.position + Vector2(0, 180), Vector2(area.size.x, 80)), func(c: Control) -> void:
 			_text_c(c, tr("No enemies knocked out"), c.size.x * 0.5, 50, 26, CREAM))
 		_pop_in(empty, delay)
 	_receipt(delay)
 	_reward_cards(delay + 0.5)
-	_best_weapon_note(delay + 0.3)
+	if report:
+		_turret_report(turrets, delay + 0.3)
+	else:
+		_best_weapon_note(delay + 0.3)
 	# Stamps slam once every card is pinned.
 	var slam_at := delay + 0.25
 	for stamp in _stamps:
@@ -183,13 +191,13 @@ func _build() -> void:
 
 ## Lays out up to 8 cards (fewer columns with a boss card); extra enemy
 ## types fold into one "Others" card. Returns the next free delay.
-func _enemy_grid(area: Rect2, rows: Array[Dictionary], has_boss: bool, delay: float) -> float:
+func _enemy_grid(area: Rect2, rows: Array[Dictionary], has_boss: bool, delay: float, max_rows: int = 2) -> float:
 	if rows.is_empty():
 		return delay
 	var max_cols := 3 if has_boss else 5
 	var n := rows.size()
-	var cols := clampi(ceili(float(n) / 2.0), 1, max_cols)
-	var grid_rows := mini(2, ceili(float(n) / float(cols)))
+	var cols := clampi(ceili(float(n) / float(max_rows)), 1, max_cols)
+	var grid_rows := mini(max_rows, ceili(float(n) / float(cols)))
 	var capacity := cols * grid_rows
 	var shown: Array[Dictionary] = rows.duplicate()
 	if n > capacity:
@@ -433,6 +441,103 @@ func _reward_card(rect: Rect2, reward: Dictionary, count: int, extra: int) -> Co
 		c.draw_circle(Vector2(8, 8), 3, Color(1, 1, 1, 0.6)))
 	_move_to(pin, card)
 	return card
+
+
+## Damage dealt by every turret this battle (BattleStats.turret_rows): a
+## clipboard sheet with two columns of rows - icon, name, ship cell, a bar
+## against the top turret, share of the total and the damage. The top turret
+## is marked MVP. Up to ten rows; the rest fold into "+N more".
+const REPORT_RECT := Rect2(160, 528, 820, 222)
+const REPORT_ROWS := 5
+
+
+func _turret_report(turrets: Array[Dictionary], delay: float) -> void:
+	var stats: BattleStats = data.get("stats")
+	var total := maxf(stats.total_turret_damage() if stats != null else 0.0, 0.0)
+	var capacity := REPORT_ROWS * 2
+	var shown: Array[Dictionary] = turrets.slice(0, capacity) if turrets.size() <= capacity else turrets.slice(0, capacity - 1)
+	var extra := turrets.size() - shown.size()
+	var extra_damage := 0.0
+	for entry in turrets.slice(shown.size()):
+		extra_damage += float(entry["damage"])
+	var top := maxf(float(turrets[0]["damage"]), 1.0)
+	var state := {"t": 0.0}
+	# One wide column for up to five turrets, two narrower ones beyond.
+	var two := turrets.size() > REPORT_ROWS
+	var col_w := (REPORT_RECT.size.x - 60.0) * 0.5 if two else REPORT_RECT.size.x - 48.0
+	var name_w := 132.0 if two else 170.0
+	var cell_w := 40.0 if two else 60.0
+	var tail_w := 116.0 if two else 210.0
+	var row_h := 30.0
+	var row_y0 := 62.0
+	var origin := func(i: int) -> Vector2:
+		return Vector2(24 + (i / REPORT_ROWS) * (col_w + 12), row_y0 + (i % REPORT_ROWS) * row_h)
+	var sheet := _painter(REPORT_RECT, func(c: Control) -> void:
+		var r := Rect2(Vector2.ZERO, c.size)
+		c.draw_rect(Rect2(Vector2(6, 8), c.size), Color(0, 0, 0, 0.3))
+		c.draw_rect(r, CREAM)
+		c.draw_string(_font, Vector2(24, 38), tr("TURRET DAMAGE"), HORIZONTAL_ALIGNMENT_LEFT, -1, 24, INK)
+		var t := float(state["t"])
+		var total_text := tr("Total %s") % _short_number(total * t)
+		c.draw_string(_font, Vector2(c.size.x - 324, 38), total_text, HORIZONTAL_ALIGNMENT_RIGHT, 300, 20, BROWN_INK)
+		c.draw_line(Vector2(24, 50), Vector2(c.size.x - 24, 50), Color(INK, 0.3), 2)
+		for i in range(shown.size()):
+			var entry: Dictionary = shown[i]
+			var at: Vector2 = origin.call(i)
+			var damage := float(entry["damage"])
+			var mvp := i == 0 and damage > 0.0
+			if mvp:
+				Palette.draw_rounded_rect(c, Rect2(at + Vector2(-8, 1), Vector2(col_w + 8, row_h - 2)), 6.0, Color(ORANGE, 0.16))
+			var cell: Vector2i = entry["cell"]
+			var x := at.x + 34
+			var name := tr(String(ModuleCatalog.get_entry(entry["id"]).get("name", entry["id"])))
+			c.draw_string(_font, Vector2(x, at.y + 21), name, HORIZONTAL_ALIGNMENT_LEFT, name_w - 4, 17 if not two else 14, INK)
+			if cell.x >= 0:
+				c.draw_string(_font, Vector2(x + name_w, at.y + 20), "R%d·C%d" % [cell.x + 1, cell.y + 1], HORIZONTAL_ALIGNMENT_LEFT, cell_w, 12 if not two else 11, MUTED)
+			var bar_x := x + name_w + cell_w
+			var bar := Rect2(bar_x, at.y + 8, maxf(at.x + col_w - tail_w - bar_x, 20.0), 14)
+			Palette.draw_rounded_rect(c, bar, 7.0, Color(PAPER_EDGE, 0.35))
+			var fill := bar.size.x * clampf(damage / top, 0.0, 1.0) * t
+			if fill > 1.0:
+				Palette.draw_rounded_rect(c, Rect2(bar.position, Vector2(maxf(fill, 10.0), bar.size.y)), 7.0, ORANGE if mvp else BROWN_INK.lightened(0.25))
+			var share := damage / total if total > 0.0 else 0.0
+			c.draw_string(_font, Vector2(bar.end.x + 8, at.y + 20), "%d%%" % roundi(share * 100.0 * t), HORIZONTAL_ALIGNMENT_LEFT, 44, 13, MUTED)
+			var number_right := at.x + col_w - (54.0 if not two else 4.0)
+			c.draw_string(_font, Vector2(number_right - 80, at.y + 21), _short_number(damage * t), HORIZONTAL_ALIGNMENT_RIGHT, 80, 18 if not two else 16, INK if damage > 0.0 else MUTED)
+			if mvp and not two:
+				Palette.draw_rounded_rect(c, Rect2(at.x + col_w - 46, at.y + 7, 42, 17), 6.0, ORANGE)
+				_text_c(c, "MVP", at.x + col_w - 25, at.y + 20, 12, Color.WHITE)
+		if extra > 0:
+			var tail := tr("+%d more turrets") % extra + "  ·  " + _short_number(extra_damage)
+			var at_tail: Vector2 = origin.call(capacity - 1)
+			c.draw_string(_font, Vector2(at_tail.x + 34, at_tail.y + 20), tail, HORIZONTAL_ALIGNMENT_LEFT, col_w - 40, 14, MUTED))
+	for i in range(shown.size()):
+		var icon := ModuleIcon.new()
+		icon.show_backdrop = false
+		icon.setup(shown[i]["id"], 28, _module_icon_scale(shown[i]["id"]) * 0.3)
+		icon.position = origin.call(i)
+		sheet.add_child(icon)
+	var clip := _painter(Rect2(REPORT_RECT.size.x * 0.5 - 40, -14, 80, 26), func(c: Control) -> void:
+		Palette.draw_rounded_rect(c, Rect2(Vector2(2, 3), c.size), 6.0, Color(0, 0, 0, 0.3))
+		Palette.draw_rounded_rect(c, Rect2(Vector2.ZERO, c.size), 6.0, Color("9AA0A6"))
+		Palette.draw_rounded_rect(c, Rect2(Vector2(10, 7), Vector2(c.size.x - 20, 8)), 4.0, Color("5E6469")))
+	_move_to(clip, sheet)
+	sheet.pivot_offset = sheet.size * 0.5
+	sheet.rotation = -0.008
+	_slide_in(sheet, delay, Vector2(0, 60))
+	var grow := _track(create_tween())
+	grow.tween_interval(delay + 0.35)
+	grow.tween_method(func(v: float) -> void:
+		state["t"] = v
+		sheet.queue_redraw(), 0.0, 1.0, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
+static func _short_number(value: float) -> String:
+	if value >= 1000000.0:
+		return "%.2fM" % (value / 1000000.0)
+	if value >= 10000.0:
+		return "%.1fK" % (value / 1000.0)
+	return "%d" % roundi(value)
 
 
 ## A small sticky note with the weapon that knocked out the most enemies.

@@ -10,6 +10,7 @@
 script = ExtResource("1")
 power_consumption = 2
 weapon_type_id = &"flamethrower"
+enemy_targeting = 0
 projectile_range = 15.0
 projectile_scene = ExtResource("2")
 

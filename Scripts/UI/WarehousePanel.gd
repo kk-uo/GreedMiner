@@ -179,7 +179,7 @@ func refresh() -> void:
 	var kept: Array = ScrollKeeper.capture(self) if int(current_tab) == _last_built_tab else []
 	_last_built_tab = int(current_tab)
 	var artifact_count := ArtifactManager.get_owned_artifact_ids().size()
-	var names := ["ALL", "RESOURCES", tr("ARTIFACTS  %d") % artifact_count]
+	var names := [tr("ALL"), tr("RESOURCES"), tr("ARTIFACTS  %d") % artifact_count]
 	for index in range(_tab_buttons.size()):
 		var button := _tab_buttons[index]
 		button.text = names[index]

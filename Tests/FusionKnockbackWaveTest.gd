@@ -19,14 +19,14 @@ func _run() -> void:
 	wave.wave_length = 100.0
 	wave.initial_damage = 15.0
 	wave.damage_per_second = 1.0
-	wave.knockback_distance = 200.0
+	wave.knockback_distance = 40.0
 	add_child(wave)
 	wave.global_position = Vector2(100.0, 0.0)
 	wave.arm_from_current_position()
 	await get_tree().create_timer(0.2).timeout
 	_check(is_equal_approx(normal.get_current_health(), 185.0), "ordinary enemy takes exactly one initial 15-damage hit")
 	_check(is_equal_approx(boss.get_current_health(), 185.0), "boss takes the initial hit")
-	_check(normal.global_position.x >= 299.0, "ordinary enemy is pushed 200 px forward")
+	_check(normal.global_position.x >= 139.0, "ordinary enemy is pushed 40 px forward")
 	_check(is_equal_approx(boss.global_position.x, 100.0), "boss is immune to knockback")
 	await get_tree().create_timer(1.0).timeout
 	_check(is_equal_approx(normal.get_current_health(), 184.0), "knocked-away enemy takes 1 damage after one second")

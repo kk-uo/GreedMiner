@@ -11,7 +11,11 @@ func _perform_death_effect() -> void:
 		battlefield.add_zombie_grave(global_position)
 
 ## Death: sinks into its grave (UndeadDeath); the grave rises after it.
+const SFX_ATTACK := preload("res://Assets/Audio/Enemies/Graveyard/zombie_attack.wav")
+const SFX_DEATH := preload("res://Assets/Audio/Enemies/Graveyard/zombie_death.wav")
+
 func _spawn_death_visual(death_position: Vector2) -> void:
+	EnemySfx.play(death_position, SFX_DEATH, -10.0)
 	UNDEAD_DEATH.spawn(get_parent(), death_position, &"zombie", _get_visual_radius() / 12.0, _facing)
 
 ## Movement, attacks, and rewards use BasicEnemy. Art: UndeadVisual (style C).
@@ -42,6 +46,7 @@ func _on_attack_timer_timeout() -> void:
 	super()
 	if _is_attacking:
 		_attack_pose_time = UndeadVisual.ATTACK_POSE_TIME
+		EnemySfx.play(self, SFX_ATTACK, -8.0)
 
 
 func _walk_step(cycles_per_second: float) -> float:

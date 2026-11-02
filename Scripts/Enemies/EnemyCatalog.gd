@@ -27,6 +27,11 @@ const ENEMY_SCENES: Dictionary = {
 	&"treant": preload("res://Scenes/Enemies/treant.tscn"),
 	&"big_treant": preload("res://Scenes/Enemies/big_treant.tscn"),
 	&"chainsaw_spaceship_treant": preload("res://Scenes/Enemies/chainsaw_spaceship_treant.tscn"),
+	&"kobold": preload("res://Scenes/Enemies/DragonNest/kobold.tscn"),
+	&"nest_lizard": preload("res://Scenes/Enemies/DragonNest/nest_lizard.tscn"),
+	&"young_dragon": preload("res://Scenes/Enemies/DragonNest/young_dragon.tscn"),
+	&"greater_dragon": preload("res://Scenes/Enemies/DragonNest/greater_dragon.tscn"),
+	&"ancient_dragon": preload("res://Scenes/Enemies/DragonNest/ancient_dragon.tscn"),
 }
 
 

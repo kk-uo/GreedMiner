@@ -172,6 +172,16 @@ func _get_purchase_failure(definition: ResearchDefinition) -> String:
 		for prerequisite in tree_node.prerequisite_ids:
 			if not is_research_completed(prerequisite):
 				return "Requires completed research: %s." % prerequisite
+		for prerequisite in tree_node.required_external_research_ids:
+			if not is_research_completed(prerequisite):
+				return "Requires completed research: %s." % prerequisite
+		for planet_id in tree_node.required_planet_clear_ids:
+			if not WeaponUnlockManager.has_completed_planet(planet_id):
+				return "Requires clearing %s." % planet_id
+		if tree_node.required_base_weapon_level > 0:
+			for weapon_id in WeaponFusionRegistry.BASE_WEAPONS:
+				if get_weapon_research_level(weapon_id) < tree_node.required_base_weapon_level:
+					return "Requires every base weapon at Level %d." % tree_node.required_base_weapon_level
 	return ""
 
 
@@ -228,6 +238,16 @@ func get_tree_node_state(research_id: StringName) -> StringName:
 	for prerequisite in node.prerequisite_ids:
 		if not is_research_completed(prerequisite):
 			return &"LOCKED"
+	for prerequisite in node.required_external_research_ids:
+		if not is_research_completed(prerequisite):
+			return &"LOCKED"
+	for planet_id in node.required_planet_clear_ids:
+		if not WeaponUnlockManager.has_completed_planet(planet_id):
+			return &"LOCKED"
+	if node.required_base_weapon_level > 0:
+		for weapon_id in WeaponFusionRegistry.BASE_WEAPONS:
+			if get_weapon_research_level(weapon_id) < node.required_base_weapon_level:
+				return &"LOCKED"
 	return &"AVAILABLE"
 
 
@@ -254,6 +274,10 @@ func get_planet_access_researches(planet_id: StringName) -> Array[StringName]:
 
 ## The first gating research still missing for `planet_id`, or empty.
 func get_planet_access_research(planet_id: StringName) -> StringName:
+	# Preserve destinations already pinpointed or cleared in older saves, and
+	# keep Developer Mode's Unlock All Planets effective after new range nodes.
+	if WeaponUnlockManager.is_planet_located(planet_id, 1):
+		return &""
 	for research_id in get_planet_access_researches(planet_id):
 		if not is_research_completed(research_id):
 			return research_id
@@ -266,10 +290,10 @@ func is_planet_in_range(planet_id: StringName) -> bool:
 
 
 ## Ship power from research that needs no Energy Module.
-func get_ship_base_power_bonus() -> int:
-	var bonus := 0
+func get_ship_base_power_bonus() -> float:
+	var bonus := 0.0
 	for effect in get_ship_research_effects():
-		bonus += maxi(effect.base_power_bonus, 0)
+		bonus += maxf(effect.base_power_bonus, 0.0)
 	return bonus
 
 
@@ -285,6 +309,21 @@ func is_ship_style_unlocked() -> bool:
 func is_manual_turret_control_unlocked() -> bool:
 	for effect in get_ship_research_effects():
 		if effect.unlocks_manual_turret_control:
+			return true
+	return false
+
+
+## Maximum number of hull cells the player may add in the Hangar.
+func get_ship_hull_slot_capacity() -> int:
+	var slots := 0
+	for effect in get_ship_research_effects():
+		slots += maxi(effect.hull_slot_capacity_bonus, 0)
+	return slots
+
+
+func is_ship_rotation_unlocked() -> bool:
+	for effect in get_ship_research_effects():
+		if effect.unlocks_ship_rotation:
 			return true
 	return false
 
@@ -313,10 +352,10 @@ func get_energy_module_hp_bonus() -> float:
 
 
 ## Extra power each Energy Module supplies from completed research.
-func get_energy_module_power_bonus() -> int:
-	var bonus := 0
+func get_energy_module_power_bonus() -> float:
+	var bonus := 0.0
 	for effect in get_ship_research_effects():
-		bonus += maxi(effect.power_bonus, 0)
+		bonus += maxf(effect.power_bonus, 0.0)
 	return bonus
 
 
@@ -517,6 +556,7 @@ func get_next_weapon_chip_slot_milestone(weapon_type_id: StringName) -> int:
 ## Returns the configured permanent installation limit for a module type.
 ## Missing definitions keep the conservative one-module default.
 func get_module_installation_limit(module_type_id: StringName) -> int:
+	var limit := 1
 	for definition in configuration.definitions:
 		if (
 			definition == null
@@ -527,8 +567,8 @@ func get_module_installation_limit(module_type_id: StringName) -> int:
 		):
 			continue
 		var effect := definition.effect as ModuleInstallationLimitResearchEffect
-		return effect.get_installation_limit(get_level(definition.research_id))
-	return 1
+		limit = maxi(limit, effect.get_installation_limit(get_level(definition.research_id)))
+	return limit
 
 
 func is_module_installation_unlock_completed(module_type_id: StringName) -> bool:
@@ -539,8 +579,9 @@ func is_module_installation_unlock_completed(module_type_id: StringName) -> bool
 			and definition.implemented
 			and definition.target_id == module_type_id
 			and definition.effect is ModuleInstallationLimitResearchEffect
+			and get_level(definition.research_id) >= definition.max_level
 		):
-			return get_level(definition.research_id) >= definition.max_level
+			return true
 	return false
 
 
@@ -593,3 +634,84 @@ func complete_research_for_development(research_id: StringName) -> bool:
 	if definition.get_milestone(definition.max_level) != null:
 		research_milestone_reached.emit(research_id, definition.max_level)
 	return true
+
+
+## Completes every implemented research definition in one save transaction.
+## This does not grant weapons, locate planets, or clear planet progression;
+## those are separate developer commands. Disabled/placeholder research is left
+## alone. The normal research save format and change signals stay authoritative.
+func complete_all_research_for_development() -> int:
+	if not DeveloperCommands.is_available():
+		return -1
+	var previous_levels := progress.levels.duplicate(true)
+	var previous_unlocked := progress.unlocked.duplicate(true)
+	var changed: Array[ResearchDefinition] = []
+	var newly_completed := 0
+	for definition in configuration.get_all_definitions():
+		if definition == null or not definition.enabled or not definition.implemented:
+			continue
+		var category := configuration.get_category(definition.category_id)
+		if category == null or not category.enabled or not category.implemented:
+			continue
+		var key := String(definition.research_id)
+		var old_level := get_level(definition.research_id)
+		var old_unlocked := bool(progress.unlocked.get(key, definition.unlocked_by_default))
+		if old_level >= definition.max_level and old_unlocked:
+			continue
+		progress.levels[key] = definition.max_level
+		progress.unlocked[key] = true
+		changed.append(definition)
+		if old_level < definition.max_level:
+			newly_completed += 1
+	if changed.is_empty():
+		return 0
+	if not save_progress():
+		progress.levels = previous_levels
+		progress.unlocked = previous_unlocked
+		return -1
+	for definition in changed:
+		var key := String(definition.research_id)
+		if not bool(previous_unlocked.get(key, definition.unlocked_by_default)):
+			research_unlocked.emit(definition.research_id)
+		if int(previous_levels.get(key, definition.starting_level)) < definition.max_level:
+			research_level_changed.emit(definition.research_id, definition.max_level)
+			for milestone in definition.milestones:
+				if milestone != null and milestone.target_level > int(previous_levels.get(key, definition.starting_level)):
+					research_milestone_reached.emit(definition.research_id, milestone.target_level)
+	return newly_completed
+
+
+## Raises only implemented base and fusion weapon damage research to its
+## configured maximum. Weapon availability is still owned by the unlock and
+## fusion managers; this command changes levels, not their unlock conditions.
+func maximize_weapon_research_for_development() -> int:
+	if not DeveloperCommands.is_available():
+		return -1
+	var previous_levels := progress.levels.duplicate(true)
+	var previous_unlocked := progress.unlocked.duplicate(true)
+	var changed: Array[ResearchDefinition] = []
+	for definition in configuration.get_all_definitions():
+		if definition == null or not definition.enabled or not definition.implemented:
+			continue
+		if not _is_weapon_research_category(definition.category_id) or not definition.effect is WeaponDamageResearchEffect:
+			continue
+		var category := configuration.get_category(definition.category_id)
+		if category == null or not category.enabled or not category.implemented:
+			continue
+		if get_level(definition.research_id) >= definition.max_level:
+			continue
+		progress.levels[String(definition.research_id)] = definition.max_level
+		changed.append(definition)
+	if changed.is_empty():
+		return 0
+	if not save_progress():
+		progress.levels = previous_levels
+		progress.unlocked = previous_unlocked
+		return -1
+	for definition in changed:
+		var previous_level := int(previous_levels.get(String(definition.research_id), definition.starting_level))
+		research_level_changed.emit(definition.research_id, definition.max_level)
+		for milestone in definition.milestones:
+			if milestone != null and milestone.target_level > previous_level and milestone.target_level <= definition.max_level:
+				research_milestone_reached.emit(definition.research_id, milestone.target_level)
+	return changed.size()

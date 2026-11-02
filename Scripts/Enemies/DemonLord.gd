@@ -136,6 +136,16 @@ func _ready() -> void:
 	add_to_group("boss_qte_targets")
 	for part in BODY_PARTS:
 		special_part_clicks[part] = 0
+	# Presentation: boss sounds from its own signals.
+	boss_qte_started.connect(func(_special: bool, _d: float) -> void: EnemySfx.play(self, SFX_CHARGE, -5.0, 0.0))
+	boss_qte_progress.connect(func(current: int, _required: int) -> void:
+		if current > 0:
+			EnemySfx.play(self, SFX_QTE_CLICK, -9.0, 0.1))
+	boss_qte_finished.connect(func(succeeded: bool, _special: bool) -> void:
+		if succeeded:
+			EnemySfx.play(self, SFX_BREAK, -3.0, 0.0))
+	laser_fired.connect(func(_damage: float) -> void: EnemySfx.play(self, SFX_LASER, -2.0, 0.0))
+	summons_spawned.connect(func(_s: Array[BasicEnemy]) -> void: EnemySfx.play(self, SFX_SUMMON, -4.0, 0.0))
 
 
 func _physics_process(delta: float) -> void:
@@ -427,6 +437,8 @@ func _teleport_opposite_ship() -> void:
 
 
 func _teleport_to(destination: Vector2, ship_center: Vector2) -> void:
+	EnemySfx.play(global_position, SFX_TELEPORT, -5.0, 0.0)
+	EnemySfx.play(destination, SFX_TELEPORT, -7.0, 0.0, 1.2)
 	_teleport_from_world = global_position
 	_teleport_age = 0.0
 	global_position = destination
@@ -598,7 +610,14 @@ func _get_battlefield() -> Battlefield:
 	return parent.get_parent().get_node_or_null("Battlefield") as Battlefield if parent != null and parent.get_parent() != null else null
 
 
+## Presentation: the claw sound on every regular hit.
+func _perform_attack(ship: Ship) -> void:
+	super(ship)
+	EnemySfx.play(self, SFX_ATTACK, -6.0, 0.04)
+
+
 func _perform_death_effect() -> void:
+	EnemySfx.play(global_position, SFX_DEATH, -1.0, 0.0)
 	_cleanup_qte_state()
 	if not ArtifactManager.owns_artifact(&"demon_prism"):
 		ArtifactManager.grant_artifact(&"demon_prism")
@@ -739,3 +758,13 @@ func _draw_ward_edge() -> void:
 		var p := Vector2.RIGHT.rotated(TAU * float(index) / 6.0 + _anim_time * 0.4) * radius
 		draw_circle(p, 7.0 + 3.0 * hit, Color("4A0F12"))
 		draw_circle(p, 4.5 + 2.0 * hit, Color(Color("FFE08A"), 0.75 + 0.25 * pulse))
+
+
+const SFX_ATTACK := preload("res://Assets/Audio/Enemies/Volcanic/lord_attack.wav")
+const SFX_CHARGE := preload("res://Assets/Audio/Enemies/Volcanic/lord_charge.wav")
+const SFX_QTE_CLICK := preload("res://Assets/Audio/Enemies/Volcanic/lord_qte_click.wav")
+const SFX_BREAK := preload("res://Assets/Audio/Enemies/Volcanic/lord_break.wav")
+const SFX_LASER := preload("res://Assets/Audio/Enemies/Volcanic/lord_laser.wav")
+const SFX_SUMMON := preload("res://Assets/Audio/Enemies/Volcanic/lord_summon.wav")
+const SFX_TELEPORT := preload("res://Assets/Audio/Enemies/Volcanic/lord_teleport.wav")
+const SFX_DEATH := preload("res://Assets/Audio/Enemies/Volcanic/lord_death.wav")

@@ -48,6 +48,7 @@ func _physics_process(delta: float) -> void:
 func _start_attacking() -> void:
 	if _fuse_left < 0.0 and not _is_dying:
 		_fuse_left = fuse_time
+		EnemySfx.play(self, SFX_FUSE, -13.0, 0.04)
 
 
 func is_fuse_lit() -> bool:
@@ -80,6 +81,9 @@ func _draw() -> void:
 
 ## Presentation: the rock shatters into shards and dust.
 const STONE_SHATTER := preload("res://Scripts/VFX/StoneShatter.gd")
+const SFX_FUSE := preload("res://Assets/Audio/Enemies/Rocky/red_rock_fuse.wav")
+const SFX_EXPLODE := preload("res://Assets/Audio/Enemies/Rocky/red_rock_explode.wav")
 
 func _spawn_death_visual(death_position: Vector2) -> void:
 	STONE_SHATTER.spawn(get_parent(), death_position, 1.1, true)
+	EnemySfx.play(death_position, SFX_EXPLODE, -9.0)

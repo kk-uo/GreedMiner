@@ -2,7 +2,7 @@ extends Node
 
 ## Integration coverage for the one-time Energy and Mining installation unlocks.
 
-const TEST_SAVE_PATH: String = "user://greedminer_module_slot_unlock_test.json"
+var _test_save_path: String = "user://greedminer_module_slot_unlock_test.json"
 const SHIP_SCENE: PackedScene = preload("res://Scenes/Ship/ship.tscn")
 const ENERGY_SCENE: PackedScene = preload("res://Scenes/Modules/Energy/energy_module.tscn")
 const MINING_SCENE: PackedScene = preload("res://Scenes/Modules/Mining/mining_module.tscn")
@@ -16,9 +16,12 @@ func _ready() -> void:
 
 
 func _run() -> void:
+	var temp_dir := OS.get_environment("TMPDIR")
+	if not temp_dir.is_empty():
+		_test_save_path = temp_dir.path_join("greedminer_module_slot_unlock_test.json")
 	_original_configuration = ResearchManager.configuration
 	_remove_test_save()
-	ProgressionStore.set_save_path_for_testing(TEST_SAVE_PATH)
+	ProgressionStore.set_save_path_for_testing(_test_save_path)
 	ResourceManager.reload_persistent_resources()
 	ResearchManager.reload_progress()
 	ShipLoadout.installed_modules.clear()
@@ -163,8 +166,8 @@ func _cleanup() -> void:
 
 
 func _remove_test_save() -> void:
-	if FileAccess.file_exists(TEST_SAVE_PATH):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SAVE_PATH))
+	if FileAccess.file_exists(_test_save_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(_test_save_path))
 
 
 func _expect_true(value: bool, description: String) -> void:

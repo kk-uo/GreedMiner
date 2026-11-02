@@ -17,7 +17,17 @@ func _draw() -> void:
 			UndeadVisual.draw_zombie(self, _facing, _walk_step(0.8), attack, _is_flashing(), _anim_time)
 
 ## Death: bone pile / bat swarm / blood burst (UndeadDeath).
+## Presentation: [attack, death] per undead kind.
+const SFX_BY_ID := {
+	&"skeleton": [preload("res://Assets/Audio/Enemies/Graveyard/skeleton_attack.wav"), preload("res://Assets/Audio/Enemies/Graveyard/skeleton_death.wav")],
+	&"vampire": [preload("res://Assets/Audio/Enemies/Graveyard/vampire_attack.wav"), preload("res://Assets/Audio/Enemies/Graveyard/vampire_death.wav")],
+	&"werewolf": [preload("res://Assets/Audio/Enemies/Graveyard/werewolf_attack.wav"), preload("res://Assets/Audio/Enemies/Graveyard/werewolf_death.wav")],
+}
+
 func _spawn_death_visual(death_position: Vector2) -> void:
+	var sfx: Array = SFX_BY_ID.get(enemy_id, [])
+	if not sfx.is_empty():
+		EnemySfx.play(death_position, sfx[1], -8.0)
 	if enemy_id in [&"skeleton", &"vampire", &"werewolf"]:
 		UNDEAD_DEATH.spawn(get_parent(), death_position, enemy_id, _get_visual_radius() / 12.0, _facing)
 	else:
@@ -58,6 +68,9 @@ func _on_attack_timer_timeout() -> void:
 	super()
 	if _is_attacking:
 		_attack_pose_time = UndeadVisual.ATTACK_POSE_TIME
+		var sfx: Array = SFX_BY_ID.get(enemy_id, [])
+		if not sfx.is_empty():
+			EnemySfx.play(self, sfx[0], -11.0)
 
 
 func _walk_step(cycles_per_second: float) -> float:

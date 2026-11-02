@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Enemies/DragonNest/FireWyrm.gd" id="1"]
+
+[sub_resource type="CircleShape2D" id="Circle"]
+radius = 22.0
+
+[node name="FireWyrm" type="Area2D"]
+script = ExtResource("1")
+enemy_id = &"fire_wyrm"
+enemy_name = "Fire Wyrm"
+max_health = 5000.0
+move_speed = 38.0
+attack_damage = 3.0
+attack_interval = 0.25
+attack_range = 26.0
+damage_reduction = 0.0
+attack_type = 0
+movement_type = 0
+enemy_tier = 1
+reward_ore = 20.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("Circle")
+
+[node name="AttackTimer" type="Timer" parent="."]
+
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]

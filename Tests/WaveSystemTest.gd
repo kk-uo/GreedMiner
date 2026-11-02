@@ -23,7 +23,7 @@ func _run() -> void:
 	ShipLoadout.installed_modules.clear()
 	_test_default_resource()
 	await _test_next_wave_starts_after_spawning()
-	await _test_rocky_inter_wave_gap()
+	await _test_rocky_wave_transition()
 	await _test_golem_descendants()
 	await _test_titan_descendants_and_final_completion()
 	await _test_cancellation_stops_pending_spawns()
@@ -41,7 +41,6 @@ func _run() -> void:
 
 func _test_default_resource() -> void:
 	_expect_equal(ROCKY_CONFIG.get_total_waves(), 7, "Rocky config contains 7 waves")
-	_expect_equal(ROCKY_CONFIG.inter_wave_delay, 7.0, "Rocky waits seven seconds between waves")
 	_expect_true(ROCKY_CONFIG.get_validation_errors().is_empty(), "Rocky config validates")
 	# [Little Rock, Golem, Titan, interval, Red Rock]. Red Rocks replace
 	# 1 in 10 Little Rocks (floor) on the first eight waves.
@@ -58,7 +57,6 @@ func _test_default_resource() -> void:
 		_expect_equal(_entry_count(wave, &"rock_titan"), expected[index][2], "wave %d Rock Titans" % (index + 1))
 		_expect_equal(maxi(_entry_count(wave, &"red_rock"), 0), expected[index][4], "wave %d Red Rocks" % (index + 1))
 		_expect_equal(wave.spawn_interval, expected[index][3], "wave %d interval" % (index + 1))
-		_expect_equal(wave.preparation_duration, 0.0, "wave %d has no preparation delay" % (index + 1))
 
 	_expect_equal(_first_enemy_wave(&"rock_golem"), 1, "Rock Golem first appears on wave 1")
 	_expect_equal(_first_enemy_wave(&"rock_titan"), 7, "Rock Titan first appears on wave 7")
@@ -72,12 +70,10 @@ func _test_default_resource() -> void:
 func _test_next_wave_starts_after_spawning() -> void:
 	var first_wave := WaveDefinition.new()
 	first_wave.wave_number = 1
-	first_wave.preparation_duration = 0.0
 	first_wave.spawn_interval = 0.05
 	first_wave.enemy_entries = [_entry(&"little_rock", LITTLE_SCENE, 1)]
 	var second_wave := WaveDefinition.new()
 	second_wave.wave_number = 2
-	second_wave.preparation_duration = 0.0
 	second_wave.spawn_interval = 0.05
 	second_wave.enemy_entries = [_entry(&"little_rock", LITTLE_SCENE, 1)]
 	var config := PlanetWaveConfig.new()
@@ -97,7 +93,7 @@ func _test_next_wave_starts_after_spawning() -> void:
 	await get_tree().process_frame
 
 
-func _test_rocky_inter_wave_gap() -> void:
+func _test_rocky_wave_transition() -> void:
 	var first_wave := WaveDefinition.new()
 	first_wave.wave_number = 1
 	first_wave.spawn_interval = 0.05
@@ -108,20 +104,11 @@ func _test_rocky_inter_wave_gap() -> void:
 	second_wave.enemy_entries = [_entry(&"little_rock", LITTLE_SCENE, 1)]
 	var config := PlanetWaveConfig.new()
 	config.planet_id = &"rocky_gap_test"
-	config.inter_wave_delay = ROCKY_CONFIG.inter_wave_delay
 	config.waves = [first_wave, second_wave]
 	var battle: Node = await _create_battle(config)
 	var manager := battle.get_node("WaveManager") as WaveManager
-	_expect_true(await _wait_until(func() -> bool: return manager._state == WaveManager.State.PREPARING), "Rocky enters preparation after wave 1 spawning")
-	_expect_equal(manager.get_scheduled_spawned_count(), 1, "no wave 2 enemies spawn during the gap")
-	manager.set_process(false)
-	var remaining := manager._preparation_time_left
-	_expect_true(remaining > 6.0 and remaining <= 7.0, "full seven-second gap starts after wave 1")
-	manager._update_preparation(remaining - 0.1)
-	_expect_equal(manager._state, WaveManager.State.PREPARING, "wave 2 does not start before seven seconds")
-	manager._update_preparation(0.2)
-	_expect_equal(manager._state, WaveManager.State.SPAWNING, "wave 2 starts once the gap expires")
-	manager.set_process(true)
+	_expect_true(await _wait_until(func() -> bool: return manager.get_current_wave_number() == 2), "Rocky starts wave 2 when wave 1 spawning ends")
+	_expect_equal(manager._state, WaveManager.State.SPAWNING, "Rocky has no preparation state between waves")
 	_cleanup_battle(battle)
 	await get_tree().process_frame
 
@@ -194,7 +181,6 @@ func _test_cancellation_stops_pending_spawns() -> void:
 func _single_wave_config(entry: EnemySpawnEntry, boss_wave: bool = false) -> PlanetWaveConfig:
 	var wave := WaveDefinition.new()
 	wave.wave_number = 1
-	wave.preparation_duration = 0.0
 	wave.spawn_interval = 0.05
 	wave.boss_wave = boss_wave
 	wave.enemy_entries = [entry]

@@ -6,13 +6,16 @@ signal died(worker: Node2D)
 const SPEED := 120.0
 const MAX_HP := 50.0
 const ARRIVAL_DISTANCE := 12.0
-enum State { OUTBOUND, MINING, RETURNING }
+enum State { OUTBOUND, MINING, RETURNING, GUARDING, HOLDING }
 var state: State = State.OUTBOUND
 var hp := MAX_HP
 var max_hp := MAX_HP
 var ore := 0.0
 var module: MiningModule
 var crystal: Node2D
+## Set only for an empty-ground dispatch. The dwarf visits it and returns
+## immediately; it is never a mining site or a saved resource target.
+var guard_position := Vector2.ZERO
 var battle: Node
 
 # ------------------------------------------------------------------ presentation (Claude)
@@ -33,13 +36,15 @@ func _ready() -> void:
 	add_to_group("mining_dwarves")
 	_time = randf() * 10.0
 	_last_position = global_position
+	if crystal == null:
+		state = State.GUARDING
 	z_index = 1
 
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(battle) or battle.get("_battle_ended") or not is_instance_valid(module):
 		queue_free()
 		return
-	if state != State.RETURNING and (not is_instance_valid(crystal) or not crystal.call("can_be_mined")):
+	if (state == State.OUTBOUND or state == State.MINING) and (not is_instance_valid(crystal) or not crystal.call("can_be_mined")):
 		recall()
 	if state == State.RETURNING:
 		if _move_toward(module.global_position, delta):
@@ -51,15 +56,26 @@ func _physics_process(delta: float) -> void:
 	elif state == State.OUTBOUND:
 		if _move_toward(crystal.global_position, delta):
 			state = State.MINING
+			if crystal.has_method("on_miner_arrived"):
+				crystal.call("on_miner_arrived")
+	elif state == State.GUARDING:
+		global_position = global_position.move_toward(guard_position, (SPEED + ResearchManager.get_dwarf_movement_speed_bonus()) * delta)
+		if global_position.distance_to(guard_position) <= ARRIVAL_DISTANCE:
+			recall()
+	elif state == State.HOLDING:
+		# Release workers left at an empty marker by an older running scene.
+		recall()
 	elif state == State.MINING:
 		var mined_from := crystal.global_position
 		var crystal_color := _crystal_color(crystal)
 		var reward: float = crystal.call("advance_mining", delta)
 		if reward > 0.0:
-			ore = reward
+			ore += reward
 			_chunk = crystal_color
 			CRYSTAL_SHATTER.spawn(battle, mined_from, crystal_color)
-			recall()
+			EnemySfx.play(mined_from, _site_sound(1), -8.0)
+			if not crystal.has_method("continues_after_reward") or not crystal.call("continues_after_reward"):
+				recall()
 	_update_presentation(delta)
 	queue_redraw()
 
@@ -78,7 +94,8 @@ func is_carrying_ore() -> bool:
 	return state == State.RETURNING and ore > 0.0 and hp > 0.0 and not is_queued_for_deletion()
 
 
-## Outbound and empty-handed returning dwarves remain protected.
+## Outbound and empty-handed returning dwarves remain protected. Only an
+## active miner or a worker carrying ore can be attacked.
 func is_enemy_targetable() -> bool:
 	return hp > 0.0 and not is_queued_for_deletion() and (state == State.MINING or is_carrying_ore())
 
@@ -104,7 +121,13 @@ func take_damage(amount: float) -> void:
 		queue_free()
 
 func _update_presentation(delta: float) -> void:
+	var cycle_before := ART.swing_cycle(_time)
 	_time += delta
+	# Presentation: a pick / axe / shovel sound as each swing lands (~0.62).
+	if state == State.MINING and is_instance_valid(crystal):
+		var cycle_now := ART.swing_cycle(_time)
+		if (cycle_before < STRIKE_AT and cycle_now >= STRIKE_AT) or (cycle_now < cycle_before and cycle_before < STRIKE_AT):
+			EnemySfx.play(self, _site_sound(0), -15.0, 0.12)
 	var step := global_position - _last_position
 	_moving = step.length() > 0.05
 	if _moving:
@@ -145,3 +168,24 @@ func _draw() -> void:
 	if is_enemy_targetable():
 		draw_rect(Rect2(at + Vector2(-13, -25), Vector2(26, 4)), Color("2A221D"))
 		draw_rect(Rect2(at + Vector2(-12, -24), Vector2(24 * hp / max_hp, 2)), Color("88D469") if hp > max_hp * 0.35 else Color("E8604C"))
+
+
+## Presentation: [strike, finished] sounds for what the dwarf is working on:
+## crystals / ore (pick), forest trees (axe), graves (shovel).
+const STRIKE_AT: float = 0.62
+const SFX_PICK := preload("res://Assets/Audio/Mining/pick_stone.wav")
+const SFX_AXE := preload("res://Assets/Audio/Mining/axe_wood.wav")
+const SFX_SHOVEL := preload("res://Assets/Audio/Mining/shovel_dirt.wav")
+const SFX_CRYSTAL_BREAK := preload("res://Assets/Audio/Mining/crystal_break.wav")
+const SFX_TREE_FALL := preload("res://Assets/Audio/Mining/tree_fall.wav")
+const SFX_GRAVE_OPEN := preload("res://Assets/Audio/Mining/grave_open.wav")
+
+func _site_sound(which: int) -> AudioStream:
+	var script_path := ""
+	if is_instance_valid(crystal) and crystal.get_script() != null:
+		script_path = (crystal.get_script() as Script).resource_path
+	if script_path.ends_with("ForestChopSite.gd"):
+		return SFX_AXE if which == 0 else SFX_TREE_FALL
+	if script_path.ends_with("GraveDigSite.gd"):
+		return SFX_SHOVEL if which == 0 else SFX_GRAVE_OPEN
+	return SFX_PICK if which == 0 else SFX_CRYSTAL_BREAK

@@ -1,6 +1,9 @@
 class_name RegenerationModule
 extends ShieldModule
 
+## Actual hull HP restored by a pulse, before any overheal is discarded.
+signal ship_healed_by_pulse(actual_amount: float, origin: Vector2, radius: float)
+
 ## Pulse-based area repair. Targets opt into the lightweight
 ## `friendly_healing_targets` group and healing interface, so this module does
 ## not create a larger faction or friendly-unit system.
@@ -96,7 +99,12 @@ func apply_healing_pulse() -> int:
 		if not target_position is Vector2 or global_position.distance_to(target_position) > radius:
 			continue
 		healed_ids[target_id] = true
+		var hull_before := (target as Ship).current_hp if target is Ship else 0.0
 		target.call("heal", amount)
+		if target is Ship:
+			var actual_healing := maxf((target as Ship).current_hp - hull_before, 0.0)
+			if actual_healing > 0.0:
+				ship_healed_by_pulse.emit(actual_healing, global_position, radius)
 		healed_count += 1
 		_spawn_heal_particles(target, target_position)
 	_play_pulse(healed_count > 0)

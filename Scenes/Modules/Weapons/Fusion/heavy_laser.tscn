@@ -6,11 +6,12 @@
 [node name="HeavyLaser" type="Node2D"]
 script = ExtResource("1")
 weapon_type_id = &"heavy_laser"
+enemy_targeting = 1
 power_consumption = 3
 attack_kind = 1
 visual_kind = 2
-basic_damage = 2.0
-attack_interval = 0.05
+basic_damage = 3.0
+attack_interval = 0.1
 attack_range = 1500.0
 projectile_range = 60.0
 beam_width = 60.0

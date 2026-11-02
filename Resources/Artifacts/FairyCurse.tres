@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/FairyCurseEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"fairy_curse"
+display_name = "Fairy's Curse"
+rarity = "Epic"
+description = "When this Regeneration module heals the ship, enemies within its healing radius take damage equal to the hull HP actually restored."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"regeneration_module"])
+acquisition_source = "Tree Planet mining salvage chest"
+source_planet_id = &"tree_planet"
+source_name = "Mining salvage chest"
+mining_chest_reward = true
+mining_chest_planet_ids = Array[StringName]([&"tree_planet"])
+effect_script = ExtResource("2")
+effect_parameters = {"healing_damage_ratio": 1.0}

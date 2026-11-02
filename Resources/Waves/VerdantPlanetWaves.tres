@@ -12,71 +12,8 @@
 
 [sub_resource type="Resource" id="GoblinPackRule"]
 script = ExtResource("4_rule")
-pattern = 1
 starting_wave = 1
-
-[sub_resource type="Resource" id="Entry_1_Goblin"]
-script = ExtResource("1_entry")
-enemy_id = &"goblin"
-enemy_scene = ExtResource("5_goblin")
-spawn_count = 18
-
-[sub_resource type="Resource" id="Entry_1_Hunter"]
-script = ExtResource("1_entry")
-enemy_id = &"goblin_hunter"
-enemy_scene = ExtResource("6_hunter")
-spawn_count = 0
-spawn_cost = 2
-
-[sub_resource type="Resource" id="Entry_1_Elite"]
-script = ExtResource("1_entry")
-enemy_id = &"elite_goblin"
-enemy_scene = ExtResource("7_elite")
-spawn_count = 0
-spawn_cost = 5
-
-[sub_resource type="Resource" id="Wave_1"]
-script = ExtResource("2_wave")
-spawn_phase_duration = 12.0
-batch_spawning_enabled = true
-interleave_enemy_types = true
-enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_1_Goblin"), SubResource("Entry_1_Hunter"), SubResource("Entry_1_Elite")])
-
-[sub_resource type="Resource" id="Entry_2_Goblin"]
-script = ExtResource("1_entry")
-enemy_id = &"goblin"
-enemy_scene = ExtResource("5_goblin")
-spawn_count = 29
-
-[sub_resource type="Resource" id="Entry_2_Hunter"]
-script = ExtResource("1_entry")
-enemy_id = &"goblin_hunter"
-enemy_scene = ExtResource("6_hunter")
-spawn_count = 0
-spawn_cost = 2
-
-[sub_resource type="Resource" id="Entry_2_Elite"]
-script = ExtResource("1_entry")
-enemy_id = &"elite_goblin"
-enemy_scene = ExtResource("7_elite")
-spawn_count = 0
-spawn_cost = 5
-
-[sub_resource type="Resource" id="Entry_2_Engineer"]
-script = ExtResource("1_entry")
-enemy_id = &"goblin_engineer"
-enemy_scene = ExtResource("9_engineer")
-spawn_cost = 3
-
-[sub_resource type="Resource" id="Wave_2"]
-script = ExtResource("2_wave")
-wave_number = 2
-spawn_direction_mode = 1
-directional_batch_formation = true
-spawn_phase_duration = 20.0
-batch_spawning_enabled = true
-interleave_enemy_types = true
-enemy_entries = Array[ExtResource("1_entry")]([SubResource("Entry_2_Goblin"), SubResource("Entry_2_Hunter"), SubResource("Entry_2_Elite"), SubResource("Entry_2_Engineer")])
+pattern = 1
 
 [sub_resource type="Resource" id="Entry_3_Goblin"]
 script = ExtResource("1_entry")
@@ -106,7 +43,6 @@ spawn_cost = 3
 
 [sub_resource type="Resource" id="Wave_3"]
 script = ExtResource("2_wave")
-wave_number = 1
 spawn_interval = 1.5
 spawn_pattern = 1
 spawn_phase_duration = 19.5

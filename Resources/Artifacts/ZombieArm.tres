@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/ZombieArmEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"zombie_arm"
+display_name = "Zombie Arm"
+rarity = "Rare"
+description = "Every third physical bullet attack from this turret launches an additional zombie arm projectile that deals 50 damage. Missed attacks still count."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon"])
+acquisition_source = "Graveyard Planet mining salvage chest"
+source_planet_id = &"graveyard_planet"
+source_name = "Mining salvage chest"
+mining_chest_reward = true
+mining_chest_planet_ids = Array[StringName]([&"graveyard_planet"])
+stat_keys = Array[StringName]([&"attacks_per_arm", &"arm_damage"])
+effect_script = ExtResource("2")
+effect_parameters = {"attacks_per_arm": 3, "arm_damage": 50.0}

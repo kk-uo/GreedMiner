@@ -15,6 +15,7 @@ signal close_requested
 
 const ArtifactVisual := preload("res://Scripts/UI/Artifacts/ArtifactVisual.gd")
 const ChipVisual := preload("res://Scripts/UI/Chips/ChipVisual.gd")
+const ArtifactTags := preload("res://Scripts/UI/Artifacts/ArtifactTags.gd")
 
 const COLUMNS: int = 5
 const CELL: float = 74.0
@@ -35,6 +36,10 @@ var _info_detail: Label
 var _info_note: Label
 var _info_icon: CellIcon
 var _entries: Array = []
+## Tag tabs (artifact pickers with items in two or more tags). "" = ALL; the
+## choice is kept between openings while that tag still has items.
+var _tabs: HFlowContainer
+static var _selected_tag: String = ""
 
 
 func _init() -> void:
@@ -73,6 +78,12 @@ func _init() -> void:
 	close.add_theme_font_size_override("font_size", 18)
 	close.pressed.connect(func() -> void: close_requested.emit())
 	header.add_child(close)
+
+	_tabs = HFlowContainer.new()
+	_tabs.add_theme_constant_override("h_separation", 6)
+	_tabs.add_theme_constant_override("v_separation", 6)
+	_tabs.visible = false
+	column.add_child(_tabs)
 
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -131,17 +142,17 @@ func pin_left(viewport_height: float) -> void:
 ##   action: String ("INSTALL", "MOVE", "EQUIP", "REMOVE", "BLOCKED")
 ##   enabled: bool                   callback: Callable
 func show_entries(title: String, subtitle: String, entries: Array, empty_text: String) -> void:
+	# Refilling the same picker (after an equip) keeps the grid scroll.
+	var same := _title.text == title and visible
+	var kept_scroll := _scroll.scroll_vertical if same else 0
 	_title.text = title
 	_subtitle.text = subtitle
 	_entries = entries
-	for child in _grid.get_children():
-		_grid.remove_child(child)
-		child.queue_free()
-	for entry in entries:
-		var cell := StorageCell.new()
-		cell.setup(entry)
-		cell.hovered_entry.connect(_show_info)
-		_grid.add_child(cell)
+	_build_tabs()
+	_fill_grid()
+	if kept_scroll > 0:
+		(func() -> void: _scroll.scroll_vertical = kept_scroll).call_deferred()
+	# Size for the full list so switching tabs never resizes the panel.
 	var rows: int = clampi(ceili(float(entries.size()) / float(COLUMNS)), MIN_ROWS, MAX_ROWS)
 	_scroll.custom_minimum_size = Vector2(0.0, rows * CELL + (rows - 1) * GAP)
 	if entries.is_empty():
@@ -154,6 +165,97 @@ func show_entries(title: String, subtitle: String, entries: Array, empty_text: S
 				first = entry
 				break
 		_show_info(first)
+
+
+## Entries shown under the current tab. Remove / chip cells have no tags
+## and always stay visible.
+func _filtered() -> Array:
+	if _selected_tag.is_empty() or not _tabs.visible:
+		return _entries
+	var shown: Array = []
+	for entry in _entries:
+		if entry.get("kind", &"") != &"artifact" or (entry.get("tags", []) as Array).has(_selected_tag):
+			shown.append(entry)
+	return shown
+
+
+func _fill_grid() -> void:
+	for child in _grid.get_children():
+		_grid.remove_child(child)
+		child.queue_free()
+	for entry in _filtered():
+		var cell := StorageCell.new()
+		cell.setup(entry)
+		cell.hovered_entry.connect(_show_info)
+		_grid.add_child(cell)
+
+
+## ALL + one tab per tag that has items here (in ArtifactTags.ORDER), each
+## with its item count. Hidden when everything shares one tag.
+func _build_tabs() -> void:
+	for child in _tabs.get_children():
+		_tabs.remove_child(child)
+		child.queue_free()
+	var counts: Dictionary = {}
+	var artifacts := 0
+	for entry in _entries:
+		if entry.get("kind", &"") != &"artifact":
+			continue
+		artifacts += 1
+		for tag in entry.get("tags", []):
+			counts[String(tag)] = int(counts.get(String(tag), 0)) + 1
+	_tabs.visible = counts.size() >= 2
+	if not _tabs.visible:
+		return
+	if not counts.has(_selected_tag):
+		_selected_tag = ""
+	_tabs.add_child(_tab_button("", tr("ALL"), artifacts))
+	for tag in ArtifactTags.ORDER:
+		if counts.has(tag):
+			_tabs.add_child(_tab_button(tag, tr(tag), int(counts[tag])))
+
+
+func _tab_button(tag: String, text: String, count: int) -> Button:
+	var button := Button.new()
+	button.text = "%s  %d" % [text, count]
+	button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	button.focus_mode = Control.FOCUS_NONE
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.add_theme_font_size_override("font_size", 11)
+	var selected := tag == _selected_tag
+	var idle := Palette.make_panel_style(Palette.UI_PANEL_RAISED, 8, 10.0, 4.0)
+	var hover := Palette.make_panel_style(Palette.UI_PANEL_RAISED.lightened(0.08), 8, 10.0, 4.0)
+	var active := Palette.make_panel_style(Palette.ACCENT, 8, 10.0, 4.0)
+	button.add_theme_stylebox_override("normal", active if selected else idle)
+	button.add_theme_stylebox_override("hover", active if selected else hover)
+	button.add_theme_stylebox_override("pressed", active)
+	button.add_theme_color_override("font_color", Palette.UI_PANEL if selected else Palette.UI_MUTED)
+	button.add_theme_color_override("font_hover_color", Palette.UI_PANEL if selected else Palette.UI_TEXT)
+	button.add_theme_color_override("font_pressed_color", Palette.UI_PANEL)
+	button.set_meta("tag", tag)
+	button.pressed.connect(func() -> void: select_tag(tag))
+	return button
+
+
+## Shows only one tag's artifacts ("" = all). Exposed for tests.
+func select_tag(tag: String) -> void:
+	_selected_tag = tag
+	_build_tabs()
+	_fill_grid()
+	var shown := _filtered()
+	for entry in shown:
+		if entry.get("kind", &"") == &"artifact":
+			_show_info(entry)
+			return
+
+
+## Tag tabs currently offered, "" first for ALL (exposed for tests).
+func get_tab_tags() -> Array[String]:
+	var result: Array[String] = []
+	if _tabs.visible:
+		for child in _tabs.get_children():
+			result.append(String(child.get_meta("tag", "")))
+	return result
 
 
 ## Cells of the open picker (exposed for tests).

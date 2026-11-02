@@ -1,17 +1,23 @@
-[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" format=3 uid="uid://wouipydrp743"]
 
-[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
-[ext_resource type="Script" path="res://Scripts/Artifacts/WeaponFireRateArtifactEffect.gd" id="2"]
+[ext_resource type="Script" uid="uid://b5hnikeheit2g" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" uid="uid://cqs7s5qefxl6t" path="res://Scripts/Artifacts/WeaponFireRateArtifactEffect.gd" id="2"]
 
 [resource]
 script = ExtResource("1")
 artifact_id = &"goblin_horn"
 display_name = "Goblin Horn"
+rarity = "Epic"
+mining_chest_reward = true
+mining_chest_planet_ids = Array[StringName]([&"goblin_planet"])
+source_planet_id = &"goblin_planet"
+source_name = "Mining salvage chest"
 description = "The equipped weapon gains 1% fire rate for every 2000 actual damage and healing it deals during this battle. Resets after battle."
 equip_target = 1
 compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon", &"laser", &"chainsaw", &"flamethrower"])
-acquisition_source = "Defeat the Goblin Giant Chariot"
-source_planet_id = &"goblin_planet"
-source_name = "Goblin Giant Chariot"
+acquisition_source = "Verdant Planet mining salvage chest"
 effect_script = ExtResource("2")
-effect_parameters = {"activity_per_stack": 2000.0, "bonus_per_stack": 0.01}
+effect_parameters = {
+"activity_per_stack": 2000.0,
+"bonus_per_stack": 0.01
+}

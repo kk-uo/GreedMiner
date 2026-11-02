@@ -31,11 +31,15 @@ var damage: float = 5.0
 var source_weapon: WeaponModule
 var _hit: bool = false
 var _ghost: RefCounted
+var _ghost_visual_enabled: bool = false
+var _homing_target: BasicEnemy
+var _homing_ignored: Dictionary = {}
 const GHOST_SHOT_ART := preload("res://Scripts/VFX/GhostShotArt.gd")
 var _ghost_time: float = 0.0
 
-func enable_ghost_piercing(initial_pierces: int) -> void:
-	_ghost = preload("res://Scripts/Modules/Weapons/GhostProjectileState.gd").new(initial_pierces)
+func enable_ghost_piercing(initial_pierces: int, replenish_on_kill: bool = true, ghost_visual: bool = true) -> void:
+	_ghost = preload("res://Scripts/Modules/Weapons/GhostProjectileState.gd").new(initial_pierces, replenish_on_kill)
+	_ghost_visual_enabled = ghost_visual
 
 
 # ==========================================
@@ -72,7 +76,7 @@ func get_projectile_visual_scale() -> float:
 func _draw() -> void:
 	var visual_scale := get_projectile_visual_scale()
 	# Ghost Bullet: a translucent spirit-shot instead (presentation).
-	if _ghost != null:
+	if _ghost_visual_enabled:
 		GHOST_SHOT_ART.draw(self, direction, _ghost_time, 3.0 * visual_scale, float(get_instance_id() % 97))
 		return
 	# Style A: a short warm capsule aligned with its flight direction.
@@ -91,6 +95,12 @@ func _process(delta: float) -> void:
 	#
 	# normalized() ensures consistent speed.
 	# delta makes movement frame-rate independent.
+	if is_instance_valid(source_weapon):
+		var turn_rate := source_weapon.get_artifact_projectile_homing_turn_rate()
+		if turn_rate > 0.0:
+			var steering := source_weapon.get_homing_steering(global_position, direction, _homing_target, _homing_ignored, delta, turn_rate)
+			_homing_target = steering["target"] as BasicEnemy
+			direction = steering["direction"]
 	position += direction.normalized() * speed * delta
 	if _ghost != null:
 		_ghost_time += delta
@@ -112,6 +122,8 @@ func _on_area_entered(area: Area2D) -> void:
 	# is an instance of BasicEnemy.
 	if not _hit and area is BasicEnemy and not (area as BasicEnemy).is_dying():
 		var enemy := area as BasicEnemy
+		if is_instance_valid(source_weapon) and not source_weapon.can_target_enemy(enemy):
+			return
 		if _ghost != null and not _ghost.register_target(enemy):
 			return
 		var before := enemy.get_current_health()
@@ -125,6 +137,10 @@ func _on_area_entered(area: Area2D) -> void:
 			print("Projectile hit enemy! Damage: %s" % damage)
 
 		# A kill replenishes one penetration before this impact consumes it.
-		if _ghost == null or not _ghost.continue_after_hit(not is_instance_valid(enemy) or enemy.is_dying()):
+		var continues: bool = _ghost != null and bool(_ghost.continue_after_hit(not is_instance_valid(enemy) or enemy.is_dying()))
+		if continues:
+			_homing_ignored[enemy.get_instance_id()] = true
+			_homing_target = null
+		else:
 			_hit = true
 			queue_free()

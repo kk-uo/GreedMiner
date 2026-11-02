@@ -19,6 +19,9 @@ func _run() -> void:
 	TestSave.isolate("ship_rotation_test")
 	ShipLoadout.installed_modules.clear()
 	ShipLoadout.layout_rotation = 0.0
+	ShipLoadout.set_layout_rotation(45.0)
+	_expect_near(ShipLoadout.layout_rotation, 0.0, "rotation is locked before Ship Rotation research")
+	ResearchManager.progress.levels["ship_rotation_unlock"] = 1
 	var battle := BATTLE_SCENE.instantiate()
 	battle.get_node("WaveManager").auto_start = false
 	add_child(battle)

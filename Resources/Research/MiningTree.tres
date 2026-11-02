@@ -1,9 +1,10 @@
-[gd_resource type="Resource" script_class="ResearchTreeDefinition" load_steps=48 format=3]
+[gd_resource type="Resource" script_class="ResearchTreeDefinition" format=3 uid="uid://gmct8yn0c12x"]
 
-[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="1"]
-[ext_resource type="Script" path="res://Scripts/Research/ResearchTreeNode.gd" id="2"]
-[ext_resource type="Script" path="res://Scripts/Research/ResearchCostConfig.gd" id="3"]
-[ext_resource type="Script" path="res://Scripts/Research/ResearchDefinition.gd" id="4"]
+[ext_resource type="Script" uid="uid://ccvjknrm5e617" path="res://Scripts/Research/ResearchTreeDefinition.gd" id="1"]
+[ext_resource type="Script" uid="uid://bvrkt756pnovo" path="res://Scripts/Research/ResearchTreeNode.gd" id="2"]
+[ext_resource type="Script" uid="uid://b1pefv630pjyo" path="res://Scripts/Research/ResearchCostConfig.gd" id="3"]
+[ext_resource type="Script" uid="uid://kt6mdb5qjf1f" path="res://Scripts/Research/ResearchMilestone.gd" id="3_laego"]
+[ext_resource type="Script" uid="uid://y41dko2gcgba" path="res://Scripts/Research/ResearchDefinition.gd" id="4"]
 
 [sub_resource type="Resource" id="Mining"]
 script = ExtResource("2")

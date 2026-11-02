@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/WeaponStatArtifactEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"heavy_shell"
+display_name = "Heavy Shell"
+rarity = "Epic"
+description = "The equipped cannon's shells travel at 50% speed, but deal 25% more damage."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"dwarf_cannon", &"automatic_cannon", &"siege_cannon", &"knockback_cannon", &"flame_cannon"])
+inherit_fusion_compatibility = false
+acquisition_method = 3
+shop_price_ore = -1
+acquisition_source = "Magic Shop"
+source_name = "Magic Shop"
+source_planet_id = &"magic_shop"
+effect_script = ExtResource("2")
+effect_parameters = {"projectile_speed_multiplier": 0.5, "damage_multiplier": 1.25}

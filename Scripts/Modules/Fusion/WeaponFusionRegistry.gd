@@ -72,6 +72,8 @@ static func is_unlocked() -> bool:
 		return true
 	if not WeaponUnlockManager.has_completed_planet(REQUIRED_PLANET):
 		return false
+	if not ResearchManager.is_research_completed(&"energy_fusion_unlock"):
+		return false
 	for weapon_id in BASE_WEAPONS:
 		if ResearchManager.get_weapon_research_level(weapon_id) < REQUIRED_RESEARCH_LEVEL:
 			return false
@@ -105,4 +107,6 @@ static func get_unlock_requirement() -> String:
 			incomplete.append(String(entry.get("name", weapon_id)))
 	if not incomplete.is_empty():
 		return "Reach Level 30 with every weapon. Missing: %s." % ", ".join(incomplete)
+	if not ResearchManager.is_research_completed(&"energy_fusion_unlock"):
+		return "Research Fusion Energy in the Energy tree."
 	return ""

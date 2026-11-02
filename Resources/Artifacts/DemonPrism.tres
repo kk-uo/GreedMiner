@@ -1,18 +1,21 @@
-[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" format=3 uid="uid://sfotgmxdu70h"]
 
-[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
-[ext_resource type="Script" path="res://Scripts/Artifacts/WeaponRangeArtifactEffect.gd" id="2"]
+[ext_resource type="Script" uid="uid://b5hnikeheit2g" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" uid="uid://jw7bn02n2oi0" path="res://Scripts/Artifacts/WeaponRangeArtifactEffect.gd" id="2"]
 
 [resource]
 script = ExtResource("1")
 artifact_id = &"demon_prism"
 display_name = "Demon Prism"
 rarity = "Legendary"
-description = "The equipped weapon's projectile or beam visual and collision size are increased by 100%."
+source_planet_id = &"volcanic_planet"
+source_name = "Demon Lord"
+description = "The equipped weapon's projectile size is increased by 200%. Laser beam visual and collision width become 10 times the original width."
 equip_target = 1
 compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon", &"flamethrower", &"laser"])
 acquisition_source = "Defeat the Demon Lord"
-source_planet_id = &"volcanic_planet"
-source_name = "Demon Lord"
 effect_script = ExtResource("2")
-effect_parameters = {"projectile_range_bonus": 1.0}
+effect_parameters = {
+"projectile_range_bonus": 2.0,
+"beam_width_multiplier": 10.0
+}

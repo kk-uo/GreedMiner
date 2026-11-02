@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/DragonWingEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"dragon_wing"
+display_name = "Dragon Wing"
+rarity = "Rare"
+description = "Allows the equipped turret to attack flying enemies while retaining ground targeting."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon", &"laser", &"flamethrower"])
+acquisition_source = "Dragon Nest Planet mining salvage chest"
+source_planet_id = &"dragon_nest_planet"
+source_name = "Mining salvage chest"
+mining_chest_reward = true
+mining_chest_planet_ids = Array[StringName]([&"dragon_nest_planet"])
+effect_script = ExtResource("2")
+effect_parameters = {"allows_air_targets": true}

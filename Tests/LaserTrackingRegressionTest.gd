@@ -19,6 +19,7 @@ func _run() -> void:
 	laser.assembly_mode = false
 	add_child(laser)
 	laser.set_physics_process(false)
+	_expect(is_equal_approx(laser.attack_interval, 0.1), "Laser damage ticks every 0.1 seconds")
 
 	var enemy := ENEMY_SCENE.instantiate() as BasicEnemy
 	add_child(enemy)

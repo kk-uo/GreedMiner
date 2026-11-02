@@ -10,10 +10,14 @@ signal stall_unlocked_changed(unlocked: bool)
 signal tutorial_state_changed(pending: bool, completed: bool)
 signal artifact_operation_failed(reason: String)
 
+const ARTIFACT_FX := preload("res://Scripts/VFX/ArtifactFx.gd")
 const SAVE_SECTION: StringName = &"magic_artifacts"
 const SAVE_VERSION: int = 2
 const SHIP_SLOT_COUNT: int = 3
 const MODULE_SLOT_COUNT: int = 3
+## Derived from the existing permanent planet-completion save; no extra flag
+## can drift out of sync with an older save or a developer-completed planet.
+const SHOP_UNLOCK_PLANET_ID: StringName = &"goblin_planet"
 const DEFAULT_CONFIGURATION: MagicArtifactConfiguration = preload(
 	"res://Resources/Artifacts/ArtifactConfiguration.tres"
 )
@@ -154,6 +158,38 @@ func get_definition(artifact_id: StringName) -> MagicArtifactDefinition:
 
 func get_all_definitions() -> Array[MagicArtifactDefinition]:
 	return configuration.definitions.duplicate()
+
+
+func get_shop_artifacts() -> Array[MagicArtifactDefinition]:
+	var result: Array[MagicArtifactDefinition] = []
+	for definition in configuration.definitions:
+		if definition != null and definition.get_acquisition_method() == MagicArtifactDefinition.AcquisitionMethod.SHOP:
+			result.append(definition)
+	return result
+
+
+func is_shop_unlocked() -> bool:
+	return WeaponUnlockManager.has_completed_planet(SHOP_UNLOCK_PLANET_ID)
+
+
+## A price below zero is intentionally unavailable; the UI never offers a
+## free purchase while the designer has not set a price in the resource.
+func purchase_shop_artifact(artifact_id: StringName) -> bool:
+	if not is_shop_unlocked():
+		return _fail("Clear Verdant Planet to unlock the Magic Shop.")
+	var definition := get_definition(artifact_id)
+	if definition == null or definition.get_acquisition_method() != MagicArtifactDefinition.AcquisitionMethod.SHOP:
+		return _fail("This artifact is not sold in the Magic Shop.")
+	if owns_artifact(artifact_id):
+		return _fail("This artifact is already owned.")
+	if definition.shop_price_ore <= 0:
+		return _fail("This artifact has no price yet.")
+	if not ResourceManager.try_spend_stored_ore(definition.shop_price_ore):
+		return _fail("Not enough ore for this artifact.")
+	if not grant_artifact(artifact_id):
+		ResourceManager.add_stored_ore(float(definition.shop_price_ore))
+		return false
+	return true
 
 
 func owns_artifact(artifact_id: StringName) -> bool:
@@ -480,6 +516,12 @@ func attach_battle_effects(target_ship: Ship) -> Node:
 			elif module is WeaponModule and effect.has_method("configure_weapon"):
 				effect.call("configure_weapon", module)
 			container.add_child(effect)
+			# Presentation only (Claude sync 97): shot trails, bursts, charges.
+			var fx := ARTIFACT_FX.new()
+			if fx.setup(definition, module, effect):
+				container.add_child(fx)
+			else:
+				fx.free()
 	return container
 
 
@@ -527,6 +569,8 @@ func _is_valid_module_assignment(cell: Vector2i, artifact_id: StringName) -> boo
 	var module_id := StringName(entry.get("id", &"")) if not entry.is_empty() else &""
 	if definition.is_compatible_with_module(module_id):
 		return true
+	if not definition.inherit_fusion_compatibility:
+		return false
 	# A fusion weapon accepts artifacts compatible with either ingredient.
 	# Beam-only recipes explicitly reject projectile/explosion artifacts whose
 	# effects would otherwise be a silent no-op.

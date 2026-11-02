@@ -36,8 +36,11 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+const SFX_EXPLODE := preload("res://Assets/Audio/Enemies/Verdant/dynamite_explode.wav")
+
 func _explode() -> void:
 	set_process(false)
+	EnemySfx.play(global_position, SFX_EXPLODE, -12.0)
 	var parent := get_parent()
 	var blast := EXPLOSION.spawn(parent, global_position, blast_radius, damage, target_ship, null, false)
 	if blast == null and is_instance_valid(target_ship) and target_ship is Ship:

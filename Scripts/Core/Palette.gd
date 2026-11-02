@@ -195,6 +195,23 @@ const PLANETS := {
 		## Show 300 more world pixels of forest and extend the map to match.
 		"map_extra": 300.0,
 	},
+	## Dragon Nest V1 uses deterministic procedural ground plus fixed gameplay
+	## landmarks supplied by DragonNestController. All visuals are placeholders.
+	&"dragon_nest": {
+		"ground": Color("5A4538"),
+		"ground_dark": Color("49372F"),
+		"ground_light": Color("6A5140"),
+		"rock": Color("362B2A"),
+		"rock_light": Color("806052"),
+		"crater": Color("48342F"),
+		"crater_inner": Color("3B2B29"),
+		"decor": &"dragon_nest",
+		## The map stays as big as the Tree Planet's (the lair layout needs it),
+		## but the opening camera shows only the normal view ("view_extra" 0,
+		## Claude sync 95); the Ancient Dragon still widens it on arrival.
+		"map_extra": 300.0,
+		"view_extra": 0.0,
+	},
 }
 
 
@@ -226,18 +243,28 @@ static func regular_polygon(sides: int, radius: float, rotation: float = 0.0) ->
 
 ## Returns a rectangle outline with rounded corners.
 static func rounded_rect_points(rect: Rect2, radius: float, corner_segments: int = 3) -> PackedVector2Array:
-	var r := minf(radius, minf(rect.size.x, rect.size.y) * 0.5)
+	var bounds := rect.abs()
+	if bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
+		return PackedVector2Array()
+	var r := clampf(radius, 0.0, minf(bounds.size.x, bounds.size.y) * 0.5)
+	if r <= 0.0:
+		return PackedVector2Array([bounds.position, Vector2(bounds.end.x, bounds.position.y), bounds.end, Vector2(bounds.position.x, bounds.end.y)])
 	var result := PackedVector2Array()
 	var corners := [
-		[rect.position + Vector2(rect.size.x - r, r), -PI * 0.5],
-		[rect.end - Vector2(r, r), 0.0],
-		[rect.position + Vector2(r, rect.size.y - r), PI * 0.5],
-		[rect.position + Vector2(r, r), PI],
+		[bounds.position + Vector2(bounds.size.x - r, r), -PI * 0.5],
+		[bounds.end - Vector2(r, r), 0.0],
+		[bounds.position + Vector2(r, bounds.size.y - r), PI * 0.5],
+		[bounds.position + Vector2(r, r), PI],
 	]
+	var steps := maxi(corner_segments, 1)
 	for corner in corners:
-		for step in range(corner_segments + 1):
-			var angle: float = corner[1] + PI * 0.5 * float(step) / float(corner_segments)
-			result.append((corner[0] as Vector2) + Vector2.RIGHT.rotated(angle) * r)
+		for step in range(steps + 1):
+			var angle: float = corner[1] + PI * 0.5 * float(step) / float(steps)
+			var point: Vector2 = (corner[0] as Vector2) + Vector2.RIGHT.rotated(angle) * r
+			if result.is_empty() or not result[result.size() - 1].is_equal_approx(point):
+				result.append(point)
+	if result.size() > 1 and result[0].is_equal_approx(result[result.size() - 1]):
+		result.resize(result.size() - 1)
 	return result
 
 
@@ -271,7 +298,9 @@ static func draw_hover_outline(canvas: Object, points: PackedVector2Array, width
 
 
 static func draw_rounded_rect(canvas: Object, rect: Rect2, radius: float, color: Color) -> void:
-	canvas.draw_colored_polygon(rounded_rect_points(rect, radius), color)
+	var points := rounded_rect_points(rect, radius)
+	if points.size() >= 3:
+		canvas.draw_colored_polygon(points, color)
 
 
 ## Round mounting plate shared by every rotating weapon.

@@ -2,6 +2,7 @@ extends Node
 
 const TestSave := preload("res://Tests/TestSave.gd")
 const BATTLE := preload("res://Scenes/Battle/BattleMain.tscn")
+const RISKY_CRYSTAL := preload("res://Scripts/Battle/RiskyRockyCrystal.gd")
 const CANNON := "res://Scenes/Modules/Weapons/DwarfCannon/dwarf_cannon.tscn"
 var failures: Array[String] = []
 
@@ -29,7 +30,15 @@ func _run() -> void:
 	var crystals := field.get_interactables_root().get_node("RockyCrystals")
 	check(crystals.get_child_count() > 0, "rocky crystals generated")
 	if crystals.get_child_count() > 0:
-		var crystal := crystals.get_child(crystals.get_child_count() - 1) as Node2D
+		var crystal: Node2D
+		for child in crystals.get_children():
+			if child.get_script() != RISKY_CRYSTAL and child.has_method("can_be_mined") and not child.is_queued_for_deletion():
+				crystal = child
+				break
+		check(crystal != null, "ordinary red crystal exists beside risk mine")
+		if crystal == null:
+			get_tree().quit(1)
+			return
 		var position := crystal.global_position
 		check(crystal.get("is_red"), "forced red spawn")
 		check(crystal.call("can_be_mined"), "red crystal can be mined by dwarves")
@@ -50,7 +59,15 @@ func _run() -> void:
 	field.generate(12345)
 	crystals = field.get_interactables_root().get_node("RockyCrystals")
 	if crystals.get_child_count() > 0:
-		var ordinary := crystals.get_child(0)
+		var ordinary: Node2D
+		for child in crystals.get_children():
+			if child.get_script() != RISKY_CRYSTAL and child.has_method("can_be_mined") and not child.is_queued_for_deletion():
+				ordinary = child
+				break
+		check(ordinary != null, "ordinary crystal remains after risk mine placement")
+		if ordinary == null:
+			get_tree().quit(1)
+			return
 		check(not ordinary.get("is_red"), "ordinary crystal generated")
 		for i in range(10):
 			ordinary.call("register_click")

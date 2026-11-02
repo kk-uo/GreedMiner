@@ -9,15 +9,28 @@ extends Node2D
 var ship: Ship
 var _active_weapon: WeaponModule
 var _indicator: Node2D
+## Typed through a preload, not the global class name: the user's editor
+## (4.7.2) left TurretRangeIndicator out of its class cache, which made this
+## script fail to parse ("Could not find type"). Claude sync 81.
+const RangeIndicator := preload("res://Scripts/Battle/TurretRangeIndicator.gd")
+var _range_indicator: RangeIndicator
 
 
 func configure(target_ship: Ship) -> void:
 	ship = target_ship
 
 
+func set_range_indicator(indicator: RangeIndicator) -> void:
+	_range_indicator = indicator
+	if is_instance_valid(_active_weapon):
+		_range_indicator.show_range(_active_weapon, _get_weapon_range(_active_weapon))
+
+
 func _process(_delta: float) -> void:
 	if is_instance_valid(_active_weapon):
 		_active_weapon.set_manual_aim_world_position(_active_weapon.get_global_mouse_position())
+		if is_instance_valid(_range_indicator):
+			_range_indicator.update_range(_active_weapon, _get_weapon_range(_active_weapon))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -71,12 +84,17 @@ func activate_weapon_control(weapon: WeaponModule) -> void:
 	_active_weapon.set_manual_aim_world_position(_active_weapon.get_global_mouse_position())
 	_indicator = AimIndicator.new()
 	_active_weapon.add_child(_indicator)
+	if is_instance_valid(_range_indicator):
+		_range_indicator.show_range(_active_weapon, _get_weapon_range(_active_weapon))
 
 
 func deactivate_manual_control() -> void:
+	var previous_weapon := _active_weapon
 	if is_instance_valid(_active_weapon):
 		_active_weapon.set_manual_control_active(false)
 	_active_weapon = null
+	if is_instance_valid(_range_indicator) and is_instance_valid(previous_weapon):
+		_range_indicator.hide_for(previous_weapon)
 	if is_instance_valid(_indicator):
 		_indicator.queue_free()
 	_indicator = null
@@ -88,6 +106,14 @@ func is_manual_control_active() -> bool:
 
 func _exit_tree() -> void:
 	deactivate_manual_control()
+
+
+func _get_weapon_range(weapon: WeaponModule) -> float:
+	for property in [&"attack_range", &"attack_radius"]:
+		var value: Variant = weapon.get(property)
+		if value is float or value is int:
+			return weapon.get_modified_attack_range(float(value))
+	return 0.0
 
 
 class AimIndicator:

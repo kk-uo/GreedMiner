@@ -16,7 +16,9 @@ func _run() -> void:
 	SAVE.isolate("angry_stone")
 	ArtifactManager.set_equipment_changes_enabled(true)
 	ResourceManager.current_expedition_planet_id = &"rocky_planet"
-	check(ArtifactManager.get_unowned_mining_chest_artifacts().size() == 1, "chest pool")
+	var initial_pool := ArtifactManager.get_unowned_mining_chest_artifacts()
+	check(initial_pool.any(func(definition: MagicArtifactDefinition) -> bool: return definition.artifact_id == &"angry_stone"), "Rocky chest pool contains Angry Stone")
+	check(initial_pool.all(func(definition: MagicArtifactDefinition) -> bool: return definition.mining_chest_planet_ids.is_empty() or definition.mining_chest_planet_ids.has(&"rocky_planet")), "Rocky chest pool only contains eligible rewards")
 	check(ArtifactManager.get_definition(&"angry_stone").rarity == "Common", "rarity")
 	var conf := MiningQteConfig.new()
 	check(is_equal_approx(conf.salvage_artifact_chance, 0.7), "70 percent artifact chance")
@@ -42,12 +44,22 @@ func _run() -> void:
 	chest.begin(manager, miner, conf)
 	chest._set_phase(SalvageDiscoveryEvent.Phase.WAIT)
 	var ore_before := ResourceManager.mission_ore
+	var owned_before := ArtifactManager.get_owned_artifact_ids()
 	chest.open()
-	check(ArtifactManager.owns_artifact(&"angry_stone"), "chest grants artifact")
+	var owned_after := ArtifactManager.get_owned_artifact_ids()
+	var newly_owned: Array[StringName] = []
+	for artifact_id in owned_after:
+		if not owned_before.has(artifact_id):
+			newly_owned.append(artifact_id)
+	check(newly_owned.size() == 1, "artifact chest grants exactly one reward")
+	check(newly_owned.size() == 1 and initial_pool.any(func(definition: MagicArtifactDefinition) -> bool: return definition.artifact_id == newly_owned[0]), "artifact chest reward comes from the Rocky pool")
 	check(ArtifactManager.is_stall_unlocked() and ArtifactManager.tutorial_pending, "stall and guide")
 	check(ResourceManager.mission_ore == ore_before, "artifact chest does not also pay ore")
+	for definition in initial_pool:
+		if not ArtifactManager.owns_artifact(definition.artifact_id):
+			check(ArtifactManager.grant_artifact(definition.artifact_id), "collect remaining Rocky reward: %s" % definition.artifact_id)
 	check(not ArtifactManager.grant_artifact(&"angry_stone"), "no duplicate")
-	check(ArtifactManager.get_unowned_mining_chest_artifacts().is_empty(), "no eligible artifact after collection")
+	check(ArtifactManager.get_unowned_mining_chest_artifacts().is_empty(), "no eligible artifact after collecting the full Rocky pool")
 	var chest2 := SalvageDiscoveryEvent.new()
 	add_child(chest2)
 	chest2.begin(manager, miner, conf)

@@ -105,7 +105,7 @@ func _spawn_puff() -> void:
 		"linger": LINGER_TIME * randf_range(0.85, 1.1),
 		"rot": randf() * TAU, "spin": randf_range(-4.0, 4.0),
 		"size": randf_range(0.8, 1.2) * size_scale,
-		"shape": shape, "collision": collision,
+		"shape": shape, "collision": collision, "target": null,
 	}
 	_puffs.append(puff)
 	_update_shape(puff)
@@ -130,6 +130,13 @@ func _physics_process(delta: float) -> void:
 			_puffs.remove_at(index)
 			continue
 		if puff["age"] < puff["fly"]:
+			if is_instance_valid(source_weapon):
+				var turn_rate := source_weapon.get_artifact_flame_homing_turn_rate()
+				if turn_rate > 0.0:
+					var velocity := puff["vel"] as Vector2
+					var steering := source_weapon.get_homing_steering(puff["pos"], velocity.normalized(), puff["target"], _hit_ids, delta, turn_rate)
+					puff["target"] = steering["target"]
+					puff["vel"] = (steering["direction"] as Vector2) * velocity.length()
 			puff["pos"] += puff["vel"] * delta
 			puff["rot"] += puff["spin"] * delta
 		else:
@@ -180,6 +187,8 @@ func _on_area_entered(area: Area2D) -> void:
 		return
 	var enemy := area as BasicEnemy
 	if enemy.is_dying() or not enemy.is_in_group("enemies"):
+		return
+	if is_instance_valid(source_weapon) and not source_weapon.can_target_enemy(enemy):
 		return
 	_hit_ids[id] = true
 	var weapon: WeaponModule = source_weapon if is_instance_valid(source_weapon) else null

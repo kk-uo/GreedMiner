@@ -88,6 +88,7 @@ func _refresh_attack_radius() -> void:
 func fire() -> void:
 	if assembly_mode or not is_inside_tree():
 		return
+	begin_artifact_attack()
 
 	var damaged_enemy_ids: Dictionary = {}
 
@@ -96,7 +97,7 @@ func fire() -> void:
 			continue
 
 		var enemy := area as BasicEnemy
-		if not enemy.is_in_group("enemies"):
+		if not enemy.is_in_group("enemies") or not can_target_enemy(enemy):
 			continue
 
 		var enemy_id := enemy.get_instance_id()
@@ -107,6 +108,7 @@ func fire() -> void:
 		enemy.take_damage(get_damage(), false, true, self)
 	if not damaged_enemy_ids.is_empty():
 		_sound.sustain_for(0.2)
+	end_artifact_attack()
 
 
 func _exit_tree() -> void:

@@ -42,21 +42,45 @@ source module types so compatible artifacts continue to work.
 
 Knockback Laser (`knockback_module` + `laser`) uses `FusionWeapon.AttackKind.WAVE`.
 The travelling `FusionKnockbackWave` deals 15 impact damage once per enemy,
-pushes non-boss enemies 200 px, then deals 1 damage per second to each hit
+pushes every non-boss enemy touching the wave 20 px, then deals 1 damage per second to each hit
 enemy until that wave expires. The 100 px wavefront length is stored as the
 scene's `projectile_range` and remains independent from `attack_range`.
-Impact damage, damage-over-time, movement speed, thickness, and attack cadence
+The wave fires every 5 seconds. Knockback Machine Gun fires every 0.4 seconds;
+each bullet pushes at most one non-boss enemy 20 px, even if an artifact lets
+that bullet pierce and damage further targets. Impact damage, damage-over-time, movement speed, thickness, and attack cadence
 are exported on `knockback_laser.tscn` for tuning. Only the initial impact emits
 `WeaponModule.projectile_hit`; later ticks cannot trigger hit-count artifacts.
 
 Flame Laser (`flamethrower` + `laser`) is a non-piercing, single-target beam.
-Its 800 px targeting range, 1 base damage, 0.1 s tick interval, 0.5 s
-doubling interval, and 500 maximum damage per tick are exported in
-`flame_laser.tscn`. Five successful ticks on the same locked enemy double the
-next tick; the five-tick interval accelerates with fire-rate modifiers. A new
-target resets the ramp. Research and module artifacts modify the initial
-base damage through `WeaponModule.get_damage()` before ramping, and the 500
+Its 600 px targeting range, 1 base damage, 0.1 s tick interval, 1.0 s
+doubling interval, and 256 maximum damage per tick are exported in
+`flame_laser.tscn`. Ten successful ticks on the same locked enemy double the
+next tick; the ten-tick interval accelerates with fire-rate modifiers. A new
+target resets the ramp, and every newly exposed Ancient Dragon health segment
+also restarts it at base damage. Research and module artifacts modify the initial
+base damage through `WeaponModule.get_damage()` before ramping, and the 256
 cap applies to each outgoing hit. The beam does not emit projectile-hit events.
+
+## Ground and flying targets
+
+Weapons have two targeting modes: `GROUND_ONLY` and `GROUND_AND_AIR`. There is
+no air-only mode. Dwarf Cannon, Flamethrower, Chainsaw, and the standalone
+Knockback module affect ground enemies only. Machine Gun and Laser can attack
+both movement layers.
+
+Fusion results keep these authored rules:
+
+- Ground only: Automatic Cannon (Machine Gun + Cannon), Flame Cannon,
+  Flame Machine Gun, Sawblade Machine Gun, Knockback Cannon, and Knockback
+  Machine Gun.
+- Ground and air: Siege Cannon (Cannon + Cannon), Scatter Machine Gun, and all
+  Laser combinations: Laser Machine Gun, Laser Chainsaw, Heavy Laser,
+  Knockback Laser, and Flame Laser.
+
+The restriction is enforced during target acquisition and again on projectile,
+beam, melee, explosion, persistent-fire, and travelling-wave damage. A
+ground-only projectile therefore passes through a flying enemy instead of
+detonating on it.
 
 ## Presentation extension points
 

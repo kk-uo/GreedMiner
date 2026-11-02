@@ -121,6 +121,7 @@ func _fell() -> void:
 	collision_layer = 0
 	remove_from_group(GROUP)
 	ResourceManager.add_mission_ore(ore, &"tree")
+	EnemySfx.play(global_position, preload("res://Assets/Audio/Mining/tree_fall.wav"), -8.0)
 	RewardPopup.spawn(get_parent(), global_position, ore)
 	felled.emit(global_position, ore)
 

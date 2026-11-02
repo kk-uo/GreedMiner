@@ -14,13 +14,20 @@ extends Node2D
 @export_range(0.0, 1.0, 0.01) var sparse_ring_density: float = 0.06
 ## Treants prefer trees within this distance of the map centre (in view).
 @export_range(100.0, 3000.0, 10.0) var spawn_view_radius: float = 950.0
-## Rings (user design): ring 1 is the row of trees on the clearing's edge
-## (plus the sparse trees inside it), ring 2 the row behind it, ... Wave N
-## raises every standing tree of rings 1..N (ring N, plus inner trees that a
-## storm regrew). 0 = one tree row (tree_spacing).
+## Rings (user design): ring 1 is the clearing's edge (plus the sparse
+## trees inside it), each ring_width further out is the next ring. Wave N
+## raises its fixed new-tree quota plus every previously used, regrown tree.
+## 0 = one tree row (tree_spacing).
 @export_range(0.0, 400.0, 1.0) var ring_width: float = 0.0
-## True: ForestRingRaise owns every treant spawn and the wave queue's treant
-## entries only set how many of the raised trees become big treants.
+## Share of a ring's trees that rise in its wave, picked evenly round the
+## clearing (user: narrower rings, and only part of each ring rises). The
+## rest of the ring stays forest for good; only regrown trees rise again.
+@export_range(0.05, 1.0, 0.01) var ring_raise_fraction: float = 1.0
+## At the final wave a configurable share of visible standing trees rises.
+@export_range(1, 99, 1) var final_canopy_wave: int = 12
+@export_range(0.05, 1.0, 0.01) var final_canopy_raise_fraction: float = 0.5
+## True: ForestRingRaise owns every treant spawn. The wave queue's treant
+## entries set the total quota and the count of big treants.
 var rings_own_treants: bool = true
 
 const TREE := preload("res://Scripts/Battle/Forest/ForestTree.gd")
@@ -34,9 +41,11 @@ var canopy_layer: Node2D
 var tree_chunks: Node2D
 var _rng := RandomNumberGenerator.new()
 var _center := Vector2.ZERO
+var _field: Battlefield
 
 
 func generate(field: Battlefield, seed_value: int) -> void:
+	_field = field
 	for tree in trees:
 		if is_instance_valid(tree):
 			tree.queue_free()
@@ -152,31 +161,112 @@ func _on_tree_state(tree: ForestTree) -> void:
 		_pool_dirty = true
 
 
-## Reserves every standing tree of rings 1..wave_number (the wave's own ring
-## plus inner trees a storm regrew) and returns them sorted by angle round
-## the clearing. Each one becomes exactly one treant: ForestRingRaise calls
-## uproot() on it the moment its treant appears (tree -> pit, same frame).
-func take_ring_trees(wave_number: int) -> Array[ForestTree]:
-	var picked: Array[ForestTree] = []
-	for tree in trees:
-		if is_instance_valid(tree) and tree.is_standing() and tree.ring <= wave_number:
-			picked.append(tree)
-	var c := _center
-	picked.sort_custom(func(a: ForestTree, b: ForestTree) -> bool:
-		return (a.position - c).angle() < (b.position - c).angle())
+## Reserves the trees wave N raises and returns them sorted by angle round
+## the clearing: its full new-tree quota plus all inner trees that already
+## released a treant and regrew during a storm. Each one becomes
+## exactly one treant: ForestRingRaise calls uproot() on it the moment its
+## treant appears (tree -> pit, same frame).
+func take_ring_trees(wave_number: int, quota: int = -1) -> Array[ForestTree]:
+	var picked := _ring_selection(wave_number, quota)
 	for tree in picked:
 		_remove_from_pools(tree)
 		tree.reserved = true
 	return picked
 
 
-## Number of standing trees a wave would raise (UI / tests).
-func count_ring_trees(wave_number: int) -> int:
-	var count := 0
+## Number of trees a wave would raise now (UI / tests).
+func count_ring_trees(wave_number: int, quota: int = -1) -> int:
+	return _ring_selection(wave_number, quota).size()
+
+
+func _ring_selection(wave_number: int, quota: int = -1) -> Array[ForestTree]:
+	if wave_number == final_canopy_wave:
+		var visible := _visible_standing_trees()
+		if final_canopy_raise_fraction >= 1.0:
+			return visible
+		var result: Array[ForestTree] = []
+		var share := 0.5
+		for tree in visible:
+			share += final_canopy_raise_fraction
+			if share >= 1.0:
+				share -= 1.0
+				result.append(tree)
+		return result
+	var own: Array[ForestTree] = []
+	var regrown: Array[ForestTree] = []
 	for tree in trees:
-		if is_instance_valid(tree) and tree.is_standing() and tree.ring <= wave_number:
-			count += 1
-	return count
+		if not is_instance_valid(tree) or not tree.is_standing():
+			continue
+		if tree.ring == wave_number and not tree.has_spawned_treant:
+			own.append(tree)
+		elif tree.ring <= wave_number and tree.has_spawned_treant:
+			regrown.append(tree)
+	var c := _center
+	var by_angle := func(a: ForestTree, b: ForestTree) -> bool:
+		return (a.position - c).angle() < (b.position - c).angle()
+	own.sort_custom(by_angle)
+	# Every k-th tree round the ring (deterministic, evenly spread).
+	var scheduled: Array[ForestTree] = []
+	var share := 0.5
+	for tree in own:
+		share += ring_raise_fraction
+		if share >= 1.0:
+			share -= 1.0
+			scheduled.append(tree)
+	if quota >= 0:
+		# The fixed quota applies ONLY to never-raised trees. Storm-regrown
+		# trees return in addition, rather than replacing scheduled enemies.
+		if scheduled.size() > quota:
+			var spaced: Array[ForestTree] = []
+			for index in range(quota):
+				spaced.append(scheduled[floori(float(index) * float(scheduled.size()) / float(quota))])
+			scheduled = spaced
+		else:
+			var selected: Dictionary = {}
+			for tree in scheduled:
+				selected[tree] = true
+			var available_by_ring: Dictionary = {}
+			for tree in trees:
+				if is_instance_valid(tree) and tree.is_standing() and not tree.has_spawned_treant and tree.ring >= wave_number and not selected.has(tree):
+					if not available_by_ring.has(tree.ring):
+						available_by_ring[tree.ring] = []
+					available_by_ring[tree.ring].append(tree)
+			var ring_numbers := available_by_ring.keys()
+			ring_numbers.sort()
+			for ring_number in ring_numbers:
+				var ring_trees: Array = available_by_ring[ring_number]
+				ring_trees.sort_custom(by_angle)
+				for tree in ring_trees:
+					if scheduled.size() >= quota:
+						break
+					scheduled.append(tree)
+				if scheduled.size() >= quota:
+					break
+	var picked := scheduled
+	picked.append_array(regrown)
+	picked.sort_custom(by_angle)
+	return picked
+
+
+## Intact trees whose crowns overlap the current view. The caller applies the
+## final-wave fraction; permanently chopped sites stay off.
+func _visible_standing_trees() -> Array[ForestTree]:
+	var picked: Array[ForestTree] = []
+	if not is_instance_valid(_field):
+		return picked
+	var ship := _field.get_node_or_null("../Ship") as Ship
+	if ship == null or ship.world_camera == null:
+		return picked
+	var camera := ship.world_camera
+	var visible_size := camera.get_viewport_rect().size / camera.zoom
+	var visible_bounds := Rect2(camera.get_screen_center_position() - visible_size * 0.5, visible_size).grow(60.0)
+	for tree in trees:
+		if is_instance_valid(tree) and tree.is_standing() and visible_bounds.has_point(tree.global_position):
+			picked.append(tree)
+	var center := _center
+	picked.sort_custom(func(a: ForestTree, b: ForestTree) -> bool:
+		return (a.position - center).angle() < (b.position - center).angle())
+	return picked
 
 
 func get_center() -> Vector2:

@@ -6,6 +6,9 @@ extends Node2D
 ## (which stays as the visibility / length / width source, made transparent).
 ## Presentation only.
 
+## Drawn length of the Laser Chainsaw's endless beams (covers any screen).
+const SAW_BEAM_LENGTH: float = 4000.0
+
 var _t: float = 0.0
 var _firing: float = 0.0
 var _last_cooldown: float = 0.0
@@ -37,6 +40,8 @@ func _process(delta: float) -> void:
 		_last_cooldown = cooldown
 	if _beam != null and _beam.visible:
 		_firing = 1.0
+	if _weapon_id == &"laser_chainsaw" and _weapon != null:
+		_firing = float(_weapon.get("saw_engaged"))
 	queue_redraw()
 
 
@@ -45,6 +50,19 @@ func _draw() -> void:
 	var ramp := 0.0
 	if _weapon_id == &"flame_laser" and _weapon != null:
 		ramp = clampf(float(_weapon.get("_doublings")) / 6.0, 0.0, 1.0)
+	if _weapon_id == &"laser_chainsaw" and _weapon != null and not bool(_weapon.get("assembly_mode")):
+		# The cutting reach: a faint laser ring at the real attack radius.
+		var reach := float(_weapon.call("get_modified_attack_range", float(_weapon.get("attack_range"))))
+		FusionArt.laser_saw_reach(self, reach, _t, _firing)
+		var power := float(_weapon.get("saw_beam_power"))
+		var count := int(_weapon.get("saw_beam_count"))
+		if power > 0.01 and count > 0:
+			var base_angle := float(_weapon.get("saw_beam_angle")) - global_rotation
+			var width := float(_weapon.call("get_modified_beam_width", float(_weapon.get("beam_width"))))
+			for k in range(count):
+				draw_set_transform(Vector2.ZERO, base_angle + TAU * float(k) / float(count), Vector2.ONE)
+				FusionArt.laser_saw_beam(self, 24.0, SAW_BEAM_LENGTH, width * power, _t, power)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	FusionArt.draw_turret(self, _weapon_id, sh, _t, _firing, ramp)
 	if _beam != null and _beam.visible and _beam.points.size() >= 2:
 		var start := FusionArt.muzzle_x(_weapon_id)

@@ -184,6 +184,7 @@ func _test_confirmation_and_complete_reset() -> void:
 	_expect_equal(ShipLoadout.layout_rotation, 0.0, "reset restores default hull rotation")
 	_expect_equal(ResearchManager.get_level(&"weapon_damage.machine_gun"), 1, "reset restores research starting level")
 	_expect_true(ChipManager.owned_chips.is_empty(), "reset clears owned chips")
+	_expect_true(ChipManager.chip_instances.is_empty(), "reset clears owned chip instances")
 	_expect_true(ChipManager.loadout.assignments.is_empty(), "reset clears equipped chips")
 	_expect_true(ArtifactManager.get_owned_artifact_ids().is_empty(), "reset clears owned magic artifacts")
 	_expect_false(ArtifactManager.is_stall_unlocked(), "reset locks the Magic Stall")

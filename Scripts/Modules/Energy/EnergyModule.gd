@@ -25,8 +25,8 @@ func get_power_consumption() -> int:
 
 
 ## Base power plus the Laboratory's Energy Core research bonus.
-func get_power_capacity() -> int:
-	return maxi(power_capacity + ResearchManager.get_energy_module_power_bonus(), 0)
+func get_power_capacity() -> float:
+	return maxf(float(power_capacity) + ResearchManager.get_energy_module_power_bonus(), 0.0)
 
 
 ## Base expansion plus research (Expandable Cells). Only an interface for

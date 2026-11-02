@@ -4,6 +4,7 @@ extends Control
 ## Minimal reusable presentation for guarded developer commands.
 
 const SAFE_STARTING_SCENE: String = "res://Scenes/Base/base_main.tscn"
+const DRAGON_NEST_BATTLE_SCENE: String = "res://Scenes/Battle/BattleMain.tscn"
 
 @export var return_to_base_after_reset: bool = true
 ## Combat exposes only the reversible speed control, not progression commands.
@@ -17,11 +18,14 @@ const SAFE_STARTING_SCENE: String = "res://Scenes/Base/base_main.tscn"
 @onready var unlock_artifacts_button: Button = %UnlockArtifactsButton
 @onready var unlock_planets_button: Button = %UnlockPlanetsButton
 @onready var unlock_fusion_button: Button = %UnlockFusionButton
+@onready var unlock_research_button: Button = %UnlockResearchButton
+@onready var max_turrets_button: Button = %MaxTurretsButton
 @onready var reset_button: Button = %ResetButton
 @onready var close_button: Button = %CloseButton
 @onready var status_label: Label = %StatusLabel
 @onready var reset_confirmation: ConfirmationDialog = %ResetConfirmation
 @onready var speed_button: Button = %SpeedButton
+@onready var start_dragon_nest_button: Button = %StartDragonNestButton
 
 var _commands := DeveloperCommands.new()
 
@@ -37,13 +41,16 @@ func _ready() -> void:
 	unlock_artifacts_button.pressed.connect(_on_unlock_artifacts_pressed)
 	unlock_planets_button.pressed.connect(_on_unlock_planets_pressed)
 	unlock_fusion_button.pressed.connect(_on_unlock_fusion_pressed)
+	unlock_research_button.pressed.connect(_on_unlock_research_pressed)
+	max_turrets_button.pressed.connect(_on_max_turrets_pressed)
 	reset_button.pressed.connect(_on_reset_requested)
 	close_button.pressed.connect(close_panel)
 	reset_confirmation.confirmed.connect(_on_reset_confirmed)
 	speed_button.visible = battle_mode
 	speed_button.pressed.connect(_on_speed_pressed)
+	start_dragon_nest_button.pressed.connect(_on_start_dragon_nest_pressed)
 	if battle_mode:
-		for item in [balance_label, currency_selector, amount_input, grant_button, unlock_weapons_button, unlock_artifacts_button, unlock_planets_button, unlock_fusion_button, reset_button]:
+		for item in [balance_label, currency_selector, amount_input, grant_button, unlock_weapons_button, unlock_artifacts_button, unlock_planets_button, unlock_fusion_button, unlock_research_button, max_turrets_button, reset_button]:
 			item.hide()
 		_refresh_speed_button()
 	if not ResourceManager.stored_ore_changed.is_connected(_on_stored_ore_changed):
@@ -64,10 +71,13 @@ func _apply_localized_text() -> void:
 	amount_input.placeholder_text = tr("Non-negative whole amount")
 	grant_button.text = tr("Grant Resources")
 	speed_button.text = tr("Battle speed: %.0f×") % 1.0
+	start_dragon_nest_button.text = tr("Start Dragon Nest")
 	unlock_weapons_button.text = tr("Unlock All Weapons")
 	unlock_artifacts_button.text = tr("Unlock All Magic Artifacts")
 	unlock_planets_button.text = tr("Unlock All Planets")
 	unlock_fusion_button.text = tr("Unlock Weapon Fusion")
+	unlock_research_button.text = tr("Complete All Research")
+	max_turrets_button.text = tr("Max All Turrets")
 	reset_button.text = tr("Reset All Progress")
 	close_button.text = tr("Close")
 	reset_confirmation.title = tr("Reset All Progress?")
@@ -120,7 +130,7 @@ func _on_grant_pressed() -> void:
 
 func _on_reset_requested() -> void:
 	if not DeveloperCommands.is_available():
-		_show_result({"ok": false, "message": "Developer Mode is disabled."})
+		_show_result({"ok": false, "message": tr("Developer Mode is disabled.")})
 		return
 	reset_confirmation.popup_centered()
 
@@ -140,12 +150,30 @@ func _on_unlock_planets_pressed() -> void:
 func _on_unlock_fusion_pressed() -> void:
 	_show_result(_commands.unlock_weapon_fusion())
 
+
+func _on_unlock_research_pressed() -> void:
+	_show_result(_commands.unlock_all_research())
+
+
+func _on_max_turrets_pressed() -> void:
+	_show_result(_commands.maximize_all_turrets())
+
 func _on_speed_pressed() -> void:
 	var controller := get_tree().get_first_node_in_group("developer_battle_speed") as DeveloperBattleSpeed
 	if controller == null or not controller.set_speed(2.0 if controller.selected_speed == 1.0 else 1.0):
-		_show_result({"ok": false, "message": "Battle speed is unavailable."})
+		_show_result({"ok": false, "message": tr("Battle speed is unavailable.")})
 		return
 	_refresh_speed_button()
+
+
+func _on_start_dragon_nest_pressed() -> void:
+	if not DeveloperCommands.is_available():
+		_show_result({"ok": false, "message": tr("Developer Mode is disabled.")})
+		return
+	ResourceManager.start_new_mission()
+	ResourceManager.set_current_expedition_planet(DragonNestRules.PLANET_ID)
+	close_panel()
+	get_tree().change_scene_to_file.call_deferred(DRAGON_NEST_BATTLE_SCENE)
 
 func _refresh_speed_button() -> void:
 	var controller := get_tree().get_first_node_in_group("developer_battle_speed") as DeveloperBattleSpeed

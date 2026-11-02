@@ -120,12 +120,13 @@ func fire() -> void:
 	var puff := projectile_scene.instantiate() as FlamethrowerProjectile
 	if puff == null:
 		return
+	begin_artifact_attack()
 	get_tree().current_scene.add_child(puff)
 	puff.global_position = _muzzle.global_position
 	# A little spread so the stream reads as a cone of flame.
 	puff.direction = Vector2.RIGHT.rotated(_muzzle.global_rotation + randf_range(-0.12, 0.12))
 	puff.damage = damage
-	puff.speed = projectile_speed
+	puff.speed = get_modified_projectile_speed(projectile_speed)
 	puff.max_distance = get_modified_attack_range(attack_range)
 	puff.size_scale = get_flame_size_scale()
 	puff.source_weapon = self
@@ -133,4 +134,5 @@ func fire() -> void:
 	puff.muzzle = _muzzle
 	var rate := get_fire_rate()
 	puff.emit_window = 1.0 / rate if rate > 0.0 else 0.0
+	end_artifact_attack()
 	_sound.sustain_for(0.28)

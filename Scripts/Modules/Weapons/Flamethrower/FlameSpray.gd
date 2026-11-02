@@ -40,7 +40,7 @@ func _process(delta: float) -> void:
 	var spraying: bool = is_instance_valid(weapon) and weapon.call("is_spraying")
 	if spraying and is_instance_valid(muzzle):
 		_debt += EMIT_RATE * delta
-		var speed: float = float(weapon.get("projectile_speed"))
+		var speed: float = float(weapon.call("get_modified_projectile_speed", weapon.get("projectile_speed")))
 		var reach: float = float(weapon.call("get_modified_attack_range", weapon.get("attack_range")))
 		var grow: float = float(weapon.call("get_flame_size_scale"))
 		while _debt >= 1.0:

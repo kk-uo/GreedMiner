@@ -35,6 +35,7 @@ func _on_begin() -> void:
 	direction = direction.normalized().rotated(randf_range(-0.5, 0.5))
 	landing_position = ship_center + direction * LANDING_DISTANCE
 	global_position = landing_position
+	EnemySfx.play(landing_position, preload("res://Assets/Audio/Mining/chest_land.wav"), -8.0, 0.0)
 
 
 ## Lifetime left on the ground (seconds).
@@ -96,6 +97,7 @@ func open() -> void:
 			"spin": rng.randf_range(-7.0, 7.0),
 		})
 	_set_phase(Phase.OPEN)
+	EnemySfx.play(global_position, preload("res://Assets/Audio/Mining/chest_open.wav"), -6.0, 0.0)
 	var candidates := ArtifactManager.get_unowned_mining_chest_artifacts()
 	if not candidates.is_empty() and rng.randf() < clampf(config.salvage_artifact_chance, 0.0, 1.0):
 		var selected := candidates[rng.randi_range(0, candidates.size() - 1)]

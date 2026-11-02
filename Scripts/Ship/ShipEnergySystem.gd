@@ -7,15 +7,15 @@ extends RefCounted
 ## components consume the published totals through Ship.energy_changed.
 
 signal totals_changed(
-	total_power_capacity: int,
+	total_power_capacity: float,
 	total_power_consumption: int,
-	available_power: int,
+	available_power: float,
 	total_expansion_capacity: int
 )
 
-var total_power_capacity: int = 0
+var total_power_capacity: float = 0.0
 var total_power_consumption: int = 0
-var available_power: int = 0
+var available_power: float = 0.0
 var total_expansion_capacity: int = 0
 
 
@@ -38,9 +38,9 @@ func recalculate(modules: Array[ShipModule]) -> void:
 ## Returns totals for a proposed set without changing the current ship state.
 func calculate_profile(modules: Array[ShipModule]) -> Dictionary:
 	var profile := {
-		"total_power_capacity": 0,
+		"total_power_capacity": 0.0,
 		"total_power_consumption": 0,
-		"available_power": 0,
+		"available_power": 0.0,
 		"total_expansion_capacity": 0,
 		"energy_module_count": 0,
 	}
@@ -101,6 +101,6 @@ static func calculate_loadout_profile(installed_module_paths: Dictionary) -> Dic
 static func is_profile_operational(profile: Dictionary) -> bool:
 	return (
 		int(profile.get("energy_module_count", 0)) >= 1
-		and int(profile.get("total_power_consumption", 0))
-			<= int(profile.get("total_power_capacity", 0))
+		and float(profile.get("total_power_consumption", 0))
+			<= float(profile.get("total_power_capacity", 0.0))
 	)

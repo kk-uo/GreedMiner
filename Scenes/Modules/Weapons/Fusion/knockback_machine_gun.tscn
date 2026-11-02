@@ -7,13 +7,15 @@
 [node name="KnockbackMachineGun" type="Node2D"]
 script = ExtResource("1")
 weapon_type_id = &"knockback_machine_gun"
+enemy_targeting = 0
 power_consumption = 3
 visual_kind = 1
 basic_damage = 5.0
 attack_interval = 0.2
 attack_range = 400.0
 projectile_speed = 450.0
-knockback_distance = 100.0
+knockback_distance = 20.0
+knockback_once_per_projectile = true
 post_knockback_aoe_radius = 32.0
 post_knockback_damage_ratio = 1.0
 projectile_scene = ExtResource("3")

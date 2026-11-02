@@ -124,6 +124,9 @@ func get_validation_errors() -> Array[String]:
 			for prerequisite in node.prerequisite_ids:
 				if tree.get_node(prerequisite) == null:
 					errors.append("Tree node %s has missing prerequisite %s." % [node.research_id, prerequisite])
+			for prerequisite in node.required_external_research_ids:
+				if get_definition(prerequisite) == null:
+					errors.append("Tree node %s has missing external prerequisite %s." % [node.research_id, prerequisite])
 			if _tree_has_cycle(tree, node.research_id, {}, {}):
 				errors.append("Cycle detected at tree node %s." % node.research_id)
 	return errors

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MagicArtifactDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Artifacts/MagicArtifactDefinition.gd" id="1"]
+[ext_resource type="Script" path="res://Scripts/Artifacts/BatEyeballEffect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+artifact_id = &"bat_eyeball"
+display_name = "Bat Eyeball"
+rarity = "Epic"
+description = "Projectiles gently track enemies, flame puffs follow targets, and piercing lasers can bend slightly after their first target. Works together with Ghost Bullet."
+equip_target = 1
+compatible_module_ids = Array[StringName]([&"machine_gun", &"dwarf_cannon", &"laser", &"flamethrower"])
+acquisition_source = "Graveyard Planet mining salvage chest"
+source_planet_id = &"graveyard_planet"
+source_name = "Mining salvage chest"
+mining_chest_reward = true
+mining_chest_planet_ids = Array[StringName]([&"graveyard_planet"])
+effect_script = ExtResource("2")
+effect_parameters = {"projectile_turn_rate_degrees": 30.0, "flame_turn_rate_degrees": 120.0, "acquisition_range": 600.0, "laser_deflection_degrees": 8.0}

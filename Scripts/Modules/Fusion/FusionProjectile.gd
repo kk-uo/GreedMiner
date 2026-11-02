@@ -9,6 +9,7 @@ var projectile_range: float = 4.0
 var pierces_all_targets: bool = false
 var aoe_radius: float = 0.0
 var knockback_distance: float = 0.0
+var knockback_once_per_projectile: bool = false
 var post_knockback_aoe_radius: float = 0.0
 var post_knockback_damage_ratio: float = 0.0
 var post_knockback_damage: float = 0.0
@@ -21,17 +22,19 @@ var visual_kind: int = FusionWeapon.VisualKind.SCATTER
 var source_weapon: WeaponModule
 var _origin := Vector2.ZERO
 var _resolved := false
+var _knockback_consumed := false
 var _spin := 0.0
 var _ghost: RefCounted
 var _hit_ids: Dictionary = {}
+var _homing_target: BasicEnemy
 
 
 ## Ghost Bullet uses the same per-projectile penetration state as the base
 ## Machine Gun and Dwarf Cannon. Fusion weapons opt in through the shared
 ## WeaponModule artifact provider, so no artifact-specific recipe code is
 ## required here.
-func enable_ghost_piercing(initial_pierces: int) -> void:
-	_ghost = preload("res://Scripts/Modules/Weapons/GhostProjectileState.gd").new(initial_pierces)
+func enable_ghost_piercing(initial_pierces: int, replenish_on_kill: bool = true, _ghost_visual: bool = true) -> void:
+	_ghost = preload("res://Scripts/Modules/Weapons/GhostProjectileState.gd").new(initial_pierces, replenish_on_kill)
 
 
 ## FusionWeapon adds the projectile before assigning its world-space muzzle
@@ -52,6 +55,14 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_instance_valid(source_weapon):
+		var turn_rate := source_weapon.get_artifact_projectile_homing_turn_rate()
+		if visual_kind == FusionWeapon.VisualKind.FLAME:
+			turn_rate = maxf(turn_rate, source_weapon.get_artifact_flame_homing_turn_rate())
+		if turn_rate > 0.0:
+			var steering := source_weapon.get_homing_steering(global_position, direction, _homing_target, _hit_ids, delta, turn_rate)
+			_homing_target = steering["target"] as BasicEnemy
+			direction = steering["direction"]
 	global_position += direction.normalized() * speed * delta
 	_spin = fmod(_spin + delta * 12.0, TAU)
 	queue_redraw()
@@ -73,6 +84,8 @@ func _on_area_entered(area: Area2D) -> void:
 	var enemy := area as BasicEnemy
 	if enemy == null or enemy.is_dying() or not enemy.is_in_group(&"enemies"):
 		return
+	if is_instance_valid(source_weapon) and not source_weapon.can_target_enemy(enemy):
+		return
 	if _hit_ids.has(enemy.get_instance_id()):
 		return
 	_hit_ids[enemy.get_instance_id()] = true
@@ -83,6 +96,8 @@ func _on_area_entered(area: Area2D) -> void:
 	if is_instance_valid(source_weapon) and is_instance_valid(enemy):
 		source_weapon.projectile_hit.emit(enemy, maxf(before - enemy.get_current_health(), 0.0))
 	var continues: bool = pierces_all_targets or (_ghost != null and bool(_ghost.continue_after_hit(not is_instance_valid(enemy) or enemy.is_dying())))
+	if continues:
+		_homing_target = null
 	_resolved = not continues
 	_finish_impact(enemy, continues)
 
@@ -92,8 +107,9 @@ func _finish_impact(direct_target: BasicEnemy, continues: bool = false) -> void:
 		set_physics_process(false)
 		set_deferred("monitoring", false)
 	var impact := global_position
-	if is_instance_valid(direct_target) and knockback_distance > 0.0 and direct_target.enemy_tier != BasicEnemy.EnemyTier.BOSS:
+	if is_instance_valid(direct_target) and not direct_target.is_dying() and knockback_distance > 0.0 and direct_target.enemy_tier != BasicEnemy.EnemyTier.BOSS and (not knockback_once_per_projectile or not _knockback_consumed):
 		direct_target.apply_radial_knockback(impact - direction.normalized(), knockback_distance, _battlefield_bounds())
+		_knockback_consumed = true
 		impact = direct_target.global_position
 	if aoe_radius > 0.0:
 		_damage_circle(impact, aoe_radius, damage, direct_target, knockback_distance > 0.0)
@@ -129,6 +145,8 @@ func _damage_circle(center: Vector2, radius: float, amount: float, excluded: Bas
 		var enemy := hit.get("collider") as BasicEnemy
 		if enemy == null or enemy.is_dying() or not enemy.is_in_group(&"enemies") or hit_ids.has(enemy.get_instance_id()):
 			continue
+		if is_instance_valid(source_weapon) and not source_weapon.can_target_enemy(enemy):
+			continue
 		hit_ids[enemy.get_instance_id()] = true
 		enemy.take_damage(amount, false, true, source_weapon if is_instance_valid(source_weapon) else null)
 		if apply_knockback and is_instance_valid(enemy) and not enemy.is_dying() and enemy.enemy_tier != BasicEnemy.EnemyTier.BOSS:
@@ -152,7 +170,7 @@ func _draw() -> void:
 	_age += get_physics_process_delta_time()
 	var radius := maxf(projectile_range, 2.0)
 	draw_set_transform(Vector2.ZERO, direction.angle(), Vector2.ONE)
-	FusionArt.draw_projectile(self, _art_id, radius, _spin, _age)
+	FusionArt.draw_projectile(self, _art_id, radius, _spin, _age, speed)
 
 
 func _visual_color() -> Color:

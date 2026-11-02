@@ -50,6 +50,7 @@ func _run() -> void:
 		enemies.add_child(goblin)
 	await get_tree().process_frame
 	var goblins := enemies.get_children().filter(func(n: Node) -> bool: return n is BasicEnemy)
+	var goblin_max_health := (goblins[0] as BasicEnemy).max_health
 	(goblins[0] as BasicEnemy).take_damage(99999.0, false, true, weapon)
 	(goblins[1] as BasicEnemy).take_damage(99999.0)
 	await get_tree().process_frame
@@ -57,6 +58,14 @@ func _run() -> void:
 	_check(stats.total_kills() == 2, "total kills")
 	_check(int(stats.weapon_kills.get(&"machine_gun", 0)) == 1, "only the credited kill counts for the machine gun")
 	_check(stats.best_weapon() == &"machine_gun", "best weapon is the machine gun")
+	# Turret damage report (Claude sync 79): actual damage per installed turret.
+	var turret_rows := stats.turret_rows()
+	_check(turret_rows.size() == 1, "one turret row per installed weapon")
+	if turret_rows.size() == 1:
+		var row: Dictionary = turret_rows[0]
+		_check(row["id"] == &"machine_gun" and row["cell"] == Vector2i(0, 0), "turret row names the weapon and its ship cell")
+		_check(is_equal_approx(float(row["damage"]), goblin_max_health), "turret damage is the health actually removed (no overkill)")
+		_check(int(row["kills"]) == 1, "turret row counts its own kills")
 	# Victory: the board waits for the beat (slow motion + banner), then shows.
 	battle._on_planet_completed(VERDANT)
 	_check(stats.frozen, "stats freeze when the battle ends")

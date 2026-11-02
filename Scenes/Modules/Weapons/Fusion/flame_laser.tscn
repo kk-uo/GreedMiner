@@ -6,17 +6,18 @@
 [node name="FlameLaser" type="Node2D"]
 script = ExtResource("1")
 weapon_type_id = &"flame_laser"
+enemy_targeting = 1
 power_consumption = 4
 attack_kind = 1
 visual_kind = 4
 basic_damage = 1.0
 attack_interval = 0.1
-attack_range = 800.0
+attack_range = 600.0
 projectile_range = 6.0
 beam_width = 6.0
-rotation_speed = 240.0
-doubling_interval = 0.5
-maximum_tick_damage = 500.0
+rotation_speed = 120.0
+doubling_interval = 1.0
+maximum_tick_damage = 256.0
 
 [node name="Turret" type="Node2D" parent="."]
 script = ExtResource("2")

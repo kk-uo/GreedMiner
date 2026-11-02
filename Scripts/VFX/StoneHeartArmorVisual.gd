@@ -56,38 +56,67 @@ func _ready() -> void:
 	z_index = 2
 	_rng.seed = 4242
 	_build_chunks()
+	# Rebuild when the hull grows or changes shape (after the Ship has).
+	ShipLoadout.expansion_changed.connect(_rebuild_chunks, CONNECT_DEFERRED)
+	ShipLoadout.hull_changed.connect(func(_id: StringName) -> void: _rebuild_chunks(), CONNECT_DEFERRED)
 
 
-## Three chunks per side, between the corner fittings; each a jagged polygon.
+## One chunk outside every exposed hull edge, so the armor follows the ship's
+## real outline (expansion cells, plus shapes...). Each is a jagged polygon.
+var _hull_center: Vector2 = Ship.SHIP_SIZE * 0.5
+var _hull_radius: float = 160.0
+
+
+func _hull_cells() -> Array[Vector2i]:
+	var ship := get_parent() as Ship
+	if ship != null:
+		var cells := ship.get_hull_cells()
+		if not cells.is_empty():
+			return cells
+	var square: Array[Vector2i] = []
+	for row in range(Ship.GRID_SIZE):
+		for column in range(Ship.GRID_SIZE):
+			square.append(Vector2i(column, row))
+	return square
+
+
+func _rebuild_chunks() -> void:
+	_build_chunks()
+	queue_redraw()
+
+
 func _build_chunks() -> void:
-	var size: Vector2 = Ship.SHIP_SIZE
-	var center := size * 0.5
-	for side in range(4):
-		for index in range(3):
-			var along := (float(index) - 1.0) * (CHUNK_LENGTH + CHUNK_GAP)
-			var anchor: Vector2
-			var tangent: Vector2
-			var normal: Vector2
-			match side:
-				0:
-					anchor = Vector2(center.x + along, RIM_OFFSET)
-					tangent = Vector2.RIGHT
-					normal = Vector2.UP
-				1:
-					anchor = Vector2(size.x - RIM_OFFSET, center.y + along)
-					tangent = Vector2.DOWN
-					normal = Vector2.RIGHT
-				2:
-					anchor = Vector2(center.x - along, size.y - RIM_OFFSET)
-					tangent = Vector2.LEFT
-					normal = Vector2.DOWN
-				_:
-					anchor = Vector2(RIM_OFFSET, center.y - along)
-					tangent = Vector2.UP
-					normal = Vector2.LEFT
-			var length := CHUNK_LENGTH * _rng.randf_range(0.86, 1.0)
-			var depth := CHUNK_DEPTH * _rng.randf_range(0.85, 1.12)
-			# Jagged outline: walk round a rounded box with random bumps.
+	_chunks.clear()
+	var cells := _hull_cells()
+	var lookup := {}
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for cell in cells:
+		lookup[cell] = true
+		lo = lo.min(Vector2(cell) * Ship.CELL_SIZE)
+		hi = hi.max((Vector2(cell) + Vector2.ONE) * Ship.CELL_SIZE)
+	_hull_center = (lo + hi) * 0.5
+	_hull_radius = (hi - lo).length() * 0.5 + 25.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var half := Ship.CELL_SIZE * 0.5
+	for cell in cells:
+		for dir in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+			if lookup.has(cell + dir):
+				continue
+			var normal := Vector2(dir)
+			var tangent := normal.rotated(PI * 0.5)
+			var anchor := (Vector2(cell) + Vector2(0.5, 0.5)) * Ship.CELL_SIZE + normal * (half - RIM_OFFSET)
+			# Inner corners would put two chunks on top of each other.
+			var crowded := false
+			for other in _chunks:
+				if (other["anchor"] as Vector2).distance_to(anchor) < 40.0:
+					crowded = true
+					break
+			if crowded:
+				continue
+			var length := CHUNK_LENGTH * rng.randf_range(0.86, 1.0)
+			var depth := CHUNK_DEPTH * rng.randf_range(0.85, 1.12)
 			var points := PackedVector2Array()
 			var corners := [
 				Vector2(-0.5, -0.5), Vector2(-0.15, -0.62), Vector2(0.2, -0.55), Vector2(0.5, -0.42),
@@ -95,21 +124,20 @@ func _build_chunks() -> void:
 			]
 			for corner in corners:
 				var c: Vector2 = corner
-				var bump := Vector2(_rng.randf_range(-0.06, 0.06), _rng.randf_range(-0.1, 0.1))
+				var bump := Vector2(rng.randf_range(-0.06, 0.06), rng.randf_range(-0.1, 0.1))
 				var local := Vector2((c.x + bump.x) * length, (c.y + bump.y) * depth)
 				points.append(anchor + tangent * local.x + normal * local.y)
-			# Lit facet toward the top-left and a crack path through the chunk.
 			var facet := PackedVector2Array()
 			for k in [0, 1, 2, 8]:
 				facet.append(points[k].lerp(anchor, 0.35) + Vector2(-1.0, -1.0))
 			var crack := PackedVector2Array([
 				anchor + tangent * (-length * 0.3) + normal * (-depth * 0.25),
-				anchor + tangent * (_rng.randf_range(-0.05, 0.05) * length) + normal * (depth * 0.05),
+				anchor + tangent * (rng.randf_range(-0.05, 0.05) * length) + normal * (depth * 0.05),
 				anchor + tangent * (length * 0.18) + normal * (depth * 0.3),
 			])
 			_chunks.append({
 				"points": points, "facet": facet, "crack": crack, "anchor": anchor, "normal": normal,
-				"spin": _rng.randf_range(-3.5, 3.5), "stage": (side + index) % 2,
+				"spin": rng.randf_range(-3.5, 3.5), "stage": _chunks.size() % 2,
 			})
 
 
@@ -159,8 +187,7 @@ func _draw() -> void:
 		_draw_shatter(_shatter_age / SHATTER_TIME)
 	if _restore_age >= 0.0:
 		var t := _restore_age / RESTORE_TIME
-		var center := Ship.SHIP_SIZE * 0.5
-		draw_arc(center, lerpf(185.0, 150.0, t), 0.0, TAU, 64, Color(CRACK_HOT, 0.9 * (1.0 - t)), 6.0 * (1.0 - t) + 1.0)
+		draw_arc(_hull_center, lerpf(_hull_radius + 25.0, _hull_radius - 10.0, t), 0.0, TAU, 64, Color(CRACK_HOT, 0.9 * (1.0 - t)), 6.0 * (1.0 - t) + 1.0)
 
 
 func _draw_armor() -> void:
@@ -211,7 +238,7 @@ func _draw_countdown() -> void:
 		return
 	var total: float = maxf(float(effect.get("regeneration_delay")), 0.001)
 	var progress := 1.0 - clampf(float(effect.call("get_regeneration_remaining")) / total, 0.0, 1.0)
-	var at := Vector2(Ship.SHIP_SIZE.x * 0.5, -72.0)
+	var at := Vector2(_hull_center.x, _hull_center.y - _hull_radius + 60.0)
 	draw_circle(at + Vector2(2.0, 3.0), 17.0, Palette.SHADOW_COLOR)
 	draw_circle(at, 17.0, Color(Palette.UI_PANEL, 0.9))
 	draw_arc(at, 15.0, 0.0, TAU, 40, STONE_DARK, 3.5)
@@ -221,7 +248,7 @@ func _draw_countdown() -> void:
 
 
 func _draw_shatter(t: float) -> void:
-	var center := Ship.SHIP_SIZE * 0.5
+	var center := _hull_center
 	var ease := 1.0 - pow(1.0 - t, 2.0)
 	# Chunks fly outward, spinning and fading.
 	for chunk in _chunks:
@@ -236,12 +263,12 @@ func _draw_shatter(t: float) -> void:
 		var alpha := 1.0 - smoothstep(0.55, 1.0, t)
 		draw_colored_polygon(moved, Color(STONE, alpha))
 	# Shockwave ring (orange core + dusty outer band) and dust puffs.
-	var radius := lerpf(160.0, 225.0, ease)
+	var radius := lerpf(_hull_radius, _hull_radius + 65.0, ease)
 	draw_arc(center, radius, 0.0, TAU, 72, Color(STONE_LIGHT, 0.45 * (1.0 - t)), 14.0 * (1.0 - t) + 2.0)
 	draw_arc(center, radius, 0.0, TAU, 72, Color(CRACK_HOT, 0.95 * (1.0 - t)), 5.0 * (1.0 - t) + 1.0)
 	for index in range(16):
 		var a := TAU * float(index) / 16.0 + 0.2
-		var p := center + Vector2(cos(a), sin(a)) * lerpf(158.0, 210.0, ease)
+		var p := center + Vector2(cos(a), sin(a)) * lerpf(_hull_radius - 2.0, _hull_radius + 50.0, ease)
 		draw_circle(p, lerpf(4.0, 11.0, ease), Color(DUST, 0.55 * (1.0 - t)))
 
 

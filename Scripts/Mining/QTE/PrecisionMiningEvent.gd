@@ -49,6 +49,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_begin() -> void:
 	show_click_label = QteStyleScript.claim_click_hint()
+	EnemySfx.play(get_module_position(), preload("res://Assets/Audio/Mining/qte_marker.wav"), -8.0, 0.0)
 
 
 ## Same as clicking the marker: opens the skill check (warning first).
@@ -56,6 +57,7 @@ func activate() -> void:
 	if _phase != Phase.MARKER or is_resolved():
 		return
 	_set_phase(Phase.CHECKING)
+	EnemySfx.play(get_module_position(), preload("res://Assets/Audio/Mining/qte_check_start.wav"), -8.0, 0.0)
 	skill_check = MiningSkillCheck.new()
 	skill_check.setup(config, MiningSkillCheck.random_zone_start(config), module)
 	skill_check.show_click_label = show_click_label
@@ -65,6 +67,8 @@ func activate() -> void:
 
 
 func _on_check_finished(result: StringName) -> void:
+	var sfx: String = {OUTCOME_PERFECT: "qte_perfect", OUTCOME_SUCCESS: "qte_good"}.get(result, "qte_miss")
+	EnemySfx.play(get_module_position(), load("res://Assets/Audio/Mining/" + sfx + ".wav"), -7.0, 0.0)
 	resolve(result)
 
 

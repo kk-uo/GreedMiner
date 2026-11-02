@@ -294,22 +294,78 @@ static func _flame_mg(ci: CanvasItem, sh: Vector2, t: float, firing: float) -> v
 	ci.draw_polyline(PackedVector2Array([Vector2(-14, 12), Vector2(-2, 16), Vector2(10, 13)]), RED_TANK, 3.0)
 
 
-## Laser Chainsaw (A): a saw disc whose edge is a ring of laser, spinning.
+## Laser Chainsaw: a steel chainsaw blade spinning inside three tilted laser
+## orbits (like an atom), each carrying a bright laser spark. Hits make the
+## blade spin faster and the orbits flare.
 static func _laser_chainsaw(ci: CanvasItem, sh: Vector2, t: float, firing: float) -> void:
-	var spin := t * (6.0 + 10.0 * firing)
-	ci.draw_circle(Vector2.ZERO, 28, Color(SHOT, 0.12 + 0.1 * firing))
-	ci.draw_arc(Vector2.ZERO, 25, 0, TAU, 48, SHOT, 3.0)
-	ci.draw_arc(Vector2.ZERO, 25, 0, TAU, 48, CORE, 1.2)
+	var spin := t * (7.0 + 12.0 * firing)
+	var orbits: Array[float] = []
+	for k in range(3):
+		orbits.append(t * 0.6 + TAU * float(k) / 6.0)
+	ci.draw_circle(Vector2.ZERO, 34, Color(SHOT, 0.06 + 0.12 * firing))
+	# back halves of the orbits (behind the blade)
+	for k in range(3):
+		_laser_orbit(ci, orbits[k], t * (3.2 + 2.0 * firing) + k * 2.1, firing, false)
+	ci.draw_circle(sh * 0.5, 24.0, SHADOW)
+	ci.draw_circle(Vector2.ZERO, 23.5, MECH_D)
+	saw_blade(ci, Vector2.ZERO, 22.0, spin, Vector2.ZERO)
+	# laser-hot tooth tips
 	for k in range(12):
 		var a := spin + TAU * float(k) / 12.0
-		ci.draw_line(Vector2(cos(a), sin(a)) * 20, Vector2(cos(a + 0.12), sin(a + 0.12)) * 29, CORE, 1.4)
-	ci.draw_circle(sh * 0.4, 18, SHADOW)
-	ci.draw_circle(Vector2.ZERO, 18, MECH)
-	ci.draw_circle(Vector2(-1, -1), 16, MECH_L)
-	for k in range(4):
-		var a := spin + TAU * float(k) / 4.0
-		ci.draw_line(Vector2.ZERO, Vector2(cos(a), sin(a)) * 15, MECH_D, 3)
-	glow(ci, Vector2.ZERO, 5, SHOT)
+		ci.draw_circle(Vector2(cos(a), sin(a)) * 22.0, 1.4 + 0.6 * firing, Color(CORE, 0.6 + 0.4 * firing))
+	glow(ci, Vector2.ZERO, 3.5, SHOT)
+	# front halves (over the blade)
+	for k in range(3):
+		_laser_orbit(ci, orbits[k], t * (3.2 + 2.0 * firing) + k * 2.1, firing, true)
+
+
+static func _laser_orbit(ci: CanvasItem, ang: float, spark: float, firing: float, front: bool) -> void:
+	var rx := 35.0
+	var ry := 11.0
+	var pts := PackedVector2Array()
+	var a0 := 0.0 if front else PI
+	for k in range(17):
+		var u := a0 + PI * float(k) / 16.0
+		pts.append(Vector2(cos(u) * rx, sin(u) * ry).rotated(ang))
+	var alpha := 1.0 if front else 0.55
+	ci.draw_polyline(pts, Color(SHOT, (0.35 + 0.25 * firing) * alpha), 4.0 + 2.0 * firing)
+	ci.draw_polyline(pts, Color(CORE, (0.8 + 0.2 * firing) * alpha), 1.3)
+	var su := fposmod(spark, TAU)
+	var spark_front := sin(su) >= 0.0
+	if spark_front == front:
+		for j in range(5):
+			var uj := su - 0.12 * j
+			var p := Vector2(cos(uj) * rx, sin(uj) * ry).rotated(ang)
+			ci.draw_circle(p, 2.6 - 0.4 * j, Color(CORE, (1.0 - 0.18 * j) * alpha))
+
+
+## One endless Laser Chainsaw beam along +x: glow, body, hot core, saw teeth
+## running outward near the blade, and a bright root at the blade edge.
+static func laser_saw_beam(ci: CanvasItem, start: float, length: float, width: float, t: float, power: float) -> void:
+	var w := width * (0.9 + 0.1 * sin(t * 40.0))
+	rect(ci, Rect2(start, -w, length, w * 2.0), Color(SHOT, 0.14 * power))
+	rect(ci, Rect2(start, -w * 0.5, length, w), Color(SHOT, power))
+	rect(ci, Rect2(start, -w * 0.18, length, w * 0.36), Color(CORE, power))
+	var step := 12.0
+	var x := start + fposmod(t * 320.0, step)
+	while x < start + 420.0:
+		var fade := power * (1.0 - (x - start) / 420.0)
+		ci.draw_colored_polygon(PackedVector2Array([Vector2(x, -w * 0.5), Vector2(x + 4, -w * 0.95), Vector2(x + 7, -w * 0.5)]), Color(CORE, fade))
+		ci.draw_colored_polygon(PackedVector2Array([Vector2(x + 3, w * 0.5), Vector2(x + 7, w * 0.95), Vector2(x + 10, w * 0.5)]), Color(CORE, fade))
+		x += step
+	glow(ci, Vector2(start, 0), w * 0.45, Color(CORE, power))
+
+
+## Battle-only: faint rotating laser ring at the saw's real cutting radius.
+static func laser_saw_reach(ci: CanvasItem, reach: float, t: float, firing: float) -> void:
+	if reach <= 0.0:
+		return
+	var a := 0.10 + 0.25 * firing
+	ci.draw_arc(Vector2.ZERO, reach, 0, TAU, 96, Color(SHOT, a * 0.5), 3.0)
+	var dashes := 18
+	for k in range(dashes):
+		var s0 := -t * 1.6 + TAU * float(k) / float(dashes)
+		ci.draw_arc(Vector2.ZERO, reach, s0, s0 + TAU / float(dashes) * 0.45, 8, Color(CORE, a + 0.15), 1.5)
 
 
 ## Heavy Laser (A, moved back, double calibre): a huge barrel from behind
@@ -484,7 +540,7 @@ static func draw_beam(ci: CanvasItem, weapon_id: StringName, start: float, lengt
 
 # ------------------------------------------------------------ projectiles (local, facing +x)
 
-static func draw_projectile(ci: CanvasItem, weapon_id: StringName, radius: float, spin: float, age: float) -> void:
+static func draw_projectile(ci: CanvasItem, weapon_id: StringName, radius: float, spin: float, age: float, speed: float = 300.0) -> void:
 	match weapon_id:
 		&"scatter_machine_gun":
 			ci.draw_line(Vector2(-9, 0), Vector2(0, 0), Color(SHOT, 0.5), 2.6)
@@ -501,9 +557,7 @@ static func draw_projectile(ci: CanvasItem, weapon_id: StringName, radius: float
 		&"sawblade_machine_gun":
 			saw_blade(ci, Vector2.ZERO, maxf(radius, 6.0), spin * 1.5, Vector2(1.5, 2.2))
 		&"flame_machine_gun":
-			for k in range(3):
-				flame_puff(ci, Vector2(-k * radius * 0.7, sin(age * 30.0 + k) * 1.5), radius * (0.9 - k * 0.2))
-			ci.draw_circle(Vector2.ZERO, radius * 0.35, CORE)
+			_flame_bullet(ci, radius, age, speed)
 		&"automatic_cannon":
 			ci.draw_line(Vector2(-12, 0), Vector2.ZERO, Color(SHOT, 0.35), 4.0)
 			ci.draw_circle(Vector2.ZERO, radius * 0.75, MECH)
@@ -526,6 +580,67 @@ static func draw_projectile(ci: CanvasItem, weapon_id: StringName, radius: float
 			ci.draw_circle(Vector2.ZERO, radius * 0.5, CORE)
 		_:
 			ci.draw_circle(Vector2.ZERO, radius, SHOT)
+
+
+## Flame Machine Gun round (user pick: "keep the flamethrower's spreading
+## fire, but still a bullet"): a pointed white-hot slug in a glowing red
+## casing, shedding the flamethrower's hexagonal flame puffs. Each puff stays
+## roughly where it was shed (local x = -speed * its age * DRAG), swells and
+## drifts sideways as it ages and runs the flamethrower colour ramp
+## (white -> yellow -> orange -> red -> smoke). Deterministic per age, so it
+## needs no per-bullet state.
+const FLAME_STAGES: Array = [
+	[0.10, Color("FFF2C2")],
+	[0.26, Color("FFD23F")],
+	[0.48, Color("F08A24")],
+	[0.66, Color("E2572A")],
+	[0.80, Color("B8321F")],
+]
+const FLAME_SMOKE := Color("2B2420")
+const FLAME_PUFF_RATE: float = 40.0
+const FLAME_PUFF_LIFE: float = 0.32
+const FLAME_PUFF_DRAG: float = 0.75
+
+
+static func _flame_bullet(ci: CanvasItem, radius: float, age: float, speed: float) -> void:
+	var r := maxf(radius, 4.0)
+	# Puffs, oldest (largest, darkest) first so the young bright ones sit on top.
+	var newest := floori(age * FLAME_PUFF_RATE)
+	var oldest := floori(maxf(age - FLAME_PUFF_LIFE, 0.0) * FLAME_PUFF_RATE)
+	for k in range(oldest, newest + 1):
+		var born := float(k) / FLAME_PUFF_RATE
+		var life := age - born
+		if life < 0.0 or life > FLAME_PUFF_LIFE:
+			continue
+		var t := life / FLAME_PUFF_LIFE
+		var seed := float(k) * 12.9898
+		var side := sin(seed) * 0.5 + sin(seed * 2.3) * 0.5
+		var at := Vector2(-speed * life * FLAME_PUFF_DRAG - r * 0.6, side * r * (0.3 + 2.4 * t))
+		var size := r * (0.45 + 1.1 * t)
+		var color := _flame_ramp(t)
+		ci.draw_colored_polygon(_hex(at, size, seed + life * 6.0), color)
+	# The round itself: glow, casing, white-hot tip.
+	ci.draw_circle(Vector2(r * 0.1, 0), r * 1.15, Color(FIRE, 0.22))
+	var casing := PackedVector2Array([Vector2(r * 1.25, 0), Vector2(r * 0.45, -r * 0.5), Vector2(-r * 0.8, -r * 0.5), Vector2(-r * 0.95, 0), Vector2(-r * 0.8, r * 0.5), Vector2(r * 0.45, r * 0.5)])
+	ci.draw_colored_polygon(casing, FIRE_D)
+	ci.draw_colored_polygon(PackedVector2Array([Vector2(r * 1.25, 0), Vector2(r * 0.45, -r * 0.5), Vector2(-r * 0.8, -r * 0.5), Vector2(-r * 0.8, -r * 0.1), Vector2(r * 0.6, -r * 0.1)]), FIRE)
+	ci.draw_colored_polygon(PackedVector2Array([Vector2(r * 1.25, 0), Vector2(r * 0.5, -r * 0.32), Vector2(r * 0.2, 0), Vector2(r * 0.5, r * 0.32)]), CORE)
+	ci.draw_line(Vector2(-r * 0.35, -r * 0.5), Vector2(-r * 0.35, r * 0.5), Color(FIRE_L, 0.8), maxf(1.0, r * 0.14))
+
+
+static func _flame_ramp(t: float) -> Color:
+	for stage in FLAME_STAGES:
+		if t < float(stage[0]):
+			return stage[1]
+	var last: float = FLAME_STAGES[FLAME_STAGES.size() - 1][0]
+	return Color(FLAME_SMOKE, 0.7 * (1.0 - (t - last) / (1.0 - last)))
+
+
+static func _hex(center: Vector2, r: float, rot: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for k in range(6):
+		pts.append(center + Vector2.RIGHT.rotated(rot + TAU * float(k) / 6.0) * r)
+	return pts
 
 
 ## Knockback Laser's travelling wave front (local, wave travels along +x).

@@ -14,6 +14,7 @@ signal close_requested
 
 const PANEL_SIZE := Vector2(1000.0, 560.0)
 const ArtifactVisual := preload("res://Scripts/UI/Artifacts/ArtifactVisual.gd")
+const ArtifactSort := preload("res://Scripts/Artifacts/MagicArtifactSort.gd")
 const ScrollKeeper := preload("res://Scripts/UI/ScrollKeeper.gd")
 
 enum Tab { COLLECTION, COMPENDIUM }
@@ -24,7 +25,9 @@ const PLANET_ROWS := [
 	[&"rocky_planet", "ROCKY", &"rocky"],
 	[&"goblin_planet", "VERDANT", &"jungle"],
 	[&"frozen_planet", "FROZEN", &"frozen"],
+	[&"tree_planet", "TREE PLANET", &"forest"],
 	[&"volcanic_planet", "VOLCANIC", &"volcanic"],
+	[&"magic_shop", "SHOP", &"rocky"],
 ]
 
 var selected_artifact_id: StringName = &""
@@ -399,7 +402,7 @@ func _refresh_compendium() -> void:
 		line.add_child(count)
 
 
-## Owned ids in the current sort: rarity (highest first, then oldest) or newest first.
+## Owned ids in the current sort: rarity/source (default) or newest first.
 func _sorted_owned() -> Array[StringName]:
 	var ids := ArtifactManager.get_owned_artifact_ids()
 	if sort_mode == Sort.NEWEST:
@@ -407,11 +410,9 @@ func _sorted_owned() -> Array[StringName]:
 			return ArtifactManager.get_acquisition_index(a) > ArtifactManager.get_acquisition_index(b))
 	else:
 		ids.sort_custom(func(a: StringName, b: StringName) -> bool:
-			var ra: int = ArtifactVisual.rarity_index(ArtifactManager.get_definition(a))
-			var rb: int = ArtifactVisual.rarity_index(ArtifactManager.get_definition(b))
-			if ra != rb:
-				return ra > rb
-			return ArtifactManager.get_acquisition_index(a) < ArtifactManager.get_acquisition_index(b))
+			return ArtifactSort.less_by_rarity_and_source(
+				ArtifactManager.get_definition(a), ArtifactManager.get_definition(b)
+			))
 	return ids
 
 

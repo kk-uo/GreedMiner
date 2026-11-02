@@ -1,6 +1,6 @@
 extends Node2D
 
-## Demon Prism: legendary, granted once by the Demon Lord, +100% projectile size
+## Demon Prism: legendary, granted once by the Demon Lord, +200% projectile size
 ## on the equipped weapon during battle. Runs against a throwaway save.
 const TestSave := preload("res://Tests/TestSave.gd")
 const GUN := "res://Scenes/Modules/Weapons/MachineGun/machine_gun.tscn"
@@ -54,7 +54,7 @@ func _run() -> void:
 	check(is_equal_approx(prism_gun.get_modified_projectile_range(base_projectile_range), base_projectile_range), "no projectile bonus before battle")
 	ArtifactManager.attach_battle_effects(ship)
 	check(is_equal_approx(prism_gun.get_modified_attack_range(base_range), base_range), "prism leaves targeting range unchanged")
-	check(is_equal_approx(prism_gun.get_modified_projectile_range(base_projectile_range), base_projectile_range * 2.0), "prism independently doubles projectile range")
+	check(is_equal_approx(prism_gun.get_modified_projectile_range(base_projectile_range), base_projectile_range * 3.0), "prism independently triples projectile size")
 	check(is_equal_approx(plain_gun.get_modified_attack_range(base_range), base_range), "other weapon unaffected")
 	check(is_equal_approx(plain_gun.get_modified_projectile_range(base_projectile_range), base_projectile_range), "other projectile range unaffected")
 	ArtifactManager.clear_battle_effects(ship)
@@ -73,7 +73,7 @@ func _run() -> void:
 	check(flame != null, "flamethrower installed")
 	if flame != null:
 		ArtifactManager.attach_battle_effects(ship2)
-		check(is_equal_approx(flame.get_flame_size_scale(), 2.0), "prism doubles flame puff size")
+		check(is_equal_approx(flame.get_flame_size_scale(), 3.0), "prism triples flame puff size")
 		ArtifactManager.clear_battle_effects(ship2)
 	ship2.queue_free()
 	await get_tree().process_frame
@@ -89,9 +89,9 @@ func _run() -> void:
 	if laser != null:
 		check(is_equal_approx(laser.get_effective_beam_width(), 6.0), "Laser begins with a 6 px beam")
 		ArtifactManager.attach_battle_effects(ship3)
-		check(is_equal_approx(laser.get_effective_beam_width(), 12.0), "prism doubles Laser visual and collision width")
+		check(is_equal_approx(laser.get_effective_beam_width(), 60.0), "prism makes Laser visual and collision width tenfold")
 		laser._update_beam_length()
-		check(is_equal_approx(laser._beam.width, 12.0), "Laser visual follows prism width")
+		check(is_equal_approx(laser._beam.width, 60.0), "Laser visual follows prism width")
 		ArtifactManager.clear_battle_effects(ship3)
 	ship3.queue_free()
 	await get_tree().process_frame
@@ -106,9 +106,9 @@ func _run() -> void:
 	if heavy != null:
 		check(is_equal_approx(heavy.beam_width, 60.0), "Heavy Laser beam is ten times base Laser width")
 		ArtifactManager.attach_battle_effects(ship4)
-		check(is_equal_approx(heavy.get_modified_projectile_range(heavy.beam_width), 120.0), "prism doubles Heavy Laser collision width")
+		check(is_equal_approx(heavy.get_modified_beam_width(heavy.beam_width), 600.0), "prism makes Heavy Laser collision width tenfold")
 		heavy._update_beam()
-		check(is_equal_approx(heavy._beam.width, 120.0), "Heavy Laser visual follows prism width")
+		check(is_equal_approx(heavy._beam.width, 600.0), "Heavy Laser visual follows prism width")
 		ArtifactManager.clear_battle_effects(ship4)
 	ship4.queue_free()
 	await get_tree().process_frame

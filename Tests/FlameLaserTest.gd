@@ -2,6 +2,7 @@ extends Node
 
 const WEAPON := preload("res://Scenes/Modules/Weapons/Fusion/flame_laser.tscn")
 const ENEMY := preload("res://Scenes/Enemies/little_rock.tscn")
+const ANCIENT_DRAGON := preload("res://Scenes/Enemies/DragonNest/ancient_dragon.tscn")
 const SHIP := preload("res://Scenes/Ship/ship.tscn")
 const ENERGY_PATH := "res://Scenes/Modules/Energy/energy_module.tscn"
 const FLAME_PATH := "res://Scenes/Modules/Weapons/Flamethrower/flamethrower.tscn"
@@ -30,36 +31,47 @@ func _run() -> void:
 	add_child(weapon)
 	weapon.set_process(false)
 	_check(weapon.attack_kind == FusionWeapon.AttackKind.BEAM, "fusion is a beam weapon")
-	_check(is_equal_approx(weapon.attack_range, 800.0), "targeting range is 800 px")
+	_check(is_equal_approx(weapon.attack_range, 600.0), "targeting range is 600 px")
 	_check(is_equal_approx(weapon.basic_damage, 1.0), "base damage is one")
 	_check(is_equal_approx(weapon.attack_interval, 0.1), "base tick interval is 0.1 s")
-	_check(is_equal_approx(float(weapon.get("doubling_interval")), 0.5), "doubling interval is 0.5 s")
-	_check(is_equal_approx(float(weapon.get("maximum_tick_damage")), 500.0), "damage cap is 500 per tick")
-	_check(weapon.get_power_consumption() == 3, "combined power cost is three")
+	_check(is_equal_approx(weapon.rotation_speed, 120.0), "Flame Laser rotates at 120 degrees per second")
+	_check(is_equal_approx(float(weapon.get("doubling_interval")), 1.0), "doubling interval is 1.0 s")
+	_check(is_equal_approx(float(weapon.get("maximum_tick_damage")), 256.0), "damage cap is 256 per tick")
+	_check(weapon.get_power_consumption() == 4, "combined power cost is four")
 	ResearchManager.progress.levels[research_key] = 2
 	_check(is_equal_approx(weapon.get_damage(), 1.2), "fusion research scales base tick damage")
+	ResearchManager.progress.levels[research_key] = 30
+	_check(is_equal_approx(weapon.get_damage(), 6.8), "Level 30 starts at 6.8 damage per tick")
 	ResearchManager.progress.levels[research_key] = 1
 	weapon.projectile_hit.connect(func(_enemy: BasicEnemy, _amount: float) -> void: projectile_hits += 1)
 
 	var target := _enemy(Vector2(300.0, 0.0))
 	var bystander := _enemy(Vector2(150.0, 0.0))
+	var turret := weapon.get_node("Turret") as Node2D
 	weapon.current_target = target
+	target.position = Vector2(650.0, 0.0)
+	turret.rotation = PI
+	weapon._process(0.1)
+	_check(weapon.current_target == target, "turning behind an out-of-range target does not lose lock")
+	_check(is_equal_approx(target.get_current_health(), target.max_health), "locked target outside range takes no damage")
+	_check(is_equal_approx(bystander.get_current_health(), bystander.max_health), "closer enemy does not steal the lock")
+	target.position = Vector2(300.0, 0.0)
+	turret.rotation = 0.0
 	weapon._process(0.0)
 	_check(is_equal_approx(target.max_health - target.get_current_health(), 1.0), "first lock deals one damage")
 	_check(is_equal_approx(bystander.get_current_health(), bystander.max_health), "beam does not pierce another enemy")
-	for index in range(4):
+	for index in range(9):
 		weapon.fire()
-	_check(is_equal_approx(target.max_health - target.get_current_health(), 5.0), "first five ticks deal base damage")
+	_check(is_equal_approx(target.max_health - target.get_current_health(), 10.0), "first ten ticks deal base damage")
 	weapon.fire()
-	_check(is_equal_approx(target.max_health - target.get_current_health(), 7.0), "sixth tick doubles to two")
-	for index in range(40):
+	_check(is_equal_approx(target.max_health - target.get_current_health(), 12.0), "eleventh tick doubles to two")
+	for index in range(69):
 		weapon.fire()
 	var before_cap := target.get_current_health()
 	weapon.fire()
-	_check(is_equal_approx(before_cap - target.get_current_health(), 500.0), "ramp caps individual tick at 500")
+	_check(is_equal_approx(before_cap - target.get_current_health(), 256.0), "ramp caps individual tick at 256")
 	_check(projectile_hits == 0, "continuous beam emits no projectile hit event")
 
-	var turret := weapon.get_node("Turret") as Node2D
 	turret.rotation = PI
 	weapon.current_target = bystander
 	weapon._process(0.0)
@@ -70,13 +82,32 @@ func _run() -> void:
 	weapon.add_artifact_fire_rate_bonus(Callable(self, "_double_fire_rate"))
 	_check(is_equal_approx(weapon.get_fire_rate(), 20.0), "attack speed doubles tick frequency")
 	var previous_health := bystander.get_current_health()
-	for index in range(5):
+	for index in range(10):
 		weapon._process(0.05)
-	_check(is_equal_approx(previous_health - bystander.get_current_health(), 6.0), "five boosted ticks reach doubled damage in 0.25 s")
+	_check(is_equal_approx(previous_health - bystander.get_current_health(), 11.0), "ten boosted ticks reach doubled damage in 0.5 s")
 	weapon.remove_artifact_fire_rate_bonus(Callable(self, "_double_fire_rate"))
+
+	var boss := ANCIENT_DRAGON.instantiate() as AncientDragon
+	add_child(boss)
+	boss.set_physics_process(false)
+	boss.global_position = Vector2(300.0, 0.0)
+	weapon.current_target = boss
+	turret.rotation = 0.0
+	weapon._process(0.0)
+	weapon._doublings = 5
+	boss.take_damage(AncientDragon.SEGMENT_HP - 2.0)
+	weapon.fire()
+	_check(boss.segments_broken == 1, "Flame Laser can break one Ancient Dragon health segment")
+	boss._begin_dive_qte()
+	boss.force_resolve_dive_for_testing(true)
+	var next_segment_before := boss.get_current_health()
+	weapon.fire()
+	_check(is_equal_approx(next_segment_before - boss.get_current_health(), 1.0), "a new boss health segment resets Flame Laser to base damage")
+	_check(weapon._doublings == 0, "boss segment switch clears Flame Laser ramp stacks")
 	ResearchManager.progress.levels[research_key] = saved_research_level
 
 	weapon.queue_free()
+	boss.queue_free()
 	target.queue_free()
 	bystander.queue_free()
 	var temp_dir := OS.get_environment("TMPDIR")

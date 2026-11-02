@@ -1,3 +1,4 @@
+class_name TurretRangeIndicator
 extends Node2D
 
 ## Battle-only overlay: the attack range of the weapon the player clicked,
@@ -35,14 +36,38 @@ func toggle(module: Node2D, range_radius: float) -> void:
 	if module == null or (visible and module == target):
 		hide_ring()
 		return
+	show_range(module, range_radius)
+
+
+## Explicit show path used by manual turret selection. Unlike toggle(), this
+## never hides a range that is already visible for the same weapon.
+func show_range(module: Node2D, range_radius: float) -> void:
+	if module == null:
+		hide_ring()
+		return
+	var changed_target := module != target or _hull_ship != null
 	target = module
-	radius = range_radius
+	radius = maxf(range_radius, 0.0)
 	_hull_ship = null
-	_age = 0.0
+	if changed_target or not visible:
+		_age = 0.0
 	visible = true
 	set_process(true)
 	_follow()
 	queue_redraw()
+
+
+## Keeps the visible ring synchronized with live range modifiers without
+## replaying its opening animation every frame.
+func update_range(module: Node2D, range_radius: float) -> void:
+	if visible and module == target and _hull_ship == null:
+		radius = maxf(range_radius, 0.0)
+		queue_redraw()
+
+
+func hide_for(module: Node2D) -> void:
+	if module == target:
+		hide_ring()
 
 
 ## Knockback-style range: everything within margin of the ship hull

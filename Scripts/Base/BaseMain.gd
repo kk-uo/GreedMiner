@@ -12,12 +12,13 @@ const PLANET_SELECT_SCENE_PATH: String = "res://Scenes/PlanetSelection/planet_se
 ## Gap between the loadout panel and the window edge, in UI units.
 const PANEL_MARGIN: float = 16.0
 
-enum ViewState { OVERVIEW, ZOOMING, ASSEMBLY, LABORATORY, WAREHOUSE, MAGIC_STALL }
+enum ViewState { OVERVIEW, ZOOMING, ASSEMBLY, LABORATORY, WAREHOUSE, MAGIC_STALL, MAGIC_SHOP }
 
 const WarehousePanelScript := preload("res://Scripts/UI/WarehousePanel.gd")
 const HANGAR_TURRET_IDLE := preload("res://Scripts/Base/HangarTurretIdle.gd")
 const TutorialGuideScript := preload("res://Scripts/UI/TutorialGuide.gd")
 const MagicStallPanelScript := preload("res://Scripts/UI/MagicStallPanel.gd")
+const MagicShopPanelScript := preload("res://Scripts/UI/MagicShopPanel.gd")
 const ArtifactTutorialHintScript := preload("res://Scripts/UI/ArtifactTutorialHint.gd")
 
 ## Camera zoom while assembling the ship.
@@ -60,11 +61,24 @@ var _ship_drag_original_z_index: int = 0
 var _fusion_in_progress: bool = false
 var _fusion_indicator: FusionProgressIndicator
 var _fusion_tween: Tween
+var _fusion_source_module: Node2D
+var _fusion_target_module: Node2D
+var _fusion_center: Vector2
+var _fusion_dir: Vector2 = Vector2.LEFT
+var _fusion_start_offset: float = 0.0
+var _fusion_saved: Dictionary = {}
 ## Warehouse modal (built in code, see _build_warehouse). It opens from the
 ## vault door hotspot in the asteroid's bottom-right wall.
 var warehouse_panel: Control
 var magic_stall_panel: MagicStallPanel
+var magic_shop_panel: MagicShopPanel
 var artifact_tutorial_hint: ArtifactTutorialHint
+var _expansion_panel: PanelContainer
+var _expansion_info: Label
+var _expansion_button: Button
+var _expansion_guide: Label
+var _expansion_skip: Button
+const EXPANSION_GUIDE_SECTION: StringName = &"ship_expansion_guide"
 
 
 func _ready() -> void:
@@ -73,10 +87,13 @@ func _ready() -> void:
 	_connect_once(ship.cell_deselected, _on_ship_cell_deselected)
 	_connect_once(ship.energy_changed, _on_ship_energy_changed)
 	_connect_once(ship.module_operation_failed, _on_module_operation_failed)
+	_connect_once(ship.expansion_cell_requested, _on_expansion_cell_requested)
 	_connect_once(loadout_panel.install_requested, _on_install_requested)
 	_connect_once(loadout_panel.module_card_pressed, _on_module_card_pressed)
 	_connect_once(loadout_panel.remove_requested, _on_remove_requested)
 	_connect_once(loadout_panel.drag_started, _on_drag_started)
+	# The artifact / chip picker opens on the left, where the expansion panel sits.
+	_connect_once(loadout_panel.storage_toggled, _on_storage_toggled)
 	_connect_once(back_button.pressed, _exit_assembly)
 	_connect_once(laboratory_panel.close_requested, _close_laboratory)
 	_connect_once(settings_menu.main_menu_requested, _show_toast.bind("MAIN MENU  ·  COMING SOON"))
@@ -87,8 +104,10 @@ func _ready() -> void:
 
 	_build_warehouse()
 	_build_magic_stall()
+	_build_magic_shop()
 	_build_tutorial()
 	_build_artifact_tutorial_hint()
+	_build_expansion_panel()
 	loadout_panel.set_power(ship.total_power_consumption, ship.total_power_capacity)
 	loadout_panel.set_slot(-1, -1, &"")
 	_drop_marker = DropMarker.new()
@@ -206,6 +225,8 @@ func get_module_notice(module_id: StringName) -> String:
 		return ""
 	if ResearchManager.get_level(BATTERY_LIMIT_RESEARCH) < 1:
 		return tr("BATTERY LIMIT REACHED (%d/%d)  ·  Research ENERGY MODULE EXPANSION I in the Laboratory for one more") % [count, limit]
+	if ResearchManager.get_level(&"energy_install_slot_3") < 1:
+		return tr("BATTERY LIMIT REACHED (%d/%d)  ·  Research THIRD ENERGY MODULE in the Laboratory for one more") % [count, limit]
 	return tr("BATTERY LIMIT REACHED (%d/%d)") % [count, limit]
 
 
@@ -280,8 +301,11 @@ func _handle_ship_remove_input(event: InputEvent) -> bool:
 
 func _update_drag() -> void:
 	if _drag_ghost != null:
-		var mouse := ui_root.screen_to_ui(get_viewport().get_mouse_position())
-		_drag_ghost.position = mouse - Vector2(32.0, 32.0)
+		# Local to the ghost's own parent, so every canvas / stretch / UI-scale
+		# transform is accounted for and the ghost stays centred on the cursor
+		# (screen_to_ui only divided by the UI scale, so it drifted off).
+		var half := _drag_ghost.size * 0.5 if _drag_ghost.size.x > 0.0 else Vector2(32.0, 32.0)
+		_drag_ghost.position = ui_root.get_local_mouse_position() - half
 	var cell := ship.get_cell_at_global(get_global_mouse_position())
 	_drop_marker.show_cell(cell, _drop_allowed(_drag_id, cell))
 
@@ -450,22 +474,31 @@ func _start_weapon_fusion(source: Vector2i, target: Vector2i, recipe: Dictionary
 		return false
 	_fusion_in_progress = true
 	ship.cell_input_enabled = false
+	var duration := float(recipe.get("duration", WeaponFusionRegistry.FUSION_DURATION_SECONDS))
+	_begin_fusion_forge(source, target)
 	_fusion_indicator = FusionProgressIndicator.new()
 	_fusion_indicator.label_text = tr("FUSING  ·  %s") % tr(String(recipe.get("display_name", "WEAPON")))
-	_fusion_indicator.position = ship.get_cell_center(target.x, target.y)
+	_fusion_indicator.position = _fusion_center
+	_fusion_indicator.duration = duration
+	_fusion_indicator.direction = _fusion_dir
 	ship.add_child(_fusion_indicator)
 	var source_path := ShipLoadout.get_module(source.x, source.y)
 	var target_path := ShipLoadout.get_module(target.x, target.y)
 	_fusion_tween = create_tween()
 	_fusion_tween.set_trans(Tween.TRANS_LINEAR)
-	_fusion_tween.tween_property(_fusion_indicator, "progress", 1.0, float(recipe.get("duration", WeaponFusionRegistry.FUSION_DURATION_SECONDS)))
+	_fusion_tween.tween_method(_update_fusion_forge, 0.0, 1.0, duration)
 	_fusion_tween.tween_callback(func() -> void:
 		var unchanged := (
 			ShipLoadout.get_module(source.x, source.y) == source_path
 			and ShipLoadout.get_module(target.x, target.y) == target_path
 		)
+		_restore_fusion_forge()
 		var completed := unchanged and ship.fuse_modules(source, target, result_scene)
 		if completed:
+			var result_module := ship.get_module_at(target.x, target.y)
+			if is_instance_valid(_fusion_indicator) and result_module != null:
+				_fusion_indicator.play_reveal(result_module)
+				_fusion_indicator = null
 			ShipLoadout.save()
 			ship.select_cell(target.x, target.y)
 			loadout_panel.set_slot(target.x, target.y, StringName(recipe.get("result_id", &"")))
@@ -478,7 +511,67 @@ func _start_weapon_fusion(source: Vector2i, target: Vector2i, recipe: Dictionary
 	return true
 
 
+## Remembers the two real module nodes so the forge animation can move them.
+func _begin_fusion_forge(source: Vector2i, target: Vector2i) -> void:
+	_fusion_saved.clear()
+	_fusion_center = ship.get_cell_center(target.x, target.y)
+	_fusion_source_module = ship.get_module_at(source.x, source.y)
+	_fusion_target_module = ship.get_module_at(target.x, target.y)
+	var start := _fusion_center
+	if is_instance_valid(_fusion_source_module):
+		start = _fusion_source_module.position
+	var away := start - _fusion_center
+	if away.length() < 6.0:
+		away = ship.get_cell_center(source.x, source.y) - _fusion_center
+	_fusion_dir = away.normalized() if away.length() > 0.01 else Vector2.LEFT
+	_fusion_start_offset = minf((start - _fusion_center).dot(_fusion_dir), 60.0)
+	for module: Node2D in [_fusion_source_module, _fusion_target_module]:
+		if is_instance_valid(module):
+			_fusion_saved[module] = [module.scale, module.modulate, module.z_index]
+	if is_instance_valid(_fusion_source_module):
+		_fusion_source_module.z_index = maxi(_fusion_source_module.z_index, 10)
+
+
+## Forge hammer: the dragged weapon winds back and slams into the target three
+## times, both glowing hotter with every hit, then sinks into it.
+func _update_fusion_forge(u: float) -> void:
+	if is_instance_valid(_fusion_indicator):
+		_fusion_indicator.progress = u
+	var pose := FusionProgressIndicator.forge_pose(u, _fusion_start_offset)
+	var shake: float = pose["shake"]
+	var jolt := Vector2(randf_range(-shake, shake), randf_range(-shake, shake))
+	var squash: float = pose["squash"]
+	var heat: float = pose["heat"]
+	var squash_scale := Vector2(squash, 2.0 - squash)
+	if is_instance_valid(_fusion_source_module) and _fusion_saved.has(_fusion_source_module):
+		var saved: Array = _fusion_saved[_fusion_source_module]
+		_fusion_source_module.position = _fusion_center + _fusion_dir * float(pose["offset"]) + jolt
+		_fusion_source_module.scale = (saved[0] as Vector2) * squash_scale
+		_fusion_source_module.modulate = FusionProgressIndicator.heat_color(saved[1] as Color, heat)
+	if is_instance_valid(_fusion_target_module) and _fusion_saved.has(_fusion_target_module):
+		var saved_t: Array = _fusion_saved[_fusion_target_module]
+		_fusion_target_module.position = _fusion_center - _fusion_dir * float(pose["push"]) + jolt
+		_fusion_target_module.scale = (saved_t[0] as Vector2) * squash_scale
+		_fusion_target_module.modulate = FusionProgressIndicator.heat_color(saved_t[1] as Color, heat)
+
+
+func _restore_fusion_forge() -> void:
+	for module: Variant in _fusion_saved.keys():
+		if is_instance_valid(module):
+			var node := module as Node2D
+			var saved: Array = _fusion_saved[module]
+			node.scale = saved[0]
+			node.modulate = saved[1]
+			node.z_index = saved[2]
+	if is_instance_valid(_fusion_target_module):
+		_fusion_target_module.position = _fusion_center
+	_fusion_saved.clear()
+	_fusion_source_module = null
+	_fusion_target_module = null
+
+
 func _finish_weapon_fusion() -> void:
+	_restore_fusion_forge()
 	_fusion_in_progress = false
 	if is_instance_valid(_fusion_indicator):
 		_fusion_indicator.queue_free()
@@ -519,7 +612,7 @@ func _drop_allowed(module_id: StringName, cell: Vector2i) -> bool:
 	var new_stats := ModuleCatalog.get_stats(module_id)
 	var old_stats := ModuleCatalog.get_stats(old_id) if old_id != &"" else {}
 	var used: int = ship.total_power_consumption + int(new_stats.get("power_cost", 0)) - int(old_stats.get("power_cost", 0))
-	var capacity: int = ship.total_power_capacity + int(new_stats.get("power_capacity", 0)) - int(old_stats.get("power_capacity", 0))
+	var capacity: float = ship.total_power_capacity + float(new_stats.get("power_capacity", 0.0)) - float(old_stats.get("power_capacity", 0.0))
 	return used <= capacity
 
 
@@ -567,9 +660,9 @@ class DropMarker:
 
 
 func _on_ship_energy_changed(
-	power_capacity: int,
+	power_capacity: float,
 	power_consumption: int,
-	_available_power: int,
+	_available_power: float,
 	_expansion_capacity: int
 ) -> void:
 	loadout_panel.set_power(power_consumption, power_capacity)
@@ -577,6 +670,90 @@ func _on_ship_energy_changed(
 
 func _on_module_operation_failed(reason: String) -> void:
 	loadout_panel.show_message(reason)
+
+
+## Small functional expansion control on the Hangar's left side. The dashed
+## outer ring itself is drawn and clicked by Ship, so this UI is replaceable.
+func _build_expansion_panel() -> void:
+	_expansion_panel = PanelContainer.new()
+	_expansion_panel.name = "ShipExpansionPanel"
+	_expansion_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_expansion_panel.position = Vector2(16, 92)
+	_expansion_panel.custom_minimum_size = Vector2(220, 0)
+	_expansion_panel.add_theme_stylebox_override("panel", Palette.make_panel_style(Palette.UI_PANEL, 10, 12.0))
+	ui_root.add_child(_expansion_panel)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 8)
+	_expansion_panel.add_child(content)
+	var title := Label.new()
+	title.text = "SHIP EXPANSION"
+	title.add_theme_color_override("font_color", Palette.ACCENT)
+	content.add_child(title)
+	_expansion_info = Label.new()
+	_expansion_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_expansion_info.add_theme_color_override("font_color", Palette.UI_TEXT)
+	content.add_child(_expansion_info)
+	_expansion_button = Button.new()
+	_expansion_button.pressed.connect(_on_expansion_button_pressed)
+	content.add_child(_expansion_button)
+	_expansion_guide = Label.new()
+	_expansion_guide.text = "NEW: Choose a dashed cell around the ship to add a module slot. The four corners cannot be expanded."
+	_expansion_guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_expansion_guide.add_theme_color_override("font_color", Palette.GOLD)
+	content.add_child(_expansion_guide)
+	_expansion_skip = Button.new()
+	_expansion_skip.text = "SKIP GUIDE"
+	_expansion_skip.pressed.connect(_complete_expansion_guide)
+	content.add_child(_expansion_skip)
+	_expansion_panel.hide()
+
+
+func _on_storage_toggled(_open: bool) -> void:
+	_refresh_expansion_panel()
+
+
+func _refresh_expansion_panel() -> void:
+	var capacity := ResearchManager.get_ship_hull_slot_capacity()
+	var used := ShipLoadout.expanded_cell_indices.size()
+	_expansion_panel.visible = _view_state == ViewState.ASSEMBLY and capacity > 0 and not loadout_panel.is_storage_open()
+	if not _expansion_panel.visible:
+		ship.expansion_selection_enabled = false
+		return
+	_expansion_info.text = tr("Expanded slots: %d / %d") % [used, capacity]
+	_expansion_button.disabled = used >= capacity
+	_expansion_button.text = tr("CANCEL EXPANSION") if ship.expansion_selection_enabled else tr("CHOOSE A SLOT")
+	var guide_pending := not bool(ProgressionStore.get_section(EXPANSION_GUIDE_SECTION).get("completed", false))
+	_expansion_guide.visible = guide_pending
+	_expansion_skip.visible = guide_pending
+	if used >= capacity:
+		ship.expansion_selection_enabled = false
+		_expansion_button.text = tr("ALL SLOTS PLACED")
+	elif not ResearchManager.is_energy_slot_expansion_supported():
+		_expansion_button.disabled = true
+		_expansion_info.text += "\n" + tr("Research Expandable Cells in the Energy tree first.")
+
+
+func _on_expansion_button_pressed() -> void:
+	ship.expansion_selection_enabled = not ship.expansion_selection_enabled
+	_refresh_expansion_panel()
+
+
+func _on_expansion_cell_requested(index: int) -> void:
+	if _view_state != ViewState.ASSEMBLY or not ship.expansion_selection_enabled:
+		return
+	if not ShipLoadout.add_expansion_cell(index):
+		_show_toast(tr("Unable to expand this ship slot."), NOTICE_TIME)
+		return
+	ship.expansion_selection_enabled = false
+	_complete_expansion_guide()
+	_refresh_expansion_panel()
+	ship.select_cell(ShipLoadout.EXPANSION_ROW, index)
+	_show_toast(tr("Ship slot added. Install any compatible module here."), NOTICE_TIME)
+
+
+func _complete_expansion_guide() -> void:
+	ProgressionStore.set_section(EXPANSION_GUIDE_SECTION, {"completed": true})
+	_refresh_expansion_panel()
 
 
 func _on_viewport_size_changed() -> void:
@@ -648,6 +825,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					AsteroidHangar.HOTSPOT_MAGIC_STALL:
 						open_magic_stall()
 						get_viewport().set_input_as_handled()
+					AsteroidHangar.HOTSPOT_MAGIC_SHOP:
+						open_magic_shop()
+						get_viewport().set_input_as_handled()
 		ViewState.ASSEMBLY:
 			if (
 				event is InputEventMouseButton
@@ -679,6 +859,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		ViewState.MAGIC_STALL:
 			if event.is_action_pressed("ui_cancel"):
 				close_magic_stall()
+				get_viewport().set_input_as_handled()
+		ViewState.MAGIC_SHOP:
+			if event.is_action_pressed("ui_cancel"):
+				close_magic_shop()
 				get_viewport().set_input_as_handled()
 
 
@@ -794,6 +978,37 @@ func close_magic_stall() -> void:
 	_update_hover()
 
 
+func _build_magic_shop() -> void:
+	if magic_shop_panel != null:
+		return
+	magic_shop_panel = MagicShopPanelScript.new()
+	magic_shop_panel.name = "MagicShopPanel"
+	ui_root.add_child(magic_shop_panel)
+	ui_root.move_child(magic_shop_panel, laboratory_panel.get_index() + 1)
+	magic_shop_panel.close_requested.connect(close_magic_shop)
+
+
+func open_magic_shop() -> void:
+	if _view_state != ViewState.OVERVIEW:
+		return
+	if not ArtifactManager.is_shop_unlocked():
+		_show_toast(tr("MAGIC SHOP · CLEAR VERDANT PLANET TO UNLOCK"), NOTICE_TIME)
+		return
+	_view_state = ViewState.MAGIC_SHOP
+	_clear_hover()
+	hangar.show_tags = false
+	magic_shop_panel.open_panel()
+
+
+func close_magic_shop() -> void:
+	if _view_state != ViewState.MAGIC_SHOP:
+		return
+	magic_shop_panel.close_panel()
+	_view_state = ViewState.OVERVIEW
+	hangar.show_tags = true
+	_update_hover()
+
+
 func _build_artifact_tutorial_hint() -> void:
 	if not ArtifactManager.tutorial_pending or ArtifactManager.tutorial_completed:
 		return
@@ -868,6 +1083,7 @@ func _enter_assembly() -> void:
 		_view_state = ViewState.ASSEMBLY
 		_slide_panel(true)
 		ship.cell_input_enabled = true
+		_refresh_expansion_panel()
 		back_button.modulate.a = 0.0
 		back_button.show()
 		create_tween().tween_property(back_button, "modulate:a", 1.0, 0.15)
@@ -880,6 +1096,8 @@ func _exit_assembly() -> void:
 		return
 	_view_state = ViewState.ZOOMING
 	ship.cell_input_enabled = false
+	ship.expansion_selection_enabled = false
+	_expansion_panel.hide()
 	ship.clear_selection()
 	_on_ship_cell_deselected()
 	back_button.hide()
@@ -934,7 +1152,7 @@ func _show_toast(text: String, hold: float = 1.4) -> void:
 		label.add_theme_color_override("font_color", Palette.UI_TEXT)
 		_toast.add_child(label)
 		ui_root.add_child(_toast)
-	(_toast.get_node("Text") as Label).text = text
+	(_toast.get_node("Text") as Label).text = tr(text)
 	_toast.reset_size()
 	_toast.position = Vector2((ui_root.size.x - _toast.size.x) * 0.5, 24.0)
 	_toast.modulate.a = 0.0

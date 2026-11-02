@@ -453,7 +453,7 @@ func _power_full() -> bool:
 	var ship := base.get("ship") as Node
 	if ship == null:
 		return false
-	var free := int(ship.get("total_power_capacity")) - int(ship.get("total_power_consumption"))
+	var free := float(ship.get("total_power_capacity")) - float(ship.get("total_power_consumption"))
 	var gun_cost := int(ModuleCatalog.get_stats(&"machine_gun").get("power_cost", 1))
 	return free < maxi(gun_cost, 1) or ShipLoadout.installed_modules.size() >= 9
 

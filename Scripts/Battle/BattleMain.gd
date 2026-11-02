@@ -15,6 +15,8 @@ const VOLCANIC_WAVE_CONFIG: PlanetWaveConfig = preload(
 const FROZEN_WAVE_CONFIG: PlanetWaveConfig = preload("res://Resources/Waves/FrozenPlanetWaves.tres")
 const GRAVEYARD_WAVE_CONFIG: PlanetWaveConfig = preload("res://Resources/Waves/GraveyardPlanetWaves.tres")
 const TREE_WAVE_CONFIG: PlanetWaveConfig = preload("res://Resources/Waves/TreePlanetWaves.tres")
+const DRAGON_NEST_WAVE_CONFIG: PlanetWaveConfig = preload("res://Resources/Waves/DragonNestPlanetWaves.tres")
+const DRAGON_NEST_CONTROLLER := preload("res://Scripts/Battle/DragonNest/DragonNestController.gd")
 const EXPEDITION_CONFIGS: Dictionary = {
 	&"graveyard_planet": {
 		"wave_config": GRAVEYARD_WAVE_CONFIG,
@@ -40,6 +42,11 @@ const EXPEDITION_CONFIGS: Dictionary = {
 		"wave_config": TREE_WAVE_CONFIG,
 		"theme": &"forest",
 	},
+	&"dragon_nest_planet": {
+		"wave_config": DRAGON_NEST_WAVE_CONFIG,
+		"theme": &"dragon_nest",
+		"map_seed": DragonNestRules.MAP_SEED,
+	},
 }
 
 @onready var ore_label: Label = $BattleUI/UIRoot/OreCounter/HBoxContainer/OreLabel
@@ -59,11 +66,16 @@ const EXPEDITION_CONFIGS: Dictionary = {
 @onready var mining_qte_manager: MiningQteManager = get_node_or_null("MiningQteManager") as MiningQteManager
 
 var _battle_ended: bool = false
+const EVACUATION_UNLOCK_WAVE: int = 3
+var _evacuation_wave_unlocked: bool = false
 const DWARF_MINING_CONTROLLER := preload("res://Scripts/Mining/DwarfMiningController.gd")
 const MANUAL_TURRET_CONTROLLER := preload("res://Scripts/Battle/ManualTurretController.gd")
 var _dwarf_mining: Node2D
 var _manual_turret_controller: Node2D
 const FOREST_STORMS := preload("res://Scripts/Battle/Forest/ForestStormController.gd")
+const FOREST_TREANT_BATCH := preload("res://Scripts/Battle/Forest/ForestTreantBatch.gd")
+const FOREST_TREANT_SCHEDULER := preload("res://Scripts/Battle/Forest/ForestTreantScheduler.gd")
+const FOREST_PERFORMANCE := preload("res://Scripts/Battle/Forest/ForestPerformanceMonitor.gd")
 const FOREST_SETTINGS: ForestPlanetSettings = preload("res://Resources/Forest/ForestPlanetSettings.tres")
 const FOREST_ROOT := preload("res://Scripts/Battle/Forest/ForestRoot.gd")
 const STRANDED_DWARF := preload("res://Scripts/Battle/Forest/StrandedDwarfMarker.gd")
@@ -72,6 +84,7 @@ var _forest_storms: ForestStormController
 var _forest_rings: ForestRingRaise
 var _forest_boss: ForestBoss
 var _forest_root: ForestRoot
+var _dragon_nest: DragonNestController
 
 func freeze_ship_input(duration: float) -> void:
 	if not _battle_ended:
@@ -90,6 +103,7 @@ const BATTLE_END_BEAT := preload("res://Scripts/VFX/BattleEndBeat.gd")
 ## Per-battle tallies and the end-of-battle result board (user pick C).
 const RESULT_BOARD := preload("res://Scripts/UI/Result/ResultBoard.gd")
 var _stats: BattleStats
+var _weather_sfx: WeatherSfx
 var _result_board: Control
 var _frost_visual: Node2D
 
@@ -129,8 +143,7 @@ func _input(event: InputEvent) -> void:
 	var local_event := make_input_local(button) as InputEventMouseButton
 	var world_position := to_global(local_event.position)
 	for node in get_tree().get_nodes_in_group("boss_qte_targets"):
-		var boss := node as DemonLord
-		if boss != null and boss.route_qte_click(world_position):
+		if node.has_method("route_qte_click") and bool(node.call("route_qte_click", world_position)):
 			get_viewport().set_input_as_handled()
 			return
 
@@ -153,12 +166,18 @@ func _ready() -> void:
 	$WeatherManager.ship_freeze_changed.connect(_on_ship_freeze_changed)
 	ArtifactManager.set_equipment_changes_enabled(false)
 	_configure_current_expedition()
+	evacuation_panel.set_wave_gate_locked(true, EVACUATION_UNLOCK_WAVE)
+	if battlefield.planet_theme == &"dragon_nest":
+		_dragon_nest = DRAGON_NEST_CONTROLLER.new() as DragonNestController
+		_dragon_nest.name = "DragonNestController"
+		_dragon_nest.configure(self, battlefield, ship, wave_manager, $Enemies)
+		add_child(_dragon_nest)
+	_dwarf_mining = DWARF_MINING_CONTROLLER.new()
+	_dwarf_mining.battle = self
+	_dwarf_mining.ship = ship
+	_dwarf_mining.field = battlefield
+	add_child(_dwarf_mining)
 	if battlefield.planet_theme == &"rocky" or battlefield.planet_theme == &"forest" or battlefield.has_planet_ores():
-		_dwarf_mining = DWARF_MINING_CONTROLLER.new()
-		_dwarf_mining.battle = self
-		_dwarf_mining.ship = ship
-		_dwarf_mining.field = battlefield
-		add_child(_dwarf_mining)
 		_build_mining_tutorial()
 	if battlefield.planet_theme == &"forest":
 		_forest_storms = FOREST_STORMS.new() as ForestStormController
@@ -175,13 +194,30 @@ func _ready() -> void:
 		_forest_storms.maximum_respawns_per_frame = FOREST_SETTINGS.maximum_respawns_per_frame
 		add_child(_forest_storms)
 		move_child(_forest_storms, $BattleUI.get_index())
+		var treant_batch: Node2D = FOREST_TREANT_BATCH.new()
+		treant_batch.name = "ForestTreantBatch"
+		# Every treant draws here: above the ship, below the other enemies,
+		# their death bursts and the projectiles.
+		add_child(treant_batch)
+		move_child(treant_batch, $Enemies.get_index())
+		var treant_scheduler: Node = FOREST_TREANT_SCHEDULER.new()
+		treant_scheduler.name = "ForestTreantScheduler"
+		add_child(treant_scheduler)
+		var forest_performance: Node = FOREST_PERFORMANCE.new()
+		forest_performance.name = "ForestPerformanceMonitor"
+		forest_performance.set("log_enabled", FOREST_SETTINGS.log_performance)
+		add_child(forest_performance)
 		_forest_rings = ForestRingRaise.new()
 		_forest_rings.name = "ForestRings"
 		_forest_rings.terrain = battlefield.forest_terrain
 		_forest_rings.wave_manager = wave_manager
 		_forest_rings.enemies = $Enemies
 		_forest_rings.ship = ship
+		_forest_rings.treant_batch = treant_batch
+		_forest_rings.treant_scheduler = treant_scheduler
+		_forest_rings.performance_monitor = forest_performance
 		_forest_rings.raise_duration = FOREST_SETTINGS.ring_raise_duration
+		_forest_rings.maximum_raises_per_frame = FOREST_SETTINGS.maximum_ring_raises_per_frame
 		add_child(_forest_rings)
 		$Enemies.child_entered_tree.connect(_on_forest_enemy_entered)
 	if battlefield.planet_theme == &"volcanic" and not battlefield.get_lava_emerge_points().is_empty():
@@ -194,6 +230,7 @@ func _ready() -> void:
 		emergence.enemies = $Enemies
 		add_child(emergence)
 	battlefield.crystal_broken.connect(_on_crystal_broken)
+	battlefield.risky_mine_golems_awakened.connect(_on_risky_mine_golems_awakened)
 	ArtifactManager.attach_battle_effects(ship)
 	if ResearchManager.is_manual_turret_control_unlocked():
 		_manual_turret_controller = MANUAL_TURRET_CONTROLLER.new() as Node2D
@@ -203,11 +240,18 @@ func _ready() -> void:
 	_range_indicator = TURRET_RANGE_INDICATOR.new()
 	_range_indicator.name = "TurretRangeIndicator"
 	add_child(_range_indicator)
+	if is_instance_valid(_manual_turret_controller):
+		_manual_turret_controller.call("set_range_indicator", _range_indicator)
 	game_over_panel.hide()
 	completion_panel.hide()
 	_stats = BattleStats.new()
 	_stats.name = "BattleStats"
 	add_child(_stats)
+	# Presentation: weather sounds (blizzard, storms, lightning, blood moon).
+	_weather_sfx = WeatherSfx.new()
+	_weather_sfx.name = "WeatherSfx"
+	_weather_sfx.weather = $WeatherManager
+	add_child(_weather_sfx)
 
 	if EVACUATION_TIP.should_watch():
 		_evacuation_tip = EVACUATION_TIP.new()
@@ -251,15 +295,11 @@ func _ready() -> void:
 	if not completion_return_button.pressed.is_connected(completion_return_callback):
 		completion_return_button.pressed.connect(completion_return_callback)
 
-	var preparation_callback := Callable(wave_hud, "show_preparation")
-	if not wave_manager.wave_preparation_started.is_connected(preparation_callback):
-		wave_manager.wave_preparation_started.connect(preparation_callback)
-	var countdown_callback := Callable(wave_hud, "update_preparation")
-	if not wave_manager.preparation_time_changed.is_connected(countdown_callback):
-		wave_manager.preparation_time_changed.connect(countdown_callback)
 	var wave_started_callback := Callable(wave_hud, "show_wave")
 	if not wave_manager.wave_started.is_connected(wave_started_callback):
 		wave_manager.wave_started.connect(wave_started_callback)
+	if not wave_manager.wave_completed.is_connected(_on_wave_completed):
+		wave_manager.wave_completed.connect(_on_wave_completed)
 	var remaining_callback := Callable(wave_hud, "update_remaining")
 	if not wave_manager.remaining_enemy_count_changed.is_connected(remaining_callback):
 		wave_manager.remaining_enemy_count_changed.connect(remaining_callback)
@@ -288,9 +328,10 @@ func _configure_current_expedition() -> void:
 	)
 	wave_manager.wave_config = config["wave_config"] as PlanetWaveConfig
 	var planet_theme := StringName(config["theme"])
-	if battlefield.planet_theme != planet_theme:
+	var selected_map_seed := int(config.get("map_seed", battlefield.get_map_seed()))
+	if battlefield.planet_theme != planet_theme or selected_map_seed != battlefield.get_map_seed():
 		battlefield.planet_theme = planet_theme
-		battlefield.generate(battlefield.get_map_seed())
+		battlefield.generate(selected_map_seed)
 	apply_planet_view(planet_theme)
 
 ## The boss only blocks escape once the player actually attempts takeoff. A
@@ -323,6 +364,15 @@ func _on_forest_boss_died(_enemy_id: StringName, _position: Vector2) -> void:
 		_forest_root.chop()
 	evacuation_panel.set_external_lock(false)
 
+
+func _on_wave_completed(wave_number: int, _total_waves: int) -> void:
+	if _battle_ended or _evacuation_wave_unlocked or wave_number < EVACUATION_UNLOCK_WAVE:
+		return
+	_evacuation_wave_unlocked = true
+	evacuation_panel.set_wave_gate_locked(false, EVACUATION_UNLOCK_WAVE)
+	if is_instance_valid(_evacuation_tip):
+		_evacuation_tip.check_critical_hull()
+
 func _stop_forest_storms() -> void:
 	if is_instance_valid(_forest_storms):
 		_forest_storms.stop_storms()
@@ -349,7 +399,9 @@ func _show_stranded_dwarves() -> void:
 var _planet_view_applied: bool = false
 
 func apply_planet_view(planet_theme: StringName) -> float:
-	var extra := float(Palette.planet(planet_theme).get("map_extra", 0.0))
+	# A theme may keep its bigger map but show less of it ("view_extra").
+	var theme := Palette.planet(planet_theme)
+	var extra := float(theme.get("view_extra", theme.get("map_extra", 0.0)))
 	if _planet_view_applied or extra <= 0.0 or ship == null or ship.world_camera == null:
 		return ship.world_camera.zoom.x if ship != null and ship.world_camera != null else 1.0
 	_planet_view_applied = true
@@ -429,6 +481,9 @@ func _on_evacuation_completed() -> void:
 	if _battle_ended or ship.current_hp <= 0.0:
 		evacuation_panel.set_battle_active(false)
 		return
+	if not _evacuation_wave_unlocked:
+		evacuation_panel.reset_attempt()
+		return
 	if is_instance_valid(_forest_boss) and not _forest_boss.is_dying() and not is_instance_valid(_forest_root):
 		_summon_forest_escape_root()
 		return
@@ -479,7 +534,9 @@ func _on_planet_completed(config: PlanetWaveConfig) -> void:
 	var unlocked_for_board: Array = []
 	if config != null:
 		completion_title_label.text = tr("%s CLEARED") % tr(config.display_name.to_upper())
-		var unlocked_ids := WeaponUnlockManager.record_planet_completion(config.planet_id)
+		var unlocked_ids: Array[StringName] = []
+		if not bool(get_meta("suppress_planet_completion_progress", false)):
+			unlocked_ids = WeaponUnlockManager.record_planet_completion(config.planet_id)
 		unlocked_for_board = Array(unlocked_ids)
 		if not unlocked_ids.is_empty():
 			var names: Array[String] = []
@@ -499,6 +556,8 @@ func _on_planet_completed(config: PlanetWaveConfig) -> void:
 func _freeze_stats() -> void:
 	if is_instance_valid(_stats):
 		_stats.freeze()
+	if is_instance_valid(_weather_sfx):
+		_weather_sfx.stop_all()
 
 
 func _planet_display_name() -> String:
@@ -540,8 +599,12 @@ func _on_completion_return_to_base_pressed() -> void:
 		return
 	completion_return_button.disabled = true
 	BASE_HOMECOMING.pending = {"kind": &"haul", "ore": ResourceManager.bank_current_mission_ore()}
+	# Presentation (Claude sync 101): the ship lands on the pad at the base,
+	# the same as after an evacuation or a wreck.
+	ShipLaunchController.landing_pending_at_base = true
 	var change_error := get_tree().change_scene_to_file(BASE_SCENE_PATH)
 	if change_error != OK:
+		ShipLaunchController.landing_pending_at_base = false
 		completion_return_button.disabled = false
 		push_error("BattleMain: Failed to return after completion: %s" % change_error)
 
@@ -647,6 +710,20 @@ func play_rocky_finale(titan_position: Vector2) -> void:
 	finale.set("battle", self)
 	finale.set("at", titan_position)
 	add_child(finale)
+
+
+## Extra enemies from the optional mine are outside scheduled wave quotas.
+func _on_risky_mine_golems_awakened(positions: Array[Vector2]) -> void:
+	if _battle_ended or battlefield.planet_theme != &"rocky":
+		return
+	var bounds := battlefield.get_world_bounds().grow(-40.0)
+	for position in positions:
+		var golem := EnemyCatalog.instantiate_enemy(&"rock_golem")
+		if golem == null:
+			continue
+		golem.target_ship = ship
+		$Enemies.add_child(golem)
+		golem.global_position = position.clamp(bounds.position, bounds.end)
 
 
 ## Crystal rewards are mission ore; the artifact itself is permanently saved.

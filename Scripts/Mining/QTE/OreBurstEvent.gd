@@ -44,6 +44,7 @@ var _pop_age: float = -1.0
 
 
 func _on_begin() -> void:
+	EnemySfx.play(get_module_position(), preload("res://Assets/Audio/Mining/qte_marker.wav"), -8.0, 0.0)
 	_rng.randomize()
 	show_click_label = QteStyleScript.claim_click_hint()
 	reward_per_click = MiningQteManager.calculate_reward_for_seconds(module, config.burst_reward_seconds_per_click)
@@ -118,6 +119,7 @@ func register_click() -> bool:
 	if is_module_valid():
 		module.play_qte_impact()
 	_spawn_click_effects()
+	EnemySfx.play(get_module_position(), preload("res://Assets/Audio/Mining/qte_burst_hit.wav"), -9.0, 0.12)
 	return true
 
 
